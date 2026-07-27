@@ -179,6 +179,7 @@ flowchart LR
 - Has no reference or code path to `AcquireTokenInteractive`. Broker/UI-required failures become a signed-out, sign-in-required, or broker-unavailable card with an action to open the companion.
 - Uses `Action.Execute` for refresh, Outlook, settings, and message actions. A message action carries only its bounded display slot and snapshot generation; it never embeds the Graph `webLink` or message ID in Adaptive Card JSON or `CustomState`.
 - On a message action, reloads the referenced snapshot, rejects a stale generation or invalid slot, validates the cached HTTPS `webLink` against the Outlook-host allowlist, and only then asks the system launcher to open it. `Action.OpenUrl` is not used in v1.
+- If the action's generation is stale, does not launch anything from either snapshot. It re-renders the currently committed snapshot and briefly shows “Inbox updated — choose the message again.”
 - `Program.cs` registers the provider factory with `CoRegisterClassObject`, owns provider process lifetime, revokes registration on shutdown, and exits after the last enabled widget is deleted.
 - Avoids widget customization APIs in v1; settings live in the companion, avoiding a currently documented customization-menu bug and keeping the provider smaller.
 
@@ -363,15 +364,16 @@ Sources:
 ### Refresh algorithm
 
 1. Render the last valid cache immediately.
-2. Try to acquire a separate package-user refresh lease with a zero timeout. If another process owns it, skip this refresh; readers and state mutations never wait on this lease.
+2. Try to acquire a separate package-user refresh lease with a zero timeout. If another process owns it, skip the duplicate request; readers and state mutations never wait on this lease. For a manual click, preserve/show “Refresh already in progress”; the winning refresh's state-changed event and widget update satisfy the request when it completes.
 3. Capture the selected account and current state generation, then acquire a token silently.
 4. Issue the concurrent Graph GETs with a 10-second overall timeout outside the mutation lock.
 5. Validate response types, maximum string lengths, URLs, timestamps, and item count.
 6. Acquire the package-user mutation mutex only for the commit. Re-read account, sign-in state, privacy state, and generation; if any relevant state changed while I/O was in flight, discard the result.
-7. If state still matches, atomically replace the encrypted snapshot and increment its generation, then release the mutation mutex immediately.
-8. Signal the package-user-wide state-changed event after releasing the mutex.
-9. Update every running widget instance using its own current size and privacy setting.
-10. Record a metadata-free operational outcome event. Own the refresh lease through a `try/finally` boundary so success, failure, timeout, and cancellation all release it.
+7. On discard, re-read and render only the currently committed snapshot or signed-out state; never pass the discarded result to a widget update.
+8. If state still matches, atomically replace the encrypted snapshot and increment its generation, then release the mutation mutex immediately.
+9. Signal the package-user-wide state-changed event after releasing the mutex.
+10. Update every running widget instance from the committed snapshot using its own current size and privacy setting.
+11. Record a metadata-free operational outcome event. Own the refresh lease through a `try/finally` boundary so success, failure, timeout, and cancellation all release it.
 
 ### Cache contents
 
@@ -387,12 +389,18 @@ Sources:
 - Store under the package’s per-user local data directory.
 - Encrypt the complete snapshot using Windows DPAPI with `CurrentUser` scope.
 - Write via temporary file plus atomic replace.
-- Reads are lock-free: atomic replacement means a reader observes either the prior complete snapshot or the new complete snapshot, never a partially written file. A reader never waits for token acquisition or Graph I/O.
+- Reads are lock-free and open the snapshot explicitly with `FileShare.ReadWrite | FileShare.Delete`. This permits a Windows replace while the provider still holds the prior file open; the reader observes either the prior complete snapshot or the new complete snapshot, never a partially written file. A reader never waits for token acquisition or Graph I/O.
 - A dedicated nonblocking refresh lease provides cross-process single-flight. It is held by the winning refresher for the request duration but is never acquired by readers or state mutators.
 - Hold the mutation mutex only around local state commits: snapshot replacement, logout, account switching, privacy changes, and cache clearing. A refresh must compare the captured account/state generation again under this mutex before committing so an in-flight request cannot resurrect data after logout or overwrite a newer setting.
+- If atomic replacement encounters a Windows sharing violation from an unrelated handle such as antivirus, indexing, or a debugger, retry at most three times with bounded local backoff (25 ms, 50 ms, then 100 ms) while retaining the mutation mutex. If all attempts fail, retain the prior snapshot, remove the temporary file when possible, record only the operational failure category, and retry on the next approved refresh trigger.
 - The companion increments the generation and signals the named event after logout, account switch, privacy change, or cache update. The provider listens only while running and always rechecks the generation on `Activate` and before rendering.
 - Clear on logout, account switch, explicit cache-clear, corruption, or unsupported format version. This reconstructible cache has no migration path: delete and refetch.
 - After 24 hours without a successful refresh, suppress message details and show a stale/reconnect state rather than presenting old subjects as current.
+
+Windows file-sharing sources:
+
+- [.NET `File.Replace`](https://learn.microsoft.com/en-us/dotnet/api/system.io.file.replace)
+- [Win32 moving and replacing files](https://learn.microsoft.com/en-us/windows/win32/fileio/moving-and-replacing-files)
 
 ## 9. Outlook launch and deep-link strategy
 
@@ -447,6 +455,9 @@ Microsoft currently documents no New Outlook Inbox-selection command. Launching 
 | HTTP 5xx/timeout/offline | Keep cache with stale timestamp | Retry on next approved trigger |
 | Optional Focused query failure | Omit Focused count | Do not fail main snapshot |
 | Invalid response/cache | Do not render unvalidated strings | Discard invalid data and refresh |
+| Manual refresh while another refresh owns the lease | Keep/show “Refresh already in progress” | Winning refresh updates the widget and clears the state when it completes |
+| Message action references a stale snapshot generation | Do not open any cached URL | Re-render current snapshot and briefly show “Inbox updated — choose the message again” |
+| Snapshot replace remains blocked after bounded retries | Keep the prior valid snapshot | Record an operational cache-commit failure and retry on the next approved trigger |
 | Selected Outlook client missing | Settings/recovery action | Change client choice, install the selected client, or use web |
 
 Manual refresh should remain responsive and must not create parallel requests. After repeated failures, backoff state persists for the provider session, while an explicit manual refresh may make one controlled retry.
@@ -646,11 +657,14 @@ Native architecture proceeds only if gates 1–9 and 11 pass. Gate 10 controls o
 - DPAPI cache round-trip, corruption/version-discard, and atomic replacement.
 - Nonblocking cross-process refresh single-flight, mutation-only mutex scope, and generation/event invalidation across refresh, logout, account switch, and privacy changes.
 - A cached reader remains within the warm/cold target while another process is in token acquisition or a 10-second Graph request; it never waits on the refresh lease or mutation mutex held across network I/O.
+- With one process holding the snapshot open using `FileShare.ReadWrite | FileShare.Delete`, another process can complete the bounded atomic replacement and generation commit; inject transient sharing violations to verify the 25/50/100 ms retry bound and prior-snapshot fallback.
+- A manual refresh that loses the zero-timeout lease shows “Refresh already in progress” and is satisfied by the winning refresh's completion update.
 - Refresh single-flight, 15-second debounce, opportunistic five-minute active timer, cancellation, timeout, and backoff.
 - Rendering models for small/medium/large and counts-only privacy mode.
 - Adaptive Card schema 1.5 and per-instance size rendering.
 - URI/host validation.
 - Message actions use slot plus snapshot generation through `Action.Execute`; no `webLink` or message ID appears in Adaptive Card JSON/`CustomState`, and stale/invalid actions cannot launch.
+- A stale-generation message action re-renders the current snapshot, shows the “Inbox updated” status, and never launches a URL from the stale or replacement slot.
 - Static/logging API review that only event, status, duration, and count fields exist.
 - Manifest/static package checks.
 
@@ -746,7 +760,7 @@ If a critical Phase 0 native gate fails, stop native provider work and first bui
 | Current documentation does not give one clear minimum Windows build for all third-party-widget cases | Deployment incompatibility | Baseline on Windows 11 24H2; test fleet builds and record Widgets package versions |
 | Sideloaded provider registration/COM activation differs across managed devices | Native widget unavailable | Signed-package gate on unmanaged and managed PCs |
 | Provider cannot build/use broker silently without a natural HWND | Background refresh fails or browser UI appears | Zero-handle silent-only provider API; pinned Broker package; fail-closed and no-browser Phase 0 tests |
-| Companion and provider race refresh/logout/privacy state | Stale details, mixed accounts, torn cache, or blocked activation | Nonblocking refresh lease; lock-free atomic reads; mutation-only mutex with generation compare; test that readers never wait on network I/O |
+| Companion and provider race refresh/logout/privacy state | Stale details, mixed accounts, torn cache, blocked activation, or sharing-violation commit failures | Nonblocking refresh lease; readers use `FileShare.ReadWrite | FileShare.Delete`; bounded replace retry; mutation-only mutex with generation compare; test both nonblocking reads and commits during an open read |
 | Focused count query is unsupported, slow, or differs from Outlook | Wrong optional number | Compare query with real Outlook mailboxes; keep feature off/unavailable on failure |
 | New Outlook has no documented Inbox/message selector | Click does not reach desired view | Promise launch only; use documented browser `webLink`; monitor Microsoft documentation |
 | `olk.exe` resolution/activation changes | Launch failure after update | Test alias/package activation on multiple New Outlook builds; never hard-code versioned path |
