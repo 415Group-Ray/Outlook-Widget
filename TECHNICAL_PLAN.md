@@ -364,16 +364,16 @@ Sources:
 ### Refresh algorithm
 
 1. Render the last valid cache immediately.
-2. Try to acquire a separate package-user refresh lease with a zero timeout. If another process owns it, skip the duplicate request; readers and state mutations never wait on this lease. For a manual click, preserve/show “Refresh already in progress”; the winning refresh's state-changed event and widget update satisfy the request when it completes.
+2. Try to acquire a separate package-user refresh lease with a zero timeout. If another process owns it, skip the duplicate request; readers and state mutations never wait on this lease. For a manual click, preserve/show “Refresh already in progress”; the winning refresh's state-changed event and widget update satisfy the request when it completes. If no completion event or generation change arrives, clear that indicator after 15 seconds and return to the prior cached state with “Refresh status unknown — try again.”
 3. Capture the selected account and current state generation, then acquire a token silently.
 4. Issue the concurrent Graph GETs with a 10-second overall timeout outside the mutation lock.
 5. Validate response types, maximum string lengths, URLs, timestamps, and item count.
-6. Acquire the package-user mutation mutex only for the commit. Re-read account, sign-in state, privacy state, and generation; if any relevant state changed while I/O was in flight, discard the result.
-7. On discard, re-read and render only the currently committed snapshot or signed-out state; never pass the discarded result to a widget update.
-8. If state still matches, atomically replace the encrypted snapshot and increment its generation, then release the mutation mutex immediately.
-9. Signal the package-user-wide state-changed event after releasing the mutex.
-10. Update every running widget instance from the committed snapshot using its own current size and privacy setting.
-11. Record a metadata-free operational outcome event. Own the refresh lease through a `try/finally` boundary so success, failure, timeout, and cancellation all release it.
+6. Acquire the package-user mutation mutex only for the commit. Inside a `try`, re-read account, sign-in state, privacy state, and generation; if any relevant state changed while I/O was in flight, mark the result discarded and select the current committed snapshot or signed-out state as the render source.
+7. If state still matches, atomically replace the encrypted snapshot, increment its generation, and select that newly committed snapshot as the render source.
+8. Release the mutation mutex in `finally` for success, discard, replace failure, cancellation, or exception. Do not render or signal while holding it.
+9. After release, signal the package-user-wide state-changed event only when a state commit succeeded.
+10. Update every running widget instance only from the selected committed/signed-out render source using its own current size and privacy setting; never pass a discarded result to a widget update.
+11. Record a metadata-free operational outcome event. Own the refresh lease through a separate `try/finally` boundary so success, discard, failure, timeout, and cancellation all release it.
 
 ### Cache contents
 
@@ -392,15 +392,17 @@ Sources:
 - Reads are lock-free and open the snapshot explicitly with `FileShare.ReadWrite | FileShare.Delete`. This permits a Windows replace while the provider still holds the prior file open; the reader observes either the prior complete snapshot or the new complete snapshot, never a partially written file. A reader never waits for token acquisition or Graph I/O.
 - A dedicated nonblocking refresh lease provides cross-process single-flight. It is held by the winning refresher for the request duration but is never acquired by readers or state mutators.
 - Hold the mutation mutex only around local state commits: snapshot replacement, logout, account switching, privacy changes, and cache clearing. A refresh must compare the captured account/state generation again under this mutex before committing so an in-flight request cannot resurrect data after logout or overwrite a newer setting.
+- Catch `AbandonedMutexException` for both the zero-timeout refresh-lease acquisition and mutation-mutex acquisition. The exception means the caller acquired the abandoned mutex: record only an operational abandoned-lock category, treat protected state as suspect, remove any orphaned temporary snapshot under the mutation mutex, validate the last committed state/cache, and then proceed or discard/refetch as validation requires. Track ownership explicitly and release the acquired mutex in `finally`.
 - If atomic replacement encounters a Windows sharing violation from an unrelated handle such as antivirus, indexing, or a debugger, retry at most three times with bounded local backoff (25 ms, 50 ms, then 100 ms) while retaining the mutation mutex. If all attempts fail, retain the prior snapshot, remove the temporary file when possible, record only the operational failure category, and retry on the next approved refresh trigger.
 - The companion increments the generation and signals the named event after logout, account switch, privacy change, or cache update. The provider listens only while running and always rechecks the generation on `Activate` and before rendering.
 - Clear on logout, account switch, explicit cache-clear, corruption, or unsupported format version. This reconstructible cache has no migration path: delete and refetch.
 - After 24 hours without a successful refresh, suppress message details and show a stale/reconnect state rather than presenting old subjects as current.
 
-Windows file-sharing sources:
+Windows concurrency/file-sharing sources:
 
 - [.NET `File.Replace`](https://learn.microsoft.com/en-us/dotnet/api/system.io.file.replace)
 - [Win32 moving and replacing files](https://learn.microsoft.com/en-us/windows/win32/fileio/moving-and-replacing-files)
+- [.NET `AbandonedMutexException`](https://learn.microsoft.com/en-us/dotnet/api/system.threading.abandonedmutexexception)
 
 ## 9. Outlook launch and deep-link strategy
 
@@ -455,7 +457,8 @@ Microsoft currently documents no New Outlook Inbox-selection command. Launching 
 | HTTP 5xx/timeout/offline | Keep cache with stale timestamp | Retry on next approved trigger |
 | Optional Focused query failure | Omit Focused count | Do not fail main snapshot |
 | Invalid response/cache | Do not render unvalidated strings | Discard invalid data and refresh |
-| Manual refresh while another refresh owns the lease | Keep/show “Refresh already in progress” | Winning refresh updates the widget and clears the state when it completes |
+| Manual refresh while another refresh owns the lease | Keep/show “Refresh already in progress” | Winning refresh updates the widget; without an event/generation change, self-clear after 15 seconds to cached state with “Refresh status unknown — try again” |
+| Refresh lease or mutation mutex is abandoned | Treat protected state as suspect; never crash on the exception | Accept acquired ownership, clean temporary state, validate committed state/cache, proceed or refetch, and release in `finally` |
 | Message action references a stale snapshot generation | Do not open any cached URL | Re-render current snapshot and briefly show “Inbox updated — choose the message again” |
 | Snapshot replace remains blocked after bounded retries | Keep the prior valid snapshot | Record an operational cache-commit failure and retry on the next approved trigger |
 | Selected Outlook client missing | Settings/recovery action | Change client choice, install the selected client, or use web |
@@ -657,8 +660,10 @@ Native architecture proceeds only if gates 1–9 and 11 pass. Gate 10 controls o
 - DPAPI cache round-trip, corruption/version-discard, and atomic replacement.
 - Nonblocking cross-process refresh single-flight, mutation-only mutex scope, and generation/event invalidation across refresh, logout, account switch, and privacy changes.
 - A cached reader remains within the warm/cold target while another process is in token acquisition or a 10-second Graph request; it never waits on the refresh lease or mutation mutex held across network I/O.
+- Change account/privacy generation during an in-flight request; verify the result is discarded, the mutation mutex is released before the committed/signed-out state renders, and a subsequent logout/privacy/commit operation acquires it successfully.
 - With one process holding the snapshot open using `FileShare.ReadWrite | FileShare.Delete`, another process can complete the bounded atomic replacement and generation commit; inject transient sharing violations to verify the 25/50/100 ms retry bound and prior-snapshot fallback.
-- A manual refresh that loses the zero-timeout lease shows “Refresh already in progress” and is satisfied by the winning refresh's completion update.
+- A manual refresh that loses the zero-timeout lease shows “Refresh already in progress” and is satisfied by the winning refresh's completion update; without completion, it self-clears at 15 seconds.
+- Abandon the refresh lease and mutation mutex from a killed helper process; verify `AbandonedMutexException` is treated as acquired ownership, temporary/committed state is validated, every owned mutex is released, and subsequent refresh/logout/privacy operations succeed.
 - Refresh single-flight, 15-second debounce, opportunistic five-minute active timer, cancellation, timeout, and backoff.
 - Rendering models for small/medium/large and counts-only privacy mode.
 - Adaptive Card schema 1.5 and per-instance size rendering.
@@ -760,7 +765,7 @@ If a critical Phase 0 native gate fails, stop native provider work and first bui
 | Current documentation does not give one clear minimum Windows build for all third-party-widget cases | Deployment incompatibility | Baseline on Windows 11 24H2; test fleet builds and record Widgets package versions |
 | Sideloaded provider registration/COM activation differs across managed devices | Native widget unavailable | Signed-package gate on unmanaged and managed PCs |
 | Provider cannot build/use broker silently without a natural HWND | Background refresh fails or browser UI appears | Zero-handle silent-only provider API; pinned Broker package; fail-closed and no-browser Phase 0 tests |
-| Companion and provider race refresh/logout/privacy state | Stale details, mixed accounts, torn cache, blocked activation, or sharing-violation commit failures | Nonblocking refresh lease; readers use `FileShare.ReadWrite | FileShare.Delete`; bounded replace retry; mutation-only mutex with generation compare; test both nonblocking reads and commits during an open read |
+| Companion and provider race refresh/logout/privacy state | Stale details, mixed accounts, torn cache, blocked activation, or sharing-violation commit failures | Nonblocking refresh lease; readers use `FileShare.ReadWrite \| FileShare.Delete`; bounded replace retry; mutation-only mutex with generation compare/finally release; abandoned-mutex recovery; test both nonblocking reads and commits during an open read |
 | Focused count query is unsupported, slow, or differs from Outlook | Wrong optional number | Compare query with real Outlook mailboxes; keep feature off/unavailable on failure |
 | New Outlook has no documented Inbox/message selector | Click does not reach desired view | Promise launch only; use documented browser `webLink`; monitor Microsoft documentation |
 | `olk.exe` resolution/activation changes | Launch failure after update | Test alias/package activation on multiple New Outlook builds; never hard-code versioned path |
