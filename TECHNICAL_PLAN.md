@@ -1,6 +1,6 @@
 # Outlook Inbox Widget — Technical Plan
 
-Status: **Revised draft — audience decision required before final approval**
+Status: **Approved for Phase 0** — single-user v1, New Outlook only. Coordination is a test-first Phase 1 slice 1 (section 18).
 
 Planning date: **2026-07-27**
 
@@ -16,14 +16,15 @@ This plan describes a lightweight Windows 11 Outlook inbox widget for a single M
 - Use a single-tenant, delegated, secretless Entra application.
 - Make Focused unread count opt-in and dependent on a successful proof-of-concept query.
 - Treat New Outlook launch through `olk.exe` as a Phase 0-tested path rather than a guaranteed contract; open individual messages through the documented Graph `webLink`.
+- Build v1 for one user on New Outlook only. Preserve the later multi-user option through packaging and identity choices, not by building deployment machinery now.
 
-## 0. Requirements baseline and unresolved audience decision
+## 0. Requirements baseline and scope decision
 
 ### Problem to solve
 
 Give a Windows 11 user a glanceable, privacy-bounded view of the selected Microsoft 365 Inbox without opening Outlook: authoritative Inbox counts plus the newest three to five email messages, with user-initiated paths into Outlook or Outlook on the web.
 
-### Provisional success criteria
+### Success criteria
 
 - On a supported, policy-enabled device, a signed internal MSIX installs and exposes a pinnable widget.
 - A recycled or restarted provider restores every pinned widget instance without requiring the user to interact.
@@ -32,16 +33,28 @@ Give a Windows 11 user a glanceable, privacy-bounded view of the selected Micros
 - Authentication UI appears only in the companion app after a user action.
 - Install and troubleshooting output distinguishes unsupported OS, Widgets disabled by policy, broker unavailable, consent blocked, mailbox unavailable, and Outlook-client launch failure.
 
-### Decision required before Phase 0
+### Recorded scope decision
 
-The target cohort is still unspecified. Final approval requires:
+- **Audience:** one user — the author — on their own devices. Wider internal use is a possible future, not a v1 requirement.
+- **Outlook client:** New Outlook only. Classic Outlook is explicitly out of scope; no Classic Outlook code path, setting, or test is built.
+- **Consent:** the author can self-consent to delegated `Mail.ReadBasic`. No administrator scheduling is on the critical path.
 
-- Intended audience and approximate user count: one person, a limited pilot, or a broader internal fleet.
-- Outlook-client mix: all New Outlook, mixed New and Classic Outlook, or browser-first.
+Scale is not a v1 engineering concern: the product is local, delegated, read-only, and has no hosted service. User count changes deployment and support work, not the Graph/data architecture.
 
-This affects whether managed MSIX deployment is justified and whether the primary click behavior can remain New-Outlook-only. The plan does not assume that Classic Outlook users should install or repair New Outlook. If the target cohort is mixed, Phase 0 must add a user-selectable New Outlook / Classic Outlook / web launch policy and test each supported choice before the main-action design is approved.
+### What single-user scope switches off, and what it deliberately keeps
 
-Scale is otherwise not a v1 engineering concern: the product is local, delegated, read-only, and has no hosted service. User count changes deployment and support work, not the Graph/data architecture.
+Out of v1 scope, deferred until the tool is actually shared:
+
+- Managed deployment. Intune and RMM (section 16) stay documented as the future path but are not built, piloted, or tested in v1; installation is a local signed sideload.
+- Enterprise code signing. A development certificate trusted on the author's own machines is sufficient; an enterprise-trusted certificate or Azure Artifact Signing belongs to the multi-user step.
+- Fleet validation. No managed-plus-unmanaged device matrix, no deployment rings, no separate production Entra registration.
+
+Kept, because these are what make expansion a later decision rather than a rewrite, and each is nearly free now:
+
+- Signed MSIX from the first build. Package identity stays stable across v1 builds, but continuity *into a future enterprise-signed package* is not automatic. v1's stated position is that expansion may mean remove-and-reinstall; the cheaper option — an MSIX persistent-identity bridge built later, when the enterprise certificate exists — stays available only if the development certificate is long-lived and its key is retained. Keeping that option open costs nothing now and is the reason section 15 treats certificate validity and key retention as decisions rather than details.
+- The surface-agnostic core, so the tray/popover fallback and any future surface reuse the same auth, Graph, cache, and display models.
+- Single-tenant delegated `Mail.ReadBasic` with no secret, and DPAPI-protected local state.
+- One Phase 0 evidence report recording the versions and results the multi-user step would otherwise have to rediscover.
 
 ## Confirmed facts and unresolved behavior
 
@@ -65,15 +78,16 @@ The plan deliberately separates documented behavior from behavior that must be t
 
 ### Must be proven during Phase 0
 
-- The exact minimum supported Windows 11 build for the intended fleet. Current documentation confirms the Widgets Board requirement but does not state a single clear current minimum build for every third-party-widget scenario. The initial support baseline will therefore be Windows 11 24H2, build 26100 or later.
-- Stable provider discovery and COM activation from a signed sideloaded package on representative managed and unmanaged PCs.
+- The exact minimum supported Windows 11 build for the author's own devices. Current documentation confirms the Widgets Board requirement but does not state a single clear current minimum build for every third-party-widget scenario. The initial support baseline will therefore be Windows 11 24H2, build 26100 or later.
+- Stable provider discovery and COM activation from a signed sideloaded package on the author's own PC, which is Entra-managed.
 - Provider startup recovery for multiple pinned instances using `GetWidgetInfos()` and `CustomState`, including normal exit after the final instance is deleted and a later host-driven restart.
 - Silent WAM token acquisition from the provider process after the user authenticated in the companion process.
 - Accuracy, latency, and supported syntax of the proposed Focused unread count query.
 - Whether a Widget Board action can reliably launch `olk.exe` and the companion app.
 - Whether any supported system association hands a Graph `webLink` into New Outlook. The product will not depend on this.
+- Observable Widgets-host delivery semantics: whether `UpdateWidget` blocks, queues, or coalesces, and whether the host offers any ordering guarantee. Record what is observed. Absent a demonstrated guarantee, the plan claims only final convergence and documents the transient-render limitation.
 - Actual provider lifetime and cached-first refresh behavior across Board open/close, restart, sleep, sign-out, and package update.
-- Target-device Widgets policy, tenant user-consent policy, and the target cohort's installed Outlook-client mix.
+- Target-device Widgets policy, and that self-consent to delegated `Mail.ReadBasic` actually succeeds against the tenant's user-consent policy.
 
 Primary sources:
 
@@ -83,6 +97,7 @@ Primary sources:
 - [MSAL.NET with WAM](https://learn.microsoft.com/en-us/entra/msal/dotnet/acquiring-tokens/desktop-mobile/wam)
 - [Windows taskbar and Widgets policy settings](https://learn.microsoft.com/en-us/windows/configuration/taskbar/policy-settings)
 - [Microsoft Graph permissions reference](https://learn.microsoft.com/en-us/graph/permissions-reference)
+- [Configure user consent settings](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/configure-user-consent)
 - [Get a mail folder](https://learn.microsoft.com/en-us/graph/api/mailfolder-get?view=graph-rest-1.0)
 - [List messages](https://learn.microsoft.com/en-us/graph/api/user-list-messages?view=graph-rest-1.0)
 - [Message resource](https://learn.microsoft.com/en-us/graph/api/resources/message?view=graph-rest-1.0)
@@ -128,7 +143,7 @@ flowchart LR
     WAM["Windows Web Account Manager"]
     Graph["Microsoft Graph"]
     Cache["DPAPI-protected local cache"]
-    Outlook["Selected Outlook client<br/>decision pending"]
+    Outlook["New Outlook<br/>olk.exe"]
     Browser["Default browser<br/>Outlook on the web"]
 
     User -->|"opens board / clicks action"| Board
@@ -150,8 +165,9 @@ flowchart LR
 
 ### OutlookWidget.App
 
-- WinUI 3 companion/settings application.
+- WinUI 3 companion/settings application, single-instance, serializing its own disclosure-changing operations.
 - Owns every interactive authentication operation.
+- Commits state and signals; it never calls `UpdateWidget`. Widget delivery belongs solely to the provider.
 - Displays account, last successful refresh, Graph/permission status, installed New Outlook status, and sanitized diagnostics.
 - Settings:
   - Show or hide message details.
@@ -172,6 +188,8 @@ flowchart LR
   - `OnActionInvoked`: validate the instance and action verb, then handle refresh/open/settings actions.
   - `OnWidgetContextChanged`: read the new size from that instance's `WidgetContext` and re-render the corresponding small/medium/large card.
 - On construction, calls `WidgetManager.GetDefault().GetWidgetInfos()` and rebuilds the in-memory instance map from each `WidgetContext` and `CustomState` before processing callbacks.
+- Checks the disclosure tombstone on construction, on `Activate`, on the suppress-details event, and before every render. A present, unreadable, or ambiguous tombstone forces counts-only or the signed-out card regardless of snapshot contents.
+- Is the **sole caller of `UpdateWidget`**. It owns one serialized delivery worker with a coalescing depth-one pending marker; each pass re-reads committed snapshot, generation, and tombstone rather than accepting a payload from whoever requested delivery. No two deliveries are ever in flight, and the final rendered content always reflects the newest committed state.
 - Supports multiple pinned instances at different sizes; size and active state are never global.
 - Returns cached content immediately, then refreshes asynchronously when required.
 - Handles refresh, Open Outlook, open-message, and open-settings actions.
@@ -189,9 +207,9 @@ flowchart LR
 - `SilentAuthService`: provider-safe broker configuration exposing only silent acquisition; it cannot start a browser or authentication UI.
 - `GraphMailClient`: the two required reads and optional Focused count.
 - `MailboxSnapshotService`: combines Graph responses into one immutable display snapshot.
-- `RefreshCoordinator`: package-user-wide named mutex, timeout, debounce, backoff, cancellation, and change notification.
+- `RefreshCoordinator`: synchronous package-user named mutex for commits, an expiring lease record for cross-process single-flight, overall deadline, debounce, backoff, cancellation, and change notification. No named primitive is held across an `await`.
 - `ProtectedCache`: DPAPI-protected snapshot and selected MSAL home-account/tenant identifiers, with a generation counter and atomic replacement.
-- `OutlookLauncher`: Phase 0-verified launch strategy for the approved client mix.
+- `OutlookLauncher`: Phase 0-verified New Outlook launch strategy. No Classic Outlook path.
 - `OperationalLogger`: event name, status/category, duration, and record count only; its API has no fields for mailbox or identity metadata.
 - Shared rendering models that contain only approved metadata.
 
@@ -211,13 +229,20 @@ flowchart LR
 7. WAM owns broker token maintenance. The application does not write access or refresh tokens into its own JSON/configuration files.
 8. Before every Graph refresh, the companion or provider calls its restricted silent service. The provider never calls an interactive MSAL API; `MsalUiRequiredException` or broker-unavailable failures are terminal for that refresh and cannot fall back to a browser.
 9. An access token exists only in process memory for the Graph call.
-10. The core fetches Inbox counts and newest messages, validates and bounds the response, creates a snapshot, encrypts it, and updates the widget.
+10. The core fetches Inbox counts and newest messages, validates and bounds the response, creates a snapshot, encrypts it, commits it, and requests delivery; the provider's delivery worker renders it.
 11. If silent acquisition later throws `MsalUiRequiredException`, the widget shows “Sign in required.” If WAM/broker construction or use fails, it shows “Authentication broker unavailable.” Both states open the companion only after a user click.
 
 ### Logout
 
-- Call MSAL `RemoveAsync` for the selected account.
-- Set an explicit local signed-out state so the provider does not immediately reacquire the Windows operating-system account silently.
+Order matters here, and suppression genuinely goes first — `RemoveAsync` is awaited, so starting with it opens a window in which the provider has been told nothing and still holds a valid cache.
+
+1. Write this operation's disclosure tombstone and set the suppress-details event. Nothing else happens until the provider has been given the means to fail closed.
+2. Call MSAL `RemoveAsync` for the selected account.
+3. Set an explicit local signed-out state so the provider does not immediately reacquire the Windows operating-system account silently, and commit it under the bounded mutation mutex.
+4. Remove this operation's own tombstone only after that commit succeeds, because committed state is authoritative from then on.
+
+Additional behavior:
+
 - Clear the encrypted mailbox snapshot and selected-account identifier.
 - Replace widget content with the signed-out card.
 - Logout removes the account from this app’s MSAL cache; it does not remove the Windows account or guarantee removal of an identity-provider browser session. This matches [MSAL cache-clearing behavior](https://learn.microsoft.com/en-us/entra/msal/dotnet/acquiring-tokens/clear-token-cache).
@@ -225,13 +250,14 @@ flowchart LR
 ### Account switching
 
 - Initiated only from the companion.
+- Write this operation's tombstone file and set the suppress event before starting, as for logout; delete only that file, and only after the new account's state is committed.
 - Use WAM/MSAL interactive account selection.
 - Clear the prior mailbox snapshot before displaying data for the newly selected account.
 - Never merge data from two accounts into one snapshot.
 
 ## 5. Required Entra ID app registration settings
 
-Use one development registration for Phase 0. Create a separate production registration only after the native architecture and intended deployment scale are approved.
+Use one registration. A separate production registration is a multi-user concern and is created only if the tool is shared beyond the author.
 
 | Setting | Value |
 |---|---|
@@ -243,11 +269,11 @@ Use one development registration for Phase 0. Create a separate production regis
 | Implicit grant | Disabled |
 | API permission | Microsoft Graph delegated `Mail.ReadBasic` only |
 | App roles/application permissions | None |
-| Owners | Phase 0: named Entra application administrator role owner; production: at least two organizational owners |
+| Owners | The author; add a second organizational owner only if the tool is shared |
 
 Do not add `User.Read` unless a later approved feature calls `/me`. Account display information can come from MSAL’s authentication result rather than a separate profile request.
 
-Before Phase 0, the named Entra application administrator role owner checks the tenant user-consent policy and either confirms user consent for the test account or schedules administrator consent. For internal rollout, an administrator can grant tenant-wide consent to eliminate user prompts and align with tenant policy. This is operational consent, not evidence that the delegated permission intrinsically requires admin consent.
+The author can self-consent to delegated `Mail.ReadBasic`, so no administrator step is on the critical path. Phase 0 still confirms this empirically at first sign-in, because a tenant user-consent policy change would surface as a consent prompt or an approval-required error rather than a code defect. Tenant-wide admin consent belongs to the multi-user step, if it ever happens; it is operational convenience, not evidence that the delegated permission intrinsically requires admin consent.
 
 ## 6. Required Graph permissions
 
@@ -263,6 +289,7 @@ Admin consent:
 
 - Microsoft marks delegated `Mail.ReadBasic` as not inherently requiring admin consent.
 - An organization’s user-consent policy can still require administrator approval.
+- **A consent-policy block is an authorization failure, not a Graph failure.** If tenant policy prevents self-consent, the failure surfaces during interactive Entra/MSAL authorization — an approval-required or admin-consent-required condition raised before any access token exists — so no Graph call is ever made and no HTTP 403 is returned. Treat it as a distinct state from a Graph 403, which means a token was issued but the mailbox request was refused. Phase 0 and `docs/troubleshooting.md` must name them separately, or a policy change will be misdiagnosed as a permissions bug in the app.
 
 ### `Mail.Read` — not required
 
@@ -334,7 +361,7 @@ Issue the required folder-count and newest-message GET requests concurrently wit
 
 ### Why not delta queries in v1
 
-Message delta is supported with `Mail.ReadBasic`, but an initial delta round can require walking the Inbox to establish state. Maintaining a synchronized mailbox store is disproportionate to a five-message snapshot. Re-evaluate delta or change notifications only if refresh volume becomes significant during internal rollout.
+Message delta is supported with `Mail.ReadBasic`, but an initial delta round can require walking the Inbox to establish state. Maintaining a synchronized mailbox store is disproportionate to a five-message snapshot. Re-evaluate delta or change notifications only if refresh volume ever becomes significant, which one user will not produce.
 
 Sources:
 
@@ -361,19 +388,113 @@ Sources:
 - No cloud webhook, WNS service, Graph subscription, client secret, or hosted backend.
 - No polling while the provider is deactivated.
 
+### Two coordination primitives, and why they are not the same thing
+
+`System.Threading.Mutex` is **thread-affine**: the thread that acquires it must be the thread that releases it. An `await` continuation is not guaranteed to resume on the acquiring thread, so a named `Mutex` held across awaited WAM or Graph work can fail to release even inside a correct `try/finally`. The two primitives here are therefore built differently on purpose:
+
+- **Mutation mutex — a real named `Mutex`, never held across an `await`, always acquired with a bounded wait.** Its critical section is entirely synchronous local work: DPAPI protect/unprotect, temp-file write, atomic replace, generation increment. Acquire and release happen on one thread with no suspension point in between, which is exactly the shape `Mutex` supports. `AbandonedMutexException` handling still applies, because a process can be killed mid-commit.
+
+  **Every acquisition uses `WaitOne(timeout)`. The parameterless `WaitOne()` overload is prohibited** — it waits indefinitely, so a peer wedged inside a critical section would hang the caller with no recovery path, which is precisely the failure the lock-free read design exists to prevent. Use a 2-second timeout: the critical section is local synchronous I/O whose worst case is the bounded 25/50/100 ms replace retry, so 2 seconds is generous by an order of magnitude and any timeout indicates a genuinely stuck peer rather than normal contention.
+
+  Timeout behavior differs by caller, and the difference matters:
+  - **Refresh commit:** treat as contention failure. Abandon the commit, keep the prior snapshot, record the operational timeout category, and retry on the next approved trigger. Nothing is lost — the snapshot is reconstructible.
+  - **Logout, account switch, privacy change, and cache clear:** these must not silently no-op. A logout whose commit was skipped would leave the previous account's subjects on screen, which is a privacy failure rather than a stale-data annoyance. Retry once, and if the second attempt also times out, surface an explicit failure in the companion ("Could not complete sign-out — it will finish when the widget board is closed; try again") and do not report success. Suppression of message details in that window does **not** depend on this mutex; see the disclosure tombstone below.
+
+### Disclosure-reducing changes suppress first, commit second
+
+The mutation mutex cannot be the only path to a fail-closed state, because a wedged peer is exactly when fail-closed matters most. If logout could only hide details by committing signed-out state, incrementing the generation, and signalling the state-changed event, then a mutex timeout would leave the provider with no signal at all and it would keep rendering the prior valid cache — the opposite of the intended behavior.
+
+So any state change that **reduces** what may be displayed — logout, account switch, and switching "hide message details" on — writes a **disclosure tombstone before attempting the mutation**, on a path that needs no mutex:
+
+1. On user intent, the companion writes its operation's tombstone file and sets a named suppress-details event. Neither takes the mutation mutex.
+2. The provider treats any present tombstone as an unconditional override: render counts-only, or the signed-out card for logout and account switch, regardless of what the snapshot contains. It checks on `Activate`, on the suppress event, and before every render. A check that fails or is ambiguous counts as suppression — fail closed.
+3. The companion then attempts the mutation under the bounded mutex as normal.
+4. **On success,** committed state is now authoritative and says signed-out or details-hidden, so the operation deletes **its own** tombstone file after the generation increment and state-changed signal.
+5. **On failure after retry,** the tombstone stays. Details remain suppressed, the companion reports explicit failure, and the operation can be retried. Nothing was disclosed while the peer was stuck.
+
+Ordering suppression *before* the risky operation is what makes this work: the safe state is already in place when the operation is attempted, so a timeout leaves safety intact rather than requiring a signal that cannot be sent. A tombstone surviving a crash is also correct — it fails closed until an explicit successful operation clears it.
+
+**One tombstone file per operation — never a single shared file.** A shared file cannot be safely reclaimed. "Read the owner ID, then delete if it matches" is not an atomic conditional delete: operation A can read its own ID, operation B can replace the file, and A can then delete B's tombstone. The non-weakening read-modify-write has the identical lost-update problem. Rather than add a lock to protect the very mechanism that exists to survive a stuck lock, remove the sharing:
+
+- Each disclosure-reducing operation writes **its own file**, named by a per-operation GUID, in a dedicated suppression directory under the package's per-user local data directory. Content records the suppression mode and a creation stamp.
+- **An operation deletes only its own file.** There is no conditional delete, no compare step, and therefore no window between check and act. One writer, one file, one deleter.
+- **Suppression is active while any file exists**, and the effective mode is the strongest mode among the files present — signed-out over counts-only. Precedence is computed by the provider at read time, so there is no read-modify-write to lose and no way for one operation to weaken another's suppression.
+- Enumeration failure, or any file that is present but unparseable, means suppression with the strongest mode. A file appearing after an enumeration is picked up by the next pass or the suppress event, and the provider re-enumerates on `Activate`, on the event, and before every render.
+- **The companion remains single-instance and serializes its own disclosure-changing operations.** That is now defence in depth rather than the thing correctness rests on, which is why the overlapping-operations test is meaningful: with per-operation files, overlap is genuinely safe rather than merely unlikely.
+
+Files left by a crashed or killed operation persist and keep suppression active, which is the correct direction. They are cleared by a later successful disclosure-changing commit removing its own file, or by an explicit user action in the companion — surfaced in diagnostics as "message details are suppressed by an interrupted operation" with a clear button, so recovery requires intent rather than happening silently.
+
+Changes that *increase* disclosure — switching "hide message details" back off — need no tombstone and commit normally. There is no safety argument for pre-emptively revealing more.
+
+As defence in depth, note that logout's MSAL `RemoveAsync` does not require this mutex, so the account is typically already gone from the token cache even when the local commit fails. The provider's next silent acquisition then throws `MsalUiRequiredException` and it converges on the signed-out card anyway. The tombstone covers the window before that happens, which is precisely the window in which the stale cache would otherwise be rendered.
+- **Refresh lease — a record, not a held lock.** Cross-process single-flight is expressed as a small lease record (owner process ID, owner instance GUID, and an expiry) written under a brief synchronous hold of the mutation mutex. Nothing is held while the refresh runs. Acquiring means: take the mutex, see whether a live unexpired lease exists, write your own if not, release. Releasing means: take the mutex, clear the record if you still own it, release. Both operations are short, synchronous, and single-threaded.
+
+The lease record also makes crash recovery fall out for free: a killed owner leaves an expired record, and expiry alone reclaims it — no `AbandonedMutexException` dependence and no separate watchdog timer.
+
+**Expiry clock.** Record expiry using `Environment.TickCount64`, which is per-boot monotonic and directly comparable across processes on the machine. Because tick counts restart at boot, a record must also carry a boot-session discriminator or a stale post-reboot record could look live.
+
+**Boot-session discriminator.** Windows exposes no managed boot-identity API, so derive one: `bootStamp = UtcNow - TimeSpan.FromMilliseconds(Environment.TickCount64)`, quantized to the nearest 10 seconds and stored as a fixed-format UTC string. `GetTickCount64` includes time spent asleep, so this value is stable within a boot session; quantization absorbs the small jitter between two processes computing it at different moments. A lease whose stored `bootStamp` differs from the reader's is treated as expired regardless of its tick value.
+
+This fails in the safe direction. A large wall-clock correction — NTP step, manual clock change — shifts the computed stamp, so an existing lease stops matching and is treated as expired. The consequence is an early reclaim, at worst allowing one duplicate refresh, which the generation compare at commit already handles. The opposite error, a stale lease appearing live, cannot occur from a clock change because any mismatch reads as expired. Do not substitute wall-clock timestamps for the tick-based expiry itself; the discriminator is the only place wall-clock is used, and only for equality, never for duration.
+
+A named `Semaphore` would avoid thread affinity but not the crash problem — a killed holder never releases its count — so it would need the same expiry machinery with less clarity. If the lease record proves awkward in Phase 1, the alternative is to keep mutex ownership pinned to a dedicated coordinator thread while the async work runs elsewhere; that is more machinery for the same guarantee and should be a deliberate second choice, not a drift.
+
 ### Refresh algorithm
 
 1. Render the last valid cache immediately.
-2. Try to acquire a separate package-user refresh lease with a zero timeout. If another process owns it, skip the duplicate request; readers and state mutations never wait on this lease. For a manual click, preserve/show “Refresh already in progress”; the winning refresh's state-changed event and widget update satisfy the request when it completes. If no completion event or generation change arrives, clear that indicator after 15 seconds and return to the prior cached state with “Refresh status unknown — try again.”
-3. Capture the selected account and current state generation, then acquire a token silently.
-4. Issue the concurrent Graph GETs with a 10-second overall timeout outside the mutation lock.
+2. Try to claim the refresh lease. Take the mutation mutex briefly and synchronously with the 2-second bounded wait, check for a live unexpired lease record, and write your own with expiry = now + the **lease horizon** (30 seconds, see below — deliberately longer than the 20-second async deadline, because the commit that follows it is not cancellable) if none exists; release the mutex immediately either way. A wait timeout here means a peer is stuck; skip this refresh rather than proceeding unsynchronized. If another process holds a live lease, skip the duplicate request; readers and state mutations never wait on the lease. For a manual click, preserve/show “Refresh already in progress” while a live lease exists. The winning refresh's state-changed event and widget update satisfy the request when it completes. Once the lease is cleared or expires with no completion event or generation change, clear the indicator and return to the prior cached state with “Refresh status unknown — try again.” Lease expiry is the watchdog; a killed owner's indicator clears when its record ages out.
+3. Start the overall async deadline — 20 seconds, covering silent token acquisition, the Graph requests, and validation. It is a single linked cancellation source, and every *awaited* step observes it. It does **not** bound the commit, which is synchronous and deliberately non-cancellable once entered; see the budget below. Capture the selected account and current state generation, then acquire a token silently under that deadline.
+4. Issue the concurrent Graph GETs with a 10-second timeout of their own, nested inside the async deadline, outside the mutation lock.
 5. Validate response types, maximum string lengths, URLs, timestamps, and item count.
-6. Acquire the package-user mutation mutex only for the commit. Inside a `try`, re-read account, sign-in state, privacy state, and generation; if any relevant state changed while I/O was in flight, mark the result discarded and select the current committed snapshot or signed-out state as the render source.
-7. If state still matches, atomically replace the encrypted snapshot, increment its generation, and select that newly committed snapshot as the render source.
-8. Release the mutation mutex in `finally` for success, discard, replace failure, cancellation, or exception. Do not render or signal while holding it.
-9. After release, signal the package-user-wide state-changed event only when a state commit succeeded.
-10. Update every running widget instance only from the selected committed/signed-out render source using its own current size and privacy setting; never pass a discarded result to a widget update.
-11. Record a metadata-free operational outcome event. Own the refresh lease through a separate `try/finally` boundary so success, discard, failure, timeout, and cancellation all release it.
+6. Acquire the mutation mutex only for the commit, with the 2-second bounded wait, and run the whole critical section synchronously with no `await` inside it. On wait timeout, take the refresh-commit path above: keep the prior snapshot, commit nothing, record the timeout category. On the acquiring thread, inside a `try`, re-read account, sign-in state, privacy state, and generation; if any relevant state changed while I/O was in flight, mark the result discarded and select the current committed snapshot or signed-out state as the render source.
+7. If state still matches, atomically replace the encrypted snapshot, increment its generation, and select that newly committed snapshot as the render source. Still synchronous, still the same thread.
+8. Release the mutation mutex in `finally` on the acquiring thread, for success, discard, replace failure, or exception. Do not render, signal, or await while holding it. Because nothing is awaited inside, cancellation cannot strand the release; a deadline that expires during the commit is observed after release, not inside it.
+9. Clear the refresh lease — a second brief synchronous mutation-mutex hold, bounded wait again, removing the record if this process still owns it. This is the end of the refresh transaction, and it happens **before** any widget delivery. The `try/finally` that owns the lease spans steps 2 through 9 only, so success, discard, failure, timeout, and cancellation all reach it; a process killed before it runs is covered by lease expiry. If the wait times out, leave the record alone — expiry reclaims it, so a failed clear degrades to a delayed reclaim rather than a lost lease.
+10. Signal the package-user-wide state-changed event, only when a state commit succeeded. This is a notification that committed state changed; it carries no payload.
+11. Request delivery. The refresher does **not** call `UpdateWidget` itself — see the delivery-authority rule below. It sets the provider's coalescing pending-delivery marker; if this process is the provider, its delivery worker picks the request up, and if it is the companion, the state-changed event is the request.
+12. Record a metadata-free operational outcome event, with refresh outcome and delivery outcome as separate fields.
+
+### What actually bounds a refresh
+
+The 20-second async deadline does not, by itself, bound the operation. Segments sit outside it, and the lease horizon has to cover all of them or a second process could claim the lease while the first is still committing.
+
+The bound covers the **refresh transaction** — steps 2 through 9, claim through lease clear. Widget delivery is excluded on purpose, because it cannot be bounded by this design:
+
+| Segment | Bound | Cancellable? |
+|---|---|---|
+| Lease claim — mutex wait plus record write | 2 s | Yes, before acquisition |
+| Token acquisition, Graph requests, validation | 20 s async deadline | Yes |
+| Commit — mutex wait | 2 s | Yes, before acquisition |
+| Commit — critical section, including the 25/50/100 ms replace retries | well under 1 s | **No**, by design |
+| Lease clear — mutex wait plus record write | 2 s | Yes, before acquisition |
+| **Refresh transaction worst case** | **~27 s** | |
+| Widget delivery — `UpdateWidget` per instance | **unbounded** | No |
+
+**Why delivery is outside the transaction.** `WidgetManager.UpdateWidget` is a synchronous void call into the Widgets host with no documented timeout and no cancellation. A slow or wedged host would otherwise drag the operation past the 30-second lease horizon, at which point the lease could be reclaimed while its owner was still nominally mid-operation — the exact race the horizon exists to prevent. Clearing the lease first makes delivery genuinely post-transactional, and that is safe: once the snapshot is committed and its generation incremented, a peer that claims the lease finds fresh data and skips under the 60-second activation rule, and if it does refresh anyway the generation compare handles it. Nothing about correctness depends on holding the lease through rendering.
+
+### The provider is the sole delivery authority
+
+Moving delivery out of the lease removes the timing problem but creates an ordering one: with no lease held, two processes could call `UpdateWidget` concurrently, and a slow older call can land *after* a newer refresh, logout, account switch, or privacy commit. Whatever reaches the host last becomes the displayed content, and the generation compare cannot help — it guards the cache, and a payload already handed to `UpdateWidget` cannot be retracted. Ordering must therefore be established before the call, not validated after it.
+
+- **Only the provider calls `UpdateWidget`.** The companion commits and signals; it never delivers. This is also the natural division — the provider is the only process holding widget IDs and per-instance contexts.
+- **One serialized delivery worker inside the provider,** with a coalescing pending marker of depth one. Concurrent requests collapse into a single pending flag, so no two `UpdateWidget` calls are ever in flight and there is no interleaving to order.
+- **The trigger carries no payload; the worker re-reads committed state.** Each pass performs a fresh lock-free read of the snapshot, its generation, and the tombstone, then builds and delivers cards from *that*. A request generated by an old refresh cannot carry stale content forward, because the content is chosen at delivery time rather than at request time.
+- **Latest-generation-wins, as final convergence — not as retraction.** If a request arrives while a pass is delivering, the pending flag is set again and the worker runs one more pass afterwards, so the *final* rendered content always reflects the newest committed state. What this does **not** provide is retraction: `UpdateWidget` is a synchronous void call, and once a payload has entered it, no later tombstone, generation change, or logout can alter or recall that call.
+- **Therefore a transient display of pre-change content is possible.** If a pass had already read state and entered `UpdateWidget` when a logout, account switch, or privacy change commits, that older payload can still land — and if the host is wedged, it can land noticeably later, briefly showing the previous account's or pre-suppression content before the follow-up pass replaces it. The exposure window is narrow by construction, because the worker re-reads state and tombstone immediately before the call rather than accepting a payload captured earlier, but it is not zero and the plan does not claim it is.
+- **The guarantee is stated as convergence, and the limitation is user-visible.** README must document that a wedged Widgets host can delay privacy-state rendering. Phase 0 records whatever it can observe about host ordering and whether `UpdateWidget` blocks, queues, or coalesces — but no stronger claim than final convergence may be made unless Phase 0 actually demonstrates stronger host semantics.
+- **Suppression is re-evaluated per pass**, so every pass that has not yet entered the call honors the current tombstone. This bounds the problem to passes already in flight rather than to any pass requested before the change.
+
+Delivery then gets rules rather than a bound:
+
+- Run the worker so it cannot block the refresh path or subsequent `Activate` handling; a wedged host degrades rendering only.
+- Record delivery outcome separately from refresh outcome. "Refresh succeeded, delivery slow or failed" is a real and distinguishable state, and conflating them would hide a host problem behind an apparently failing refresh.
+- A wedged Widgets host is a host-level failure the provider cannot fix. It must not corrupt refresh accounting, leave a lease outstanding, or block the next activation.
+- Because the lease now clears at commit, the "Refresh already in progress" indicator also clears then — which is correct: the data is fresh at that point, and only its rendering is still in flight.
+
+- **Pre-acquisition mutex waits observe cancellation.** Wait on the mutex handle and the deadline's `WaitHandle` together under the 2-second bound, so a refresh already past its deadline abandons the wait instead of sitting the full two seconds. Nothing is owned yet, so abandoning costs nothing.
+- **Once the mutex is acquired the critical section runs to completion.** It is not cancellable and must not be made so: cancelling between the temp write and the atomic replace is exactly how a half-committed state and a stranded release would occur. It is bounded by construction — a fixed amount of local synchronous work plus a fixed retry ladder — rather than by a token, and step 8's release guarantee depends on that.
+- **Lease horizon is 30 seconds**, above the ~27-second worst case. It must exceed the *total*, not the async deadline. A lease expiring mid-commit would let a peer start a second refresh whose commit races the first; the generation compare would still prevent corruption, but the wasted request and the confusing indicator state are avoidable by choosing the horizon correctly.
+- The "Refresh already in progress" indicator follows the lease, so its ceiling is the 30-second horizon rather than the async deadline.
 
 ### Cache contents
 
@@ -390,11 +511,13 @@ Sources:
 - Encrypt the complete snapshot using Windows DPAPI with `CurrentUser` scope.
 - Write via temporary file plus atomic replace.
 - Reads are lock-free and open the snapshot explicitly with `FileShare.ReadWrite | FileShare.Delete`. This permits a Windows replace while the provider still holds the prior file open; the reader observes either the prior complete snapshot or the new complete snapshot, never a partially written file. A reader never waits for token acquisition or Graph I/O.
-- A dedicated nonblocking refresh lease provides cross-process single-flight. It is held by the winning refresher for the request duration but is never acquired by readers or state mutators.
-- Hold the mutation mutex only around local state commits: snapshot replacement, logout, account switching, privacy changes, and cache clearing. A refresh must compare the captured account/state generation again under this mutex before committing so an in-flight request cannot resurrect data after logout or overwrite a newer setting.
-- Catch `AbandonedMutexException` for both the zero-timeout refresh-lease acquisition and mutation-mutex acquisition. The exception means the caller acquired the abandoned mutex: record only an operational abandoned-lock category, treat protected state as suspect, remove any orphaned temporary snapshot under the mutation mutex, validate the last committed state/cache, and then proceed or discard/refetch as validation requires. Track ownership explicitly and release the acquired mutex in `finally`.
+- Cross-process single-flight comes from the lease **record**, not from a held lock: no primitive is owned while WAM or Graph work is awaited. Readers and state mutators never consult the lease.
+- Hold the mutation mutex only around synchronous local state commits: snapshot replacement, logout, account switching, privacy changes, cache clearing, and the two brief lease-record updates. No `await` ever appears inside the critical section, so acquisition and release always occur on the same thread as `Mutex` requires. Every acquisition is a bounded `WaitOne(timeout)`; the parameterless overload is prohibited because an indefinite wait has no recovery path. A refresh must compare the captured account/state generation again under this mutex before committing, so an in-flight request cannot resurrect data after logout or overwrite a newer setting.
+- Catch `AbandonedMutexException` on mutation-mutex acquisition — a process killed mid-commit abandons it. The exception means the caller acquired the mutex: record only an operational abandoned-lock category, treat protected state as suspect, remove any orphaned temporary snapshot, validate the last committed state and any lease record, then proceed or discard/refetch as validation requires, and release in `finally`. The lease itself needs no abandonment handling: an owner that dies leaves a record that expires.
+- A stale lease record whose owning process no longer exists may be reclaimed before expiry if the owner PID and instance GUID are confirmed gone, but expiry alone must be sufficient. Do not make correctness depend on PID liveness checks, which race against PID reuse.
 - If atomic replacement encounters a Windows sharing violation from an unrelated handle such as antivirus, indexing, or a debugger, retry at most three times with bounded local backoff (25 ms, 50 ms, then 100 ms) while retaining the mutation mutex. If all attempts fail, retain the prior snapshot, remove the temporary file when possible, record only the operational failure category, and retry on the next approved refresh trigger.
 - The companion increments the generation and signals the named event after logout, account switch, privacy change, or cache update. The provider listens only while running and always rechecks the generation on `Activate` and before rendering.
+- Disclosure tombstones are independent of the snapshot, the generation, and the mutation mutex, and override all three. They are the only fail-closed path that survives a wedged peer, so they must never be folded into the snapshot format or gated on a successful commit. One file per operation, deleted only by its own operation; suppression is active while any file exists and the effective mode is the strongest present.
 - Clear on logout, account switch, explicit cache-clear, corruption, or unsupported format version. This reconstructible cache has no migration path: delete and refetch.
 - After 24 hours without a successful refresh, suppress message details and show a stale/reconnect state rather than presenting old subjects as current.
 
@@ -403,17 +526,18 @@ Windows concurrency/file-sharing sources:
 - [.NET `File.Replace`](https://learn.microsoft.com/en-us/dotnet/api/system.io.file.replace)
 - [Win32 moving and replacing files](https://learn.microsoft.com/en-us/windows/win32/fileio/moving-and-replacing-files)
 - [.NET `AbandonedMutexException`](https://learn.microsoft.com/en-us/dotnet/api/system.threading.abandonedmutexexception)
+- [Overview of synchronization primitives — `Mutex` thread affinity](https://learn.microsoft.com/en-us/dotnet/standard/threading/overview-of-synchronization-primitives)
+- [Async coordination primitives](https://learn.microsoft.com/en-us/dotnet/standard/asynchronous-programming-patterns/async-coordination-primitives-advanced)
 
 ## 9. Outlook launch and deep-link strategy
 
 ### Open Outlook
 
-Primary behavior remains conditional on the audience decision:
+New Outlook is the only supported client. There is no client-selection setting and no Classic Outlook code path.
 
-- If all target users run New Outlook, use `olk.exe` only after Phase 0 confirms bare-command resolution on supported builds.
-- If the cohort is mixed, expose a companion setting for New Outlook, Classic Outlook, or web and test each selected path; never tell a Classic Outlook user that New Outlook must be repaired.
+- Launch New Outlook through `olk.exe`, only after Phase 0 confirms bare-command resolution on supported builds.
 - Detect and report launch failure.
-- Do not silently substitute a different client from the user's approved/default policy.
+- Never silently substitute Classic Outlook or any other client.
 
 Phase 0 will compare:
 
@@ -425,7 +549,7 @@ The implementation will select the least brittle supported method demonstrated o
 
 ### Open Inbox
 
-Microsoft currently documents no New Outlook Inbox-selection command. Launching New Outlook may restore its current/default view. “Open directly to Inbox” remains an explicit unknown for New Outlook, not a v1 guarantee. Any Classic Outlook Inbox switch is supported only if the mixed-client branch is approved and verified.
+Microsoft currently documents no New Outlook Inbox-selection command. Launching New Outlook may restore its current/default view. “Open directly to Inbox” remains an explicit unknown, not a v1 guarantee.
 
 ### Open an individual message
 
@@ -437,8 +561,8 @@ Microsoft currently documents no New Outlook Inbox-selection command. Launching 
 
 ### Failure behavior
 
-- Selected client missing: open a companion recovery page that identifies the selected client and offers a settings change or web fallback.
-- Failed `webLink`: offer the Outlook on the web Inbox URL and the configured Open Outlook action.
+- New Outlook missing or unlaunchable: open a companion recovery page that reports the detected state and offers the Outlook on the web fallback.
+- Failed `webLink`: offer the Outlook on the web Inbox URL and the Open Outlook action.
 - Never log the message URL because it can contain sensitive identifiers.
 
 ## 10. Error handling and offline behavior
@@ -450,18 +574,22 @@ Microsoft currently documents no New Outlook Inbox-selection command. Launching 
 | WAM/broker unavailable | “Authentication broker unavailable”; no browser opens | Companion diagnostics and interactive recovery only |
 | Conditional Access/MFA challenge | No background prompt | Companion handles the interactive challenge |
 | HTTP 401 | Discard the access-token result and attempt silent reacquisition once | Provider fails closed to “Sign in required”; only the companion may start user-initiated interactive recovery |
-| HTTP 403 | “Mailbox access needs approval” | Companion shows tenant/admin guidance |
+| Interactive sign-in returns consent/admin-approval required | Widget stays signed-out; companion shows “This app needs approval before it can read your mailbox” | No token was issued and no Graph call was made. Companion explains the tenant user-consent policy and how to request administrator approval |
+| HTTP 403 | “Mailbox access needs approval” | A token was issued but the mailbox request was refused. Companion shows tenant/admin guidance; distinct from the consent-required state above |
 | HTTP 404 with Graph `error.code` `MailboxNotEnabledForRESTAPI` | “This account has no supported Exchange Online mailbox” | Use a supported mailbox or contact the tenant administrator |
 | Graph `error.code` `ErrorItemNotFound` | Treat the affected folder/message as changed or unavailable | Refresh the snapshot; do not expose raw service text |
 | HTTP 429 | Keep cache and show delayed refresh status | Honor `Retry-After`; otherwise exponential backoff with jitter |
 | HTTP 5xx/timeout/offline | Keep cache with stale timestamp | Retry on next approved trigger |
 | Optional Focused query failure | Omit Focused count | Do not fail main snapshot |
 | Invalid response/cache | Do not render unvalidated strings | Discard invalid data and refresh |
-| Manual refresh while another refresh owns the lease | Keep/show “Refresh already in progress” | Winning refresh updates the widget; without an event/generation change, self-clear after 15 seconds to cached state with “Refresh status unknown — try again” |
-| Refresh lease or mutation mutex is abandoned | Treat protected state as suspect; never crash on the exception | Accept acquired ownership, clean temporary state, validate committed state/cache, proceed or refetch, and release in `finally` |
+| Manual refresh while a live lease record exists | Keep/show “Refresh already in progress” while the lease is live | Winning refresh commits and requests delivery; once the lease clears or expires with no event/generation change, self-clear to cached state with “Refresh status unknown — try again” |
+| Mutation mutex abandoned by a killed process | Treat protected state as suspect; never crash on the exception | Accept acquired ownership, clean temporary state, validate committed state and lease record, proceed or refetch, release in `finally` |
+| Mutation-mutex bounded wait times out (peer stuck in a critical section) | Refresh keeps the prior snapshot and commits nothing. A blocked logout or account switch still hides details, because the tombstone was written before the attempt and needs no mutex | Refresh retries on the next trigger. Logout, account switch, privacy change, and cache clear retry once, then report explicit failure in the companion — never silent success. The tombstone persists until a later attempt succeeds |
+| Widget delivery is slow or the Widgets host is wedged | Refresh has already committed and the lease is already clear; only rendering lags | Record delivery outcome separately from refresh outcome; never block the refresh path or the next `Activate`; the next activation re-renders from committed state |
+| Lease record left behind by a killed process | No other process blocks | Reclaim at expiry; a lease from a prior boot session is expired by definition |
 | Message action references a stale snapshot generation | Do not open any cached URL | Re-render current snapshot and briefly show “Inbox updated — choose the message again” |
 | Snapshot replace remains blocked after bounded retries | Keep the prior valid snapshot | Record an operational cache-commit failure and retry on the next approved trigger |
-| Selected Outlook client missing | Settings/recovery action | Change client choice, install the selected client, or use web |
+| New Outlook missing or unlaunchable | Settings/recovery action | Companion reports the detected state; install/repair New Outlook or use the web fallback |
 
 Manual refresh should remain responsive and must not create parallel requests. After repeated failures, backoff state persists for the provider session, while an explicit manual refresh may make one controlled retry.
 
@@ -475,6 +603,7 @@ Manual refresh should remain responsive and must not create parallel requests. A
 - Mail cache is DPAPI-protected for the current Windows user.
 - Small widget size always shows counts only.
 - “Hide message details” converts all sizes to counts-only.
+- Disclosure-reducing changes suppress before they commit: logout, account switch, and enabling hide-details write a per-operation tombstone that forces suppression even if their local commit fails, so a stuck peer cannot keep the prior account's subjects on screen indefinitely. The one bounded exception is a widget update already handed to the Widgets host, which cannot be retracted; that is a transient render, documented as a limitation, not an indefinite disclosure.
 - No message body, `bodyPreview`, attachment, recipient list, or extended property is requested.
 - Widget text is treated as untrusted data: length-bound, control-character sanitized, and data-bound into a fixed Adaptive Card template rather than interpolated into executable content.
 - HTTPS links are accepted only from expected Outlook hosts returned by Graph; other schemes and unexpected hosts are rejected.
@@ -546,11 +675,9 @@ Reconfirm stable versions immediately before scaffolding. As of the planning dat
 - Centrally pinned `Microsoft.Identity.Client` and `Microsoft.Identity.Client.Broker` packages.
 - Repository-scoped `nuget.config` containing only approved package feeds and package-source mapping where practical.
 - Developer Mode on development PCs.
-- Access to create or use the development Entra app registration.
-- A named Entra application administrator role owner and a confirmed tenant consent path.
-- A test mailbox with Focused Inbox enabled and enough read/unread messages for query verification.
-- A second account or test user for switch/logout testing.
-- A managed test device for Conditional Access, signing, and Intune/RMM validation.
+- Access to create the Entra app registration in the tenant.
+- A mailbox with Focused Inbox enabled and enough read/unread messages for query verification. The author's own mailbox is acceptable for a single-user tool.
+- A second account for switch testing. If no second account is available, sign-out and sign-in with the same account validates logout, cache clearing, and reacquisition only — it does **not** exercise account switching or cross-account cache isolation, because there is no second identity for data to leak between. In that case record account switching as untested rather than verified, and treat §4's "never merge data from two accounts" rule as unproven until a second account exists.
 
 Current-version sources:
 
@@ -580,33 +707,52 @@ No credentials belong in source control. Tenant and client IDs are identifiers r
 ### Development
 
 - Use a stable package identity and a development-only signing certificate.
-- Keep the private development certificate out of the repository and out of OneDrive entirely; prefer the Current User certificate store or a dedicated non-synced local certificate path. Only its public certificate may enter a deployment artifact when required.
-- Trust the public development certificate on the test PC.
+- **Private key:** keep it out of the repository and out of OneDrive entirely. Prefer `CurrentUser\My` or a dedicated non-synced local path. The private key is never a deployment artifact.
+- **Public certificate trust:** this is a separate concern from key storage. Sideloading a signed MSIX requires the signing certificate to be trusted on the target machine — typically `LocalMachine\TrustedPeople` — which needs administrator rights. Phase 0 must confirm that the author's Entra-managed device actually permits installing that certificate; a managed-device policy that blocks it stops installation regardless of how the package is built.
+- **Timestamping:** counter-sign the package with a trusted timestamp authority. Without a timestamp, the signature becomes invalid when the certificate expires, and a previously produced package can no longer be installed — which silently invalidates the remove-then-install rollback runbook below. An already-installed package keeps running after expiry, so this failure only appears at the moment rollback is needed. If timestamping is skipped, state that explicitly and accept that rollback artifacts have a shelf life equal to the certificate's validity.
 - Build and sign x64 MSIX.
 - Install using the generated app installer flow or a reviewed PowerShell script.
 - Verify widget registration, package identity, update, repair, and uninstall.
 
-Windows 11 permits unsigned test packages in restricted scenarios, but this project should test a signed package from the beginning because production/internal deployment requires signing.
+Windows 11 permits unsigned test packages in restricted scenarios, but this project signs from the beginning: signing is what exercises the real certificate-trust and sideload-policy path on a managed device, and it is the prerequisite for ever sharing the tool.
 
-### Internal release
+### v1 release (single user)
 
-- Keep package identity and publisher stable across versions.
-- Increment the four-part MSIX version for every release.
-- Sign using an enterprise-trusted code-signing certificate or Azure Artifact Signing.
-- Produce x64 first; add ARM64 only after an actual device/requirement is identified and tested.
+A development certificate trusted on the author's own machines is the v1 signing story. Enterprise-trusted code signing and Azure Artifact Signing are deferred with the rest of the multi-user work.
+
+**Publisher continuity is not automatic, and this must be decided before the first install.** The manifest `Publisher` must exactly match the signing certificate's Subject. Package identity is derived from name plus publisher, so signing a later build with an enterprise certificate whose Subject differs produces a *different package identity* — it cannot upgrade the installed package, it installs alongside it, and the widget must be re-pinned and reconfigured. "Keep the publisher stable" is therefore a constraint on the certificate Subject, not something the manifest can guarantee on its own. State a position, and put its preconditions in place, before Phase 0 installs anything:
+
+- **Match now:** pick a development-certificate Subject identical to the Subject the future enterprise signer would use, so a later re-signed package keeps the same identity. Cheapest if the eventual signer is predictable.
+- **MSIX persistent identity:** the documented mechanism for changing publisher while preserving package identity. Building the bridge requires **both certificates in hand at the same time** — the old one and the new one — and it must be done **while the old certificate is still valid**. It does not have to happen in Phase 0. The bridge is built at the moment the enterprise certificate arrives, provided the development certificate has not expired by then. See [MSIX persistent identity](https://learn.microsoft.com/en-us/windows/msix/package/persistent-identity).
+
+  What Phase 0 owes this option is therefore not the bridge itself but its **preconditions**: issue the development certificate with a validity period long enough to plausibly outlast the decision to share the tool, and preserve its private key and Subject so it can still sign when that day comes. Losing or lapsing the development certificate is what forecloses the option — not failing to act now.
+- **Accept the break:** state plainly that expanding beyond one user requires remove-and-reinstall, losing widget pins and package-local cache/settings. For a one-user tool this is a defensible choice — re-pinning one widget is cheap — but it must be a choice rather than a discovery.
+
+The three options are not mutually exclusive in cost. Matching the future Subject requires guessing 415 Group's eventual signing Subject correctly today. Persistent identity requires no guess and no work now, only that the development certificate stays valid and retrievable until the enterprise one exists. Accepting the break requires nothing at all. The cheapest posture is to accept the break as the stated v1 position while keeping the persistent-identity option alive for free through certificate validity and key retention — then decide for real if and when the tool is shared. Record the stated position, the certificate Subject, its expiry date, and the manifest `Publisher` string in the Phase 0 evidence report.
+
+- Keep package identity and publisher stable across versions of the v1 certificate.
+- Increment the four-part MSIX version for every build that gets installed.
+- Produce x64 only; add ARM64 only if the author actually runs an ARM64 device.
 - Decide framework-dependent versus self-contained packaging using measured package size and install reliability during Phase 0:
-  - Prefer framework-dependent Windows App SDK for smaller packages when dependency deployment is reliable.
-  - Include/install the required runtime dependency through the managed deployment workflow.
-  - Use self-contained .NET only if target-device runtime variability causes deployment failures worth the size increase.
+  - Prefer framework-dependent Windows App SDK for smaller packages when the runtime dependency installs reliably.
+  - Use self-contained .NET only if runtime variability causes install failures worth the size increase.
 - Test upgrade over the previous version.
-- MSIX does not install a lower version over a higher one. The v1 rollback runbook is remove the current package, then install the prior signed package. Document that this loses widget pins and package-local cache/settings and requires the user to pin/configure again.
+- MSIX does not install a lower version over a higher one. The v1 rollback runbook is remove the current package, then install the prior signed package. Document that this loses widget pins and package-local cache/settings and requires re-pinning and reconfiguring.
+- Rollback depends on the retained package still being installable, which depends on the timestamping decision above. Verify during Phase 4 that a retained prior package actually installs, rather than assuming it will.
+
+### Deferred to the multi-user step
+
+Enterprise-trusted or Azure Artifact Signing, publisher governance across a fleet, deployment rings, and the section 16 managed-deployment work. None of it is built or tested in v1.
 
 Sources:
 
 - [Sign an MSIX package](https://learn.microsoft.com/en-us/windows/msix/package/signing-package-overview)
+- [Package identity overview](https://learn.microsoft.com/en-us/windows/apps/desktop/modernize/package-identity-overview)
 - [Sideload line-of-business apps](https://learn.microsoft.com/en-us/windows/application-management/sideload-apps-in-windows)
 
-## 16. Optional Intune or RMM deployment approach
+## 16. Deferred: Intune or RMM deployment approach
+
+**Not in v1 scope.** This section is retained as the design for the multi-user step and is not built, piloted, or tested while the tool has one user. Nothing in Phase 0–4 depends on it. Revisit it only if the tool is actually shared, and re-verify the details then — managed-deployment behavior changes faster than the rest of this plan.
 
 ### Intune
 
@@ -622,10 +768,10 @@ Microsoft documents silent signed-MSIX deployment through Intune: [Deploy MSIX w
 
 ### RMM
 
-- Preflight Windows build, architecture, sideload policy, certificate trust, Windows App Runtime, Widgets Board policy/state, selected Outlook-client presence, and active interactive user.
+- Preflight Windows build, architecture, sideload policy, certificate trust, Windows App Runtime, Widgets Board policy/state, New Outlook presence, and active interactive user.
 - Install dependencies before the main MSIX.
 - Use per-user registration when running in the user context. If deploying for all users, use a separately tested provisioning workflow rather than assuming `Add-AppxPackage` is machine-wide.
-- Return explicit detection output: package family, installed version, widget registration prerequisites, Widgets policy state, and selected Outlook-client status. If policy disables Widgets, report **widgets disabled by policy** and do not install a native-only package that cannot appear.
+- Return explicit detection output: package family, installed version, widget registration prerequisites, Widgets policy state, and New Outlook status. If policy disables Widgets, report **widgets disabled by policy** and do not install a native-only package that cannot appear.
 - Never pass tokens or credentials through RMM variables.
 - Provide idempotent install, update, detection, and uninstall scripts.
 
@@ -633,37 +779,60 @@ Microsoft documents silent signed-MSIX deployment through Intune: [Deploy MSIX w
 
 ### Phase 0 acceptance gates
 
-Preconditions: audience/client mix is approved; the clone is outside OneDrive; the target device permits Widgets; the tenant consent path and Entra role owner are confirmed.
+Preconditions: the clone is outside OneDrive; the target device permits Widgets; the Entra registration exists.
 
-1. Signed MSIX installs without the Store and the widget appears on both representative managed and unmanaged devices.
-2. Provider cold activation succeeds after reboot and package update.
-3. On process start, `GetWidgetInfos()` restores all pinned IDs, definitions, `CustomState`, and per-instance sizes; deleting the final instance exits cleanly and a later host activation restores service.
-4. Two pinned instances at different sizes render and update independently.
-5. Widget action launches the companion.
-6. The approved Outlook-client action launches without a versioned executable path; any unapproved client mix remains a blocker.
-7. Companion WAM sign-in supports MFA/Conditional Access with a real HWND.
-8. Provider construction with the pinned Broker dependency and zero parent handle supports silent acquisition after companion exit and PC restart, never opens a browser, and fails closed when broker/UI is required.
-9. `Mail.ReadBasic` returns exactly the approved properties and no body data is requested.
-10. Focused count agrees with Outlook and meets the latency threshold.
+1. Signed MSIX installs without the Store on the author's Entra-managed PC, and the public certificate can be trusted there under current device policy.
+2. The widget is discoverable in the Widgets Board and can be pinned.
+3. Provider cold activation succeeds after reboot and package update.
+4. On process start, `GetWidgetInfos()` restores all pinned IDs, definitions, `CustomState`, and per-instance sizes; deleting the final instance exits cleanly and a later host activation restores service.
+5. Two pinned instances at different sizes render and update independently.
+6. Widget action launches the companion.
+7. The Open Outlook action launches New Outlook without a versioned executable path.
+8. Companion WAM sign-in supports MFA/Conditional Access with a real HWND, and self-consent to `Mail.ReadBasic` succeeds without an administrator step. If it does not, the failure is recorded as an approval-required authorization state, not as a Graph error.
+9. Provider construction with the pinned Broker dependency and zero parent handle supports silent acquisition after companion exit and PC restart, never opens a browser, and fails closed when broker/UI is required.
+10. `Mail.ReadBasic` returns exactly the approved properties and no body data is requested.
 11. Cached-first, activation-driven refresh and cross-process cache invalidation operate across Board activation/deactivation, provider recycle, logout, and privacy changes.
+12. Focused count agrees with Outlook and meets the latency threshold.
 
-Native architecture proceeds only if gates 1–9 and 11 pass. Gate 10 controls only the optional Focused setting. A tray/popover proof is built only in the fallback branch after a critical native gate fails.
+Gates fall into groups, and the group determines what a failure means. Conflating them would send a packaging, consent, or Graph failure into tray-fallback work that cannot possibly fix it.
+
+- **Universal product gates — 1, 8, and 10.** Package installation and certificate trust, WAM sign-in with self-consent, and `Mail.ReadBasic` access are surface-independent. The tray fallback is *also* a packaged MSIX app using the same certificate and the same delegated permission, so a sideload, certificate-policy, consent, or Graph failure breaks it exactly as badly. A failure here **stops the product** pending resolution of the underlying tenant or device-policy problem; it does not trigger the fallback branch. (If the fallback were ever redesigned as an unpackaged app, gate 1 would move to the native group — but that is not the current design, and it would forfeit package identity and the widget path permanently.)
+- **Native-surface gates — 2, 3, 4, 5, 6, 9, and 11.** Widget discovery and pinning, provider cold activation, lifecycle recovery, multi-instance rendering, companion launch from a Board action, zero-HWND silent token acquisition, and cached-first refresh across provider recycle. A critical failure here is what the tray/popover fallback exists for, because the same core runs behind a different surface.
+- **Gate 7 spans both, and its universal half does not stop the product.** "Can the widget provider launch New Outlook from a Board action" is native and a fallback trigger. "Does bare `olk.exe` resolve and launch at all" is universal — but a failure there degrades one action rather than invalidating the product, because the widget's value is glanceable counts and subjects, and section 9 already defines an Outlook-on-the-web fallback. So: if the universal half fails, the native widget may proceed in a **web-only Open Outlook mode**, which must be approved explicitly at the Phase 0 review and stated in the README as a known limitation. It is never a silent substitution. Record which half failed.
+- **Gate 12 is optional.** It controls only the Focused unread setting and gates nothing else.
+
+Native architecture proceeds only if every universal and native gate passes, with the single documented exception of gate 7's universal half under an approved web-only Open Outlook mode. A tray/popover proof is built only in the fallback branch, and only after a *native* gate fails.
 
 ### Automated tests
 
-- Auth state machine: signed out, silent success, UI required, account switch, logout.
+- Auth state machine: signed out, silent success, UI required, approval/consent required, broker unavailable, account switch, logout. Approval-required and Graph 403 must map to different states.
+- Async deadline: a run that exceeds it is cancelled, clears the lease, commits nothing, and leaves the prior snapshot intact. A pre-acquisition mutex wait in a cancelled run abandons immediately rather than consuming its full 2 seconds.
+- Lease horizon exceeds the measured worst-case refresh: instrument a run that hits every bound — deadline expiry, contended mutex waits, and the full replace-retry ladder — and assert it completes inside the horizon, so no peer can claim the lease mid-commit.
+- Boot-session discriminator: a lease written before a simulated reboot (different `bootStamp`) is treated as expired regardless of tick value, and a simulated wall-clock step causes early reclaim rather than a stale lease appearing live.
 - Static provider-auth boundary: provider project has no interactive-auth reference or call.
 - Graph request construction and strict `$select`.
 - Concurrent required-request handling and optional Focused failure.
 - Graph error-code mapping for `MailboxNotEnabledForRESTAPI` and `ErrorItemNotFound`.
 - Snapshot validation and maximum lengths/counts.
 - DPAPI cache round-trip, corruption/version-discard, and atomic replacement.
-- Nonblocking cross-process refresh single-flight, mutation-only mutex scope, and generation/event invalidation across refresh, logout, account switch, and privacy changes.
+- Nonblocking cross-process refresh single-flight via the lease record, mutation-only mutex scope, and generation/event invalidation across refresh, logout, account switch, and privacy changes.
+- Static check that no `await` appears inside a mutation-mutex critical section and that no named `Mutex` is held across one, so `Mutex` thread affinity cannot be violated as the code evolves.
+- Static check that no call site uses the parameterless `WaitOne()`; every acquisition passes a timeout.
+- Hold the mutation mutex from a helper process for longer than the 2-second bound and verify each caller's defined timeout behavior: a refresh keeps the prior snapshot and commits nothing; a logout retries once and then reports explicit failure rather than false success; a lease clear leaves the record for expiry.
+- Disclosure tombstone, with the mutation mutex held by a wedged helper so no commit, generation increment, or state-changed event can occur: the provider still renders the signed-out card after a logout attempt and counts-only after a hide-details attempt, on construction, on `Activate`, and on the suppress event. Verify an unreadable or malformed tombstone also suppresses, that a tombstone surviving a simulated crash still suppresses, and that it is removed only after a successful commit.
+- **Overlapping disclosure operations:** start operation A (logout, signed-out mode), then operation B (account switch) before A resolves. Let A succeed and B time out. Verify A deletes only its own file, B's file remains, suppression persists after A's success, and the provider still renders the signed-out card. Run the mirror case where B's mode is weaker and verify the effective mode is the strongest file present, not the most recently written. Verify no interleaving of the two operations can leave zero files while an operation is still pending.
+- A disclosure-increasing change (hide-details switched back off) commits without a tombstone and is not suppressed.
+- Widget delivery is outside the refresh transaction: stall `UpdateWidget` in a fake host and verify the lease is already clear, the refresh outcome records success, delivery outcome records the stall separately, and neither the next refresh nor the next `Activate` is blocked.
+- **Delivery ordering:** stall a delivery pass in a fake host, commit a newer generation behind it, then release the stall. Verify no two `UpdateWidget` calls overlap, that the final delivered content is the newer generation rather than the stalled pass's, and that concurrent requests coalesce into one follow-up pass rather than queueing per request.
+- **Delayed delivery across an account switch:** stall a delivery pass, complete an account switch, release the stall, and verify **final convergence** — the follow-up pass re-reads state and tombstone and the last delivered content is the new account or the signed-out card. The test asserts the converged end state, not the absence of a transient older payload, because an in-flight `UpdateWidget` cannot be retracted. Also assert that any pass which had *not* yet entered the call honors the new tombstone and never builds previous-account content at all.
+- Static check that `UpdateWidget` is called from exactly one place, inside the provider's delivery worker, and never from companion code.
+- Force refresh continuations onto a different thread than the one that claimed the lease (for example via a forced-yield scheduler) and verify every acquire/release pair still completes on a single thread and no `ApplicationException` for un-owned release occurs.
 - A cached reader remains within the warm/cold target while another process is in token acquisition or a 10-second Graph request; it never waits on the refresh lease or mutation mutex held across network I/O.
 - Change account/privacy generation during an in-flight request; verify the result is discarded, the mutation mutex is released before the committed/signed-out state renders, and a subsequent logout/privacy/commit operation acquires it successfully.
 - With one process holding the snapshot open using `FileShare.ReadWrite | FileShare.Delete`, another process can complete the bounded atomic replacement and generation commit; inject transient sharing violations to verify the 25/50/100 ms retry bound and prior-snapshot fallback.
-- A manual refresh that loses the zero-timeout lease shows “Refresh already in progress” and is satisfied by the winning refresh's completion update; without completion, it self-clears at 15 seconds.
-- Abandon the refresh lease and mutation mutex from a killed helper process; verify `AbandonedMutexException` is treated as acquired ownership, temporary/committed state is validated, every owned mutex is released, and subsequent refresh/logout/privacy operations succeed.
+- A manual refresh that loses the zero-timeout lease shows “Refresh already in progress” for as long as the lease is held and is satisfied by the winning refresh's completion update; when the lease frees without a completion event or generation change, the indicator self-clears to the cached state. Include a slow-winner case that runs close to the worst-case end-to-end bound and verify the loser does not clear early, and a killed-winner case that clears when the lease horizon elapses.
+- Kill a helper process mid-commit so the mutation mutex is abandoned; verify `AbandonedMutexException` is treated as acquired ownership, temporary/committed state is validated, the mutex is released, and subsequent refresh/logout/privacy operations succeed.
+- Kill a helper process while it holds the refresh lease record; verify no other process blocks, the lease is reclaimed at expiry without any abandonment exception, and a lease stamped with a prior boot session is treated as expired.
 - Refresh single-flight, 15-second debounce, opportunistic five-minute active timer, cancellation, timeout, and backoff.
 - Rendering models for small/medium/large and counts-only privacy mode.
 - Adaptive Card schema 1.5 and per-instance size rendering.
@@ -675,7 +844,7 @@ Native architecture proceeds only if gates 1–9 and 11 pass. Gate 10 controls o
 
 ### Integration/manual tests
 
-- Windows 11 supported build matrix and x64.
+- The author's Windows 11 build(s) and x64.
 - Light, dark, high-contrast, text scaling, keyboard, narrator, and localization-safe truncation.
 - Small: counts only. Medium: three messages. Large: five messages.
 - Empty Inbox, 0 unread, 1 message, 5+ messages, missing subject, null `from`/`sender`, long Unicode sender/subject, and meeting-request count mismatch.
@@ -684,18 +853,24 @@ Native architecture proceeds only if gates 1–9 and 11 pass. Gate 10 controls o
 - Offline startup with fresh, stale, corrupt, and absent cache.
 - HTTP 401, 403, 429 with `Retry-After`, 5xx, timeout, malformed JSON.
 - Sleep/resume, user lock/unlock, network transition, reboot, provider crash.
-- Two accounts, switch, logout, consent revoked, password reset, MFA challenge, broker unavailable, and proof that no provider path opens a browser.
-- Approved Outlook-client matrix: missing, already open, updating, and damaged; include Classic Outlook only if the audience decision requires it.
+- Logout, consent revoked, password reset, MFA challenge, broker unavailable, and proof that no provider path opens a browser. Two-account switching and cross-account cache isolation if a second account is available; otherwise record both as untested, not as covered by same-account sign-out/sign-in.
+- New Outlook matrix: missing, already open, updating, and damaged.
 - Graph `webLink` with browser signed in/out.
-- Install, upgrade, repair, uninstall, reinstall, rollback remove-then-install, consent revocation, residual WAM-account behavior, and certificate failure.
+- Install, upgrade, repair, uninstall, reinstall, rollback remove-then-install, consent revocation, residual WAM-account behavior, and certificate-trust failure.
+- Public-certificate trust installation on the Entra-managed device, including the case where policy blocks it.
+- A retained prior signed package still installs for rollback; if signing is not timestamped, record the date beyond which that stops being true.
+- Consent blocked at interactive sign-in renders the approval-required state and never a Graph 403; a Graph 403 after a successful token renders the mailbox-approval state. The two must be visibly distinguishable in the companion and in the log's status category.
 - Widgets allowed, explicitly disabled by policy, and user-disabled where applicable; installer/detection output must distinguish them.
-- Intune/RMM pilot on a managed device.
 
 ### Nonfunctional targets
 
 - Warm cached activation at or below 500 ms on the reference PC.
 - Cold cached activation at or below 2 seconds on the reference PC.
-- Normal Graph refresh target under 3 seconds; timeout at 10 seconds.
+- Normal Graph refresh target under 3 seconds; Graph request timeout at 10 seconds; async deadline 20 seconds covering token acquisition, Graph, and validation.
+- Non-cancellable commit bounded by construction: 2-second mutex wait plus a critical section well under 1 second. Worst-case refresh *transaction* (claim through lease clear) ~27 seconds; lease horizon 30 seconds must exceed it. Widget delivery is outside this bound and unbounded by the host.
+- A wedged Widgets host degrades rendering only: the lease is already clear, refresh accounting is unaffected, and the next activation is not blocked.
+- Exactly one `UpdateWidget` call in flight process-wide, and none from the companion; the last delivered content always reflects the newest committed generation. Final convergence only — an in-flight call cannot be retracted, so a transient pre-change render is possible and is documented rather than claimed away.
+- Deadline expiry cancels the awaited work and abandons pre-acquisition mutex waits; the lease is cleared through the existing `try/finally`, or reclaimed at the horizon if the process dies first.
 - At most one refresh in flight per account.
 - Provider stops its periodic timer on deactivation.
 - Logs expose no API field capable of accepting mailbox or identity metadata.
@@ -706,27 +881,38 @@ Each phase ends with a user review before the next begins.
 
 ### Phase 0 — feasibility spike
 
-- Audience/client decision, Widgets-policy preflight, consent-policy check, and named Entra role owner.
+- Widgets-policy preflight on the target device and Entra registration creation.
 - Repository relocation outside OneDrive and certificate-storage check.
+- Signing decisions recorded before the first install: certificate Subject, its validity period and key-retention location, manifest `Publisher`, the stated section 15 continuity position, timestamping, and whether managed-device policy permits trusting the public certificate.
 - Minimal signed MSIX, provider registration, companion activation.
 - Complete provider lifecycle skeleton, including COM registration/process lifetime, all six callbacks, `GetWidgetInfos()` recovery, multiple instances, and final-instance exit.
 - WAM sign-in and provider silent-token handoff.
 - Explicit broker-unavailable/no-browser-fallback proof.
-- Exact Graph queries and Focused count comparison.
-- Approved Outlook-client launch and message-link behavior report.
+- Exact Graph queries, self-consent confirmation, and Focused count comparison.
+- New Outlook launch and message-link behavior report.
 - Provider lifecycle and refresh experiment.
 - Deliver an evidence table with pass/fail results and captured version/build details.
 
 ### Phase 1 — secure core
 
-Phase 1's 2–3 day estimate assumes the accepted Phase 0 provider lifecycle and broker skeleton is retained and evolved in place as required by section 12. Rebuilding that skeleton instead of reusing it requires a revised estimate before Phase 1 begins.
+Phase 1's estimate assumes the accepted Phase 0 provider lifecycle and broker skeleton is retained and evolved in place as required by section 12. Rebuilding that skeleton instead of reusing it requires a revised estimate before Phase 1 begins.
+
+**Slice 1 — cross-process coordination, test-first.** This comes first and its tests are written alongside or before the implementation. Two processes refreshing and mutating shared state is the normal architecture here, not an exceptional path, and the failure modes are stale account metadata on screen, a logout or privacy change that strands, or coordination that hangs. Correctness must be established here, not discovered later.
+
+- `RefreshCoordinator`: synchronous bounded-wait mutation mutex, expiring lease record, async deadline, and the documented segment bounds.
+- The provider's serialized coalescing delivery worker as sole `UpdateWidget` caller.
+- Per-operation disclosure tombstones with suppress-first ordering for logout, account switch, and enabling hide-details.
+- `ProtectedCache` with lock-free reads, `FileShare.ReadWrite | FileShare.Delete`, bounded replace retry, and generation/state-changed signalling.
+- The section 17 concurrency tests as acceptance criteria for the slice: no `await` under the mutex, no parameterless `WaitOne`, forced thread hops, wedged-peer timeouts per caller, abandoned mutex, lease expiry and boot-session discrimination, overlapping disclosure operations, stalled delivery across a newer generation and an account switch, and single-call-site enforcement for `UpdateWidget`.
+
+**Slice 2 — the rest of the core**, on top of a coordination layer that already passes its tests.
 
 - Final models and interfaces.
-- WAM authentication/account lifecycle.
+- WAM authentication/account lifecycle, including logout and account switch end to end.
 - Direct Graph REST client.
 - Snapshot validation.
-- DPAPI cache with version-discard recovery; no migration machinery.
-- Cross-process refresh/cache coordination and metadata-free operational logging.
+- DPAPI cache version-discard recovery; no migration machinery.
+- Metadata-free operational logging.
 - Unit and contract tests.
 
 ### Phase 2 — companion and widget experience
@@ -739,18 +925,21 @@ Phase 1's 2–3 day estimate assumes the accepted Phase 0 provider lifecycle and
 
 ### Phase 3 — resilience and security hardening
 
-- Backoff, offline behavior, corruption recovery, account switch/logout.
+Phase 3 **extends** coordination correctness established in Phase 1 slice 1; it does not establish it. If account-switch or logout correctness is still open when Phase 3 begins, that is a signal Phase 1 was cut short, not Phase 3 work arriving on schedule.
+
+- Fault injection over the coordination layer: killed processes mid-commit and mid-delivery, wedged host, transient sharing violations, clock steps, simulated reboot.
+- Performance and provider lifecycle tests, including the warm/cold activation targets and the worst-case refresh-transaction bound against the lease horizon.
+- Backoff, offline behavior, and corruption recovery.
 - Link validation and no-metadata logging audit.
-- Performance and provider lifecycle tests.
 - Conditional Access/MFA test.
 
-### Phase 4 — packaging and deployment
+### Phase 4 — packaging and install
 
-- Production identity and signing.
-- Upgrade, rollback, uninstall, consent-revocation, and residual broker-state tests.
-- Intune and optional RMM pilot.
-- README (including privacy, security, and deployment sections), app-registration guide, troubleshooting guide, and the Phase 0 evidence report.
+- Stable package identity and development-certificate signing.
+- Install, upgrade, rollback, uninstall, consent-revocation, and residual broker-state tests on the author's own machines.
+- README (including privacy, security, and install/rollback sections), app-registration guide, troubleshooting guide, and the Phase 0 evidence report.
 - Release candidate and final review.
+- No Intune or RMM pilot in v1; section 16 stays deferred.
 
 ### Fallback branch
 
@@ -760,20 +949,30 @@ If a critical Phase 0 native gate fails, stop native provider work and first bui
 
 | Risk/unknown | Impact | Mitigation/test |
 |---|---|---|
-| Audience size and Outlook-client mix are not approved | Architecture/deployment effort or main click may not fit users | Resolve before Phase 0; test only the approved client policy |
-| Widgets is disabled by `AllowNewsAndInterests` policy | Native surface can never appear | Preflight CSP/GPO on representative devices; report and stop before install |
-| Current documentation does not give one clear minimum Windows build for all third-party-widget cases | Deployment incompatibility | Baseline on Windows 11 24H2; test fleet builds and record Widgets package versions |
-| Sideloaded provider registration/COM activation differs across managed devices | Native widget unavailable | Signed-package gate on unmanaged and managed PCs |
+| Widgets is disabled by `AllowNewsAndInterests` policy on the author's managed device | Native surface can never appear | Preflight CSP/GPO before any build work; report and stop before install |
+| Current documentation does not give one clear minimum Windows build for all third-party-widget cases | Widget does not appear | Baseline on Windows 11 24H2; record the actual build and Widgets package version in the evidence report |
+| Sideloaded provider registration/COM activation is blocked by managed-device policy | Native widget unavailable | Signed-package gate on the author's own Entra-managed PC, which is the real target |
+| Scope grows to other users later | Fleet assumptions were never tested | Keep package identity, registration, and core surface-agnostic; treat section 16 as a separate, re-verified step rather than a switch to flip |
 | Provider cannot build/use broker silently without a natural HWND | Background refresh fails or browser UI appears | Zero-handle silent-only provider API; pinned Broker package; fail-closed and no-browser Phase 0 tests |
-| Companion and provider race refresh/logout/privacy state | Stale details, mixed accounts, torn cache, blocked activation, or sharing-violation commit failures | Nonblocking refresh lease; readers use `FileShare.ReadWrite \| FileShare.Delete`; bounded replace retry; mutation-only mutex with generation compare/finally release; abandoned-mutex recovery; test both nonblocking reads and commits during an open read |
+| Companion and provider race refresh/logout/privacy state | Stale details, mixed accounts, torn cache, blocked activation, or sharing-violation commit failures | Expiring lease record for single-flight; readers use `FileShare.ReadWrite \| FileShare.Delete`; bounded replace retry; synchronous mutation-only mutex with generation compare and `finally` release; abandoned-mutex recovery; test both nonblocking reads and commits during an open read |
+| A wedged peer blocks the logout commit, so no generation increment or state-changed event can reach the provider | Prior account's subjects stay on screen — a privacy failure, not a staleness one | Disclosure tombstone written before the mutation is attempted, independent of the mutex, snapshot, and generation; provider fails closed on a present, unreadable, or ambiguous tombstone |
+| `UpdateWidget` blocks in a wedged Widgets host | Operation outlives the lease horizon and the lease is reclaimed under its owner | Lease is cleared at commit; delivery is post-transactional, separately reported, and cannot block the refresh path or the next activation |
+| Concurrent or delayed deliveries land out of order | A slow older `UpdateWidget` becomes the last content the host accepts, re-displaying stale or previous-account data that the cache generation cannot retract | Provider is sole delivery authority; one serialized coalescing worker; each pass re-reads committed state and tombstone so content is chosen at delivery time, latest-generation-wins |
+| Overlapping disclosure-reducing operations | An older operation's success removes a newer operation's suppression, so a subsequent timeout re-discloses data | One tombstone file per operation, each deleted only by its own operation; suppression active while any file exists with the strongest mode present; single-instance companion serialization as defence in depth |
+| An old `UpdateWidget` call is already in flight when logout or a privacy change commits | Pre-change content can land briefly and cannot be retracted; a wedged host makes the window longer | Accept and document it: the guarantee is final convergence, not retraction. Worker re-reads state and tombstone immediately before each call, README states that a wedged host can delay privacy-state rendering, and no stronger claim is made unless Phase 0 demonstrates stronger host ordering |
+| `Mutex` thread affinity violated by an `await` inside a critical section | `ReleaseMutex` throws and cross-process state coordination deadlocks until process exit | No named primitive is held across an `await`; single-flight is an expiring record rather than a held lock; static check plus a forced-thread-hop test |
+| Unbounded `WaitOne()` behind a stuck peer | Caller hangs indefinitely with no recovery, including a hung sign-out | Timeout on every acquisition, prohibited parameterless overload enforced by static check, and defined per-caller timeout behavior with explicit failure for privacy-relevant operations |
 | Focused count query is unsupported, slow, or differs from Outlook | Wrong optional number | Compare query with real Outlook mailboxes; keep feature off/unavailable on failure |
 | New Outlook has no documented Inbox/message selector | Click does not reach desired view | Promise launch only; use documented browser `webLink`; monitor Microsoft documentation |
 | `olk.exe` resolution/activation changes | Launch failure after update | Test alias/package activation on multiple New Outlook builds; never hard-code versioned path |
 | Widget lifecycle is shorter or more aggressively throttled than expected | Five-minute timer rarely runs and view can age | Cached-first, activation-driven refresh; opportunistic timer; manual refresh |
 | Widget Board customization bug/regression | Broken settings UX | Keep v1 settings in companion; avoid `IWidgetProvider2` customization |
-| MSIX certificate trust/runtime dependency failures | Install failure | Preflight and pilot; stable signing identity; managed certificate/runtime deployment |
+| MSIX certificate trust/runtime dependency failures | Install failure | Preflight; stable signing identity; trust the development certificate explicitly and verify the runtime dependency installs |
 | Subject/sender visible to shoulder surfers | Privacy exposure | Counts-only small size and global privacy toggle; no body preview |
-| Tenant blocks user consent | Sign-in blocked | Admin consent/readiness instructions and clear 403/approval state |
+| Tenant user-consent policy changes and blocks self-consent | Sign-in blocked before any token is issued | Confirm self-consent at Phase 0 sign-in (universal gate 8); surface it as a distinct approval-required authorization state, not as a Graph 403, with admin-request guidance |
+| Future enterprise signing changes the certificate Subject and therefore the package identity | Later package cannot upgrade the installed one; widget pins and local state are lost | State the section 15 position before the first install. Persistent identity needs both certificates in hand while the old one is still valid, so keep the development certificate long-lived and its key retained to hold that option open; otherwise expansion means remove-and-reinstall. Record the Subject, expiry, and manifest `Publisher` in the evidence report |
+| Development certificate expires without a timestamp | Retained rollback packages become uninstallable, though the installed package keeps running | Timestamp at signing, or accept and document a rollback shelf life; verify a retained package still installs during Phase 4 |
+| Development certificate lapses or its key is lost before the tool is shared | The persistent-identity bridge becomes impossible and expansion is forced into remove-and-reinstall | Issue it with a long validity, retain the private key in a durable non-synced location, and record its expiry date where a future decision will actually see it |
 | Graph throttling/service outage | Refresh failure | Low request volume, concurrent bounded GETs, cached state, `Retry-After`, backoff |
 | Windows Widgets investment/roadmap changes over a 2–3 year horizon | Native surface loses priority despite not being deprecated | Keep auth, Graph, cache, and display models surface-agnostic; exercise fallback only if needed |
 | Windows App SDK regression | Provider instability | Stable channel only, version pinning, upgrade tests before dependency updates |
@@ -782,36 +981,43 @@ If a critical Phase 0 native gate fails, stop native provider work and first bui
 
 ## 20. Rough effort assessment
 
-Estimate for one experienced Windows/.NET developer, excluding waiting time for tenant administration, signing approval, or managed-device scheduling:
+Estimate for one experienced Windows/.NET developer, re-cut for the single-user, New-Outlook-only scope. Phase 0 is unchanged — every gate it carries is a single-machine question and keeps its full value at one user. Phases 3 and 4 shrink, because the mixed-client branch, the fleet matrix, enterprise signing, and the managed-deployment pilot are gone.
 
 | Phase | Effort |
 |---|---:|
 | Phase 0 feasibility spike and evidence report | 3–5 developer days |
-| Phase 1 secure core and automated tests | 2–3 days, assuming Phase 0 lifecycle/broker code is retained |
+| Phase 1 secure core and automated tests — slice 1 coordination test-first, then slice 2 | 3–4 days, assuming Phase 0 lifecycle/broker code is retained |
 | Phase 2 companion plus native widget UX | 3–5 days |
-| Phase 3 resilience/security/accessibility hardening | 3–4 days |
-| Phase 4 packaging, deployment pilot, and documentation | 4–5 days |
-| Total native-first path | **15–22 developer days** |
+| Phase 3 resilience/security/accessibility hardening | 2–3 days |
+| Phase 4 packaging, install, and documentation | 2–3 days |
+| Total native-first path | **13–20 developer days** |
+
+Phase 1 grew by a day and Phase 3 had already been trimmed to match: making coordination a test-first first slice moves account-switch and logout correctness out of Phase 3 rather than adding new work, leaving Phase 3 to do fault injection and performance over a layer that already passes its tests. The small net increase reflects test-first coordination costing a little more up front than the same code written and debugged later — which is the trade being bought deliberately.
 
 If the native gates fail early, the tray/popover MVP is estimated at 3–5 days after the reusable core decisions are retained. If failure occurs after significant provider work, add up to two days for surface replacement and revalidation.
 
 The estimate assumes:
 
-- One tenant and one selected mailbox at a time.
-- No hosted backend, push notifications, message-body access, shared mailbox support, or Store publication.
-- Prompt access to an Entra administrator and a representative managed test PC.
+- One tenant, one user, one selected mailbox.
+- New Outlook only; no Classic Outlook code path or test.
+- No managed deployment, enterprise signing, hosted backend, push notifications, message-body access, shared mailbox support, or Store publication.
+- Self-consent works, so no administrator scheduling is on the critical path.
+
+Sharing the tool later is a separate estimate: section 16, enterprise signing, a production registration, and a fleet test pass.
 
 ## 21. Documentation deliverables
 
 Implementation is not complete until these documents match verified behavior:
 
-- `README.md`: purpose, audience, screenshots, supported Windows versions, prerequisites, architecture/data-flow summary, privacy/security behavior, deployment/rollback/uninstall summary, build, install, use, and limitations.
+- `README.md`: purpose, audience, screenshots, supported Windows versions, prerequisites, architecture/data-flow summary, privacy/security behavior, deployment/rollback/uninstall summary, build, install, use, and limitations. Limitations must state explicitly that a slow or wedged Widgets host can briefly delay privacy-state rendering — details hidden by a logout or privacy change converge but are not retracted from an update already handed to the host.
 - `docs/app-registration.md`: exact single-tenant Entra settings and `Mail.ReadBasic` consent.
-- `docs/troubleshooting.md`: WAM, consent, mailbox availability, Widgets policy, widget registration, cache recovery, and Outlook-client launch.
-- Phase 0 evidence report: OS, Windows App SDK, Widgets host, Outlook client, MSAL/Broker, policy, consent, and package versions plus pass/fail results for every gate.
+- `docs/troubleshooting.md`: WAM, approval/consent-required versus Graph 403, mailbox availability, Widgets policy, certificate trust, widget registration, cache recovery, and New Outlook launch.
+- Phase 0 evidence report: OS, Windows App SDK, Widgets host, Outlook client, MSAL/Broker, policy, consent, and package versions; the certificate Subject, its expiry date and key-retention location, manifest `Publisher`, the stated continuity position, and the timestamping decision; plus pass/fail results for every gate, labelled universal or native.
 
 Architecture, privacy, security, and deployment details begin as clearly labeled `README.md` sections. Split them into separate documents only if later scope makes the README unwieldy. No `SECURITY.md` is required for this internal v1.
 
 ## Final approval gate
 
-This revised draft cannot receive final approval until the intended audience/user count and Outlook-client mix are recorded in section 0. After that edit, approval authorizes Phase 0 implementation in small reviewed steps. It does **not** authorize production deployment, tenant-wide consent, Store publication, or broad internal rollout. Those actions require their own explicit review at the appropriate milestone.
+The section 0 scope decision is recorded: one user, New Outlook only, self-consent. **Phase 0 is approved** and proceeds in small reviewed steps, with a review at the end of each phase. Phase 1 may not begin until Phase 0's evidence report is reviewed, and its first slice is the coordination subsystem built test-first per section 18.
+
+It does **not** authorize sharing the tool with other users, managed or Intune deployment, enterprise code signing, a production Entra registration, tenant-wide consent, or Store publication. Each of those is a separate decision with its own review, and section 16 must be re-verified against current documentation before any of it is built.
