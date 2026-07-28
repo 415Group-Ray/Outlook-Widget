@@ -105,7 +105,14 @@ internal sealed class WidgetProvider : IWidgetProvider
                     // The host reports which widgets exist, not which are currently being viewed.
                     // Starting every recovered instance inactive is the honest default; Activate
                     // corrects it for any the user is actually looking at.
-                    IsActive: false));
+                    IsActive: false,
+
+                    // The generation the host was last given for this instance, completing the
+                    // round trip the sink starts when it writes CustomState. Gate 4 requires
+                    // CustomState to be restored, not merely written, and without this the card
+                    // currently on screen after a recovery could not be compared against the
+                    // committed snapshot at all.
+                    DeliveredGeneration: WidgetInstance.ParseGeneration(info.CustomState)));
             }
 
             return infos.Length;

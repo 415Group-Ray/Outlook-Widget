@@ -129,6 +129,14 @@ internal sealed class WidgetDeliverySink : IWidgetDeliverySink
             {
                 manager.UpdateWidget(options);
                 delivered++;
+
+                // Record what the host was actually given, so the value survives into the next
+                // pass and matches what GetWidgetInfos() will hand back after a recovery. Written
+                // only on success: an instance whose update threw has not received this generation,
+                // and claiming otherwise would make a failed delivery look like a completed one.
+                _registry.TryUpdate(
+                    instance.Id,
+                    existing => existing with { DeliveredGeneration = state.Generation });
             }
             catch (Exception)
             {

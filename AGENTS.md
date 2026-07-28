@@ -9,16 +9,18 @@ approved v1 direction is a packaged Win32 Windows Widgets provider plus a small 
 application, with a tray/popover surface only if the native Phase 0 gates fail.
 
 The repository is in early implementation. Phase 0 is approved and **every native-surface gate except
-gate 11 has passed on the reference machine** — the widget is discoverable, pinnable, renders at all
-three sizes, survives a reboot with its instance restored, survives a package upgrade while pinned,
-launches New Outlook and the companion, and its provider exits when unpinned. The tray/popover
-fallback is therefore not being built.
+gates 9 and 11 has passed on the reference machine** — the widget is discoverable, pinnable, renders
+at all three sizes, survives a reboot with its instance restored, survives a package upgrade while
+pinned, launches New Outlook and the companion, and its provider exits when unpinned. Gate 4 is
+partial: `CustomState` recovery is implemented but not yet verified on the device.
 
-**Gate 11 has not passed.** Cached-first refresh and cross-process invalidation across real Board
-activation and provider recycle cannot be observed before authentication and Graph exist. Do not
-describe the native group as complete, and do not let "the fallback is settled" become "every gate
-passed" — the fallback decision does not depend on gate 11, because both surfaces consume the same
-coordination core.
+**Do not describe the native group as complete.** Gates 9 and 11 are both native-surface gates and
+both wait on authentication. Gate 11 could not decide the surface question, because the fallback
+consumes the same coordination core. **Gate 9 could** — a provider that cannot acquire a token
+silently with a zero parent handle would render sign-in-required forever, whereas a tray/popover UI
+process could authenticate interactively. So the fallback proof is not being built, but that rests on
+gate 9 not failing, which is an expectation rather than a measurement. Do not let it harden into
+"every gate passed".
 
 Note one permanent operational consequence: **the provider holds the package open while a widget is
 pinned**, so upgrades require `Add-AppxPackage -ForceApplicationShutdown`. Do not advise unpinning

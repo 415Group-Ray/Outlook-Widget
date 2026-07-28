@@ -348,16 +348,61 @@ if (-not $activationNode) {
 $comClassId = $comClassNode.Value
 $activationClassId = $activationNode.Value
 
-if ($comClassId -ne $activationClassId) {
-    throw @"
-Widget activation CLSID mismatch. This installs cleanly and then fails to activate.
+# The third value: the GUID the provider actually registers with OLE at runtime.
+#
+# Comparing only the two manifest values was the original mistake. Those two agreeing proves the
+# manifest is internally consistent and says nothing about whether the running provider registers
+# that class - and the runtime GUID is the one that can drift independently, because it lives in a
+# different file that packaging does not otherwise read. A drift there produces a package that
+# installs cleanly and a widget that fails to activate, which is precisely the failure this section
+# exists to prevent. The test suite checks all three, but the test suite does not run during
+# packaging, so the check has to exist here too.
+$providerProgram = Join-Path $repoRoot 'src\OutlookWidget.Provider\Program.cs'
 
-  com:Class Id:            $comClassId
-  CreateInstance ClassId:  $activationClassId
+if (-not (Test-Path -LiteralPath $providerProgram)) {
+    throw "Cannot verify the runtime CLSID: $providerProgram does not exist."
+}
+
+$providerSource = Get-Content -LiteralPath $providerProgram -Raw
+$runtimeMatch = [regex]::Match($providerSource, 'ProviderClassId\s*=\s*new\("(?<guid>[0-9A-Fa-f-]{36})"\)')
+
+if (-not $runtimeMatch.Success) {
+    # Refuse rather than skip. A silently unverifiable check is worse than no check, because the
+    # surrounding output would still claim all three values were compared.
+    throw @"
+Could not read Program.ProviderClassId from $providerProgram.
+
+The declaration form changed, so the runtime CLSID cannot be compared against the manifest. Update
+this pattern together with the declaration rather than removing the check.
 "@
 }
 
-Write-Output "Provider CLSID: $comClassId"
+$runtimeClassId = $runtimeMatch.Groups['guid'].Value
+
+# Parsed rather than string-compared. Casing and brace style are irrelevant to COM, so a mismatch
+# there would be noise; a genuinely different value must fail.
+$ids = [ordered]@{
+    'com:Class Id'            = $comClassId
+    'CreateInstance ClassId'  = $activationClassId
+    'Program.ProviderClassId' = $runtimeClassId
+}
+
+$distinct = @($ids.Values | ForEach-Object { [Guid]::Parse($_) } | Select-Object -Unique)
+
+if ($distinct.Count -ne 1) {
+    $detail = ($ids.Keys | ForEach-Object { "  {0,-24} {1}" -f $_, $ids[$_] }) -join "`n"
+
+    throw @"
+Provider CLSID mismatch. This installs cleanly and then fails to activate, with nothing surfaced in
+the Widgets Board.
+
+$detail
+
+All three must be the same GUID.
+"@
+}
+
+Write-Output "Provider CLSID: $comClassId (manifest, widget extension, and provider source agree)"
 
 # ---------------------------------------------------------------------------
 # Pack

@@ -15,6 +15,26 @@ namespace OutlookWidget.Provider;
 /// Whether the host has said it is currently interested in updates for this instance. Per
 /// instance: one widget being visible says nothing about another.
 /// </param>
+/// <param name="DeliveredGeneration">
+/// The snapshot generation of the content the host was last given for this instance, or
+/// <see langword="null"/> when nothing has been delivered yet or the host returned a value this
+/// provider cannot parse.
+/// </param>
+/// <remarks>
+/// <para>
+/// <paramref name="DeliveredGeneration"/> is the round trip through the host's own storage. The
+/// sink writes the generation into <c>CustomState</c> after a successful update and
+/// <c>GetWidgetInfos()</c> hands it back on recovery, which is what lets a recovered provider say
+/// whether the card currently on screen predates the committed snapshot. Restoring it is part of
+/// the gate 4 acceptance criterion; writing it without ever reading it back — the original
+/// omission — satisfied neither the criterion nor any purpose.
+/// </para>
+/// <para>
+/// Parsed defensively and never trusted. <c>CustomState</c> is host storage outside this process's
+/// control, so an absent, empty, or unparseable value is treated as "unknown" rather than as an
+/// error or a zero. Zero would be a lie, because generation zero is a real generation.
+/// </para>
+/// </remarks>
 /// <remarks>
 /// A record of value copies rather than a reference to anything the host handed over. The
 /// Widgets host documents that objects passed into <c>IWidgetProvider</c> callbacks are
@@ -25,7 +45,27 @@ internal readonly record struct WidgetInstance(
     string Id,
     string DefinitionId,
     WidgetSize Size,
-    bool IsActive);
+    bool IsActive,
+    long? DeliveredGeneration = null)
+{
+    /// <summary>
+    /// Parses a generation out of a host-supplied <c>CustomState</c> string.
+    /// </summary>
+    /// <remarks>
+    /// Returns <see langword="null"/> for absent, empty, or unparseable input rather than throwing
+    /// or defaulting to zero. This value comes back from host storage, so it is input rather than
+    /// something this process can rely on, and zero would be indistinguishable from a genuine
+    /// generation zero.
+    /// </remarks>
+    public static long? ParseGeneration(string? customState) =>
+        long.TryParse(
+            customState,
+            System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out long generation)
+            ? generation
+            : null;
+}
 
 /// <summary>
 /// The provider's in-memory map of enabled widget instances.

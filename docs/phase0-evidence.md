@@ -1,16 +1,30 @@
 # Phase 0 evidence report
 
-Status: **in progress.** **Every native-surface gate except 11 now passes.** Gates 1, 2, 3, 4, 5 (as
-superseded), 6, and the native half of 7 were all observed on the reference machine: the widget is
-discoverable, pinnable, renders at all three sizes, survives a reboot and a package upgrade with its
-instance restored, launches New Outlook and the companion from its actions, and its provider process
-exits when the widget is unpinned. The section 18 tray/popover fallback branch is **not** taken.
+Status: **in progress.** **Every native-surface gate except 9 and 11 now passes.** Gates 2, 3, 5 (as
+superseded), 6, and the native half of 7 passed outright, and gate 4 passed in part; gate 1 passed in
+the universal group. The widget is discoverable, pinnable, renders at all three sizes, survives a
+reboot and a package upgrade with its instance restored, launches New Outlook and the companion from
+its actions, and its provider process exits when the widget is unpinned.
 
-**Gate 11 has not passed and cannot yet.** It asks for cached-first refresh and cross-process
-invalidation across real Board activation and provider recycle, and neither a refresh nor a state
-commit is possible before authentication and Graph exist. Its signalling half is now real — see the
-native-surface table — but the gate is open, and it is not a gate that decides between the native
-surface and the fallback.
+**Two native-surface gates are still open, and both wait on authentication.**
+
+- **Gate 9** — provider silent-only acquisition with a zero parent handle. Not started; needs the
+  Entra registration and the broker skeleton.
+- **Gate 11** — cached-first refresh and cross-process invalidation across real Board activation and
+  provider recycle. Its signalling half is now real, but neither a refresh nor a state commit is
+  possible before authentication and Graph exist.
+
+**What that means for the fallback decision, stated carefully because an earlier version of this
+report overstated it.** Every gate that tests the native surface *as a surface* — discoverability,
+pinning, rendering at three sizes, activation, lifecycle, recovery, launch — passes. Nothing in that
+group triggers the section 18 fallback, so the tray/popover proof is not being built now.
+
+But gate 9 is classified as a native-surface gate, and a failure there is not cosmetic: a provider
+that cannot acquire a token silently with a zero parent handle would render a sign-in-required card
+forever, because interactive authentication belongs only to the companion and the provider must fail
+closed. A tray/popover surface would not face the same constraint, since its UI process could
+authenticate interactively. So gate 9 is the one open gate that could still reopen the surface
+decision. It is not expected to fail, and it is not proven not to.
 
 Gate 5 was superseded after the Board was measured to allow only one instance per widget definition.
 Two rendering defects were found by the resize test and fixed in 0.2.1.0.
@@ -74,19 +88,28 @@ permission.
 |---|---|---|
 | 2 — discoverable and pinnable in the Widgets Board | **PASS** | Observed on the reference machine. **Outlook Inbox** appeared in the Add Widgets picker and pinned successfully, and the pinned card rendered the provider's own content — headline "No cached state yet", the detail line, and all three action buttons. This is the gate that decides the architecture: the native surface works, so the section 18 tray/popover fallback branch is not taken |
 | 3 — provider cold activation after reboot and package update | **PASS** | All three cases observed. **Cold start:** `CoCreateInstance` on CLSID `254395D8-5EAC-4A2D-9971-90C99BFFD192` from an ordinary PowerShell session succeeded with no provider running, proving the `com:ExeServer` registration, framework resolution, `CoRegisterClassObject`, and the class factory. **Board activation:** a rendered card cannot happen without it. **Reboot:** the widget rendered again after a restart. **Package update:** 0.2.1.0 → 0.2.2.0 was installed with the widget pinned, and the widget still rendered afterwards; the companion launched from the widget reported package full name `415Group.OutlookInboxWidget_0.2.2.0_x64__dgbvqhastx60y`, confirming the upgraded package is the one serving the widget rather than a stale process |
-| 4 — `GetWidgetInfos()` restores all instances; final-instance exit | **PASS** | Both halves observed. The widget rendered again after a reboot, which requires `RecoverEnabledInstances` to have rebuilt the instance map from `GetWidgetInfos()` before the class object was registered — the Board does not replay `CreateWidget` for an already-pinned widget, so a provider that started empty would have rendered nothing. And **the provider process exited when the widget was unpinned**, confirming that `DeleteWidget` signalled on the transition to empty and `Main` revoked its registration and returned |
+| 4 — `GetWidgetInfos()` restores all instances; final-instance exit | **PARTIAL** | Two of three criteria observed. The widget rendered again after a reboot, which requires `RecoverEnabledInstances` to have rebuilt the instance map from `GetWidgetInfos()` before the class object was registered — the Board does not replay `CreateWidget` for an already-pinned widget, so a provider that started empty would have rendered nothing. That covers pinned IDs, definitions, and per-instance sizes. And **the provider process exited when the widget was unpinned**, confirming `DeleteWidget` signalled on the transition to empty and `Main` revoked its registration and returned. **`CustomState` recovery is the missing criterion:** the gate requires it restored, and the first implementation wrote the generation into `CustomState` without ever reading it back, so the value round-tripped nowhere. Recovery is now implemented and surfaced in the large-size diagnostic as `delivered N`, but it has **not been verified on the device** — that needs a reboot with the widget pinned, then a look at the large card |
 | 5 — two instances at different sizes render independently | **Superseded; replacement PASSES** | **A second instance could not be pinned.** After pinning, the picker entry was greyed out and marked as added. The cause is not the manifest: the installed definition carries `AllowMultiple="true"` and declares all three sizes. The replacement gate — one instance rendering correctly at small, medium, and large — **passes**, with two rendering defects found and fixed along the way. See the gate 5 section below |
 | 6 — widget action launches the companion | **PASS** | Clicking **Open companion** on the pinned widget launched the companion, which displayed package identity `415Group.OutlookInboxWidget_0.2.0.0_x64__dgbvqhastx60y` and its coordination root inside the package store. Note that the companion did **not** report a launch argument, which is the correct outcome and is explained below: the documented shell-activation candidate succeeded, and that path carries no arguments |
 | 9 — provider silent-only acquisition with a zero parent handle | **Not started** | Needs the Entra registration and the broker skeleton. A source-level test now asserts the provider contains no `AcquireTokenInteractive`, which is the enforcement rather than the gate |
 | 11 — cached-first refresh and cross-process invalidation | **Partly established; NOT passed** | The coordination subsystem passes 136 automated tests including genuine multi-process contention. Separately, and new: **the named events now exist.** Both `OutlookWidget-StateChanged-v1` and `OutlookWidget-SuppressDetails-v1` were confirmed present while the installed provider ran. Until `StateChangeListener` was written nothing created them, so `StateCommitCoordinator` and `DisclosureTombstoneStore` were opening a non-existent event and swallowing the failure — every cross-process signal in the product was a silent no-op. **The gate itself is not met:** it requires cached-first refresh and cross-process invalidation observed across real Board activation and provider recycle, and neither a refresh nor a state commit can happen until authentication and Graph exist. It cannot be closed in Phase 0's native work |
 
-**Gate 11 is the one native-surface gate that has not passed, and it is not a surface-choice gate.**
-The decision between the native provider and the tray/popover fallback rests on discoverability,
-pinning, rendering, lifecycle, and launch — all of which pass. Gate 11 asks whether refresh and
-invalidation behave correctly across a real host, which would be equally unproven on the fallback
-surface because both consume the same coordination core. So the fallback branch is settled while
-gate 11 stays open, and any status claim elsewhere must say "every native-surface gate **except 11**"
-rather than "every native-surface gate".
+**Two native-surface gates have not passed: 9 and 11.** Any status claim elsewhere must say "every
+native-surface gate **except 9 and 11**", and must not say the native group is complete.
+
+They differ in consequence, and conflating them is what produced the earlier overstatement:
+
+- **Gate 11 is not a surface-choice gate.** It asks whether refresh and invalidation behave
+  correctly across a real host, which would be equally unproven on the fallback surface because both
+  consume the same coordination core. It cannot decide between them.
+- **Gate 9 could still reopen the surface decision.** A provider that cannot acquire a token
+  silently with a zero parent handle renders a sign-in-required card forever, because interactive
+  authentication belongs only to the companion and the provider fails closed. A tray/popover surface
+  would not face that constraint, because its UI process could authenticate interactively.
+
+So the fallback proof is not being built, on the strength of every gate that tests the surface as a
+surface — but "the fallback branch is not taken" is a decision resting on gate 9 not failing, and
+that is an expectation rather than a measurement.
 
 ### Gate 5 — the Widgets Board allows only one instance of a widget definition
 

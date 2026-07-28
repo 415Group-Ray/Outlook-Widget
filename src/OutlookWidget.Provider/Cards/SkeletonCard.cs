@@ -254,10 +254,19 @@ internal static class SkeletonCard
             ? "none"
             : $"{state.Payload.Length} bytes";
 
+        // The recovered generation is shown alongside the current one, because the pair is what
+        // makes CustomState recovery observable at all. After a reboot the provider rebuilds this
+        // from GetWidgetInfos(), so "delivered" reflects what the host was holding before the
+        // restart while "generation" is what is committed now. "none" means nothing has been
+        // delivered to this instance yet, or the host returned a value that would not parse.
+        string delivered = instance.DeliveredGeneration is long g
+            ? g.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : "none";
+
         return (
             $"{instance.DefinitionId} · {instance.Size} · "
                 + (instance.IsActive ? "active" : "inactive"),
-            $"generation {state.Generation} · mode {state.Mode} · "
+            $"generation {state.Generation} · delivered {delivered} · mode {state.Mode} · "
                 + $"read {state.ReadStatus} · payload {payload}",
             $"widget {instance.Id}");
     }

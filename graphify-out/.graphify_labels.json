@@ -1,5 +1,5 @@
 {
-  "0": "DeliveryWorker",
+  "0": "DeliveryState",
   "1": "OutlookWidget.Core (shared .NET library)",
   "2": ".RefreshAsync",
   "3": ".SeedState",
@@ -26,7 +26,11 @@
   "24": "Test-OutlookLaunch.ps1",
   "25": "Install-DevelopmentPackage.ps1",
   "26": "GlobalUsings.cs",
+  "27": "DeliveryWorker",
   "28": ".Record",
+  "29": "MutexHoldingPeer",
+  "30": "StateChangeListener",
+  "31": "FakeWidgetHost",
   "32": "ProviderFactory",
   "33": "ProviderCardTests"
 }
