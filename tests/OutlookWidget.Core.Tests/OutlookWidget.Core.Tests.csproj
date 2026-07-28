@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>OutlookWidget.Core.Tests</RootNamespace>
+    <AssemblyName>OutlookWidget.Core.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OutlookWidget.Core\OutlookWidget.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The static-analysis tests read the product's own source, so they need its path at
+      runtime rather than a copy of the compiled output.
+    -->
+    <AssemblyMetadata Include="CoreSourceDirectory"
+                      Value="$(MSBuildThisFileDirectory)..\..\src\OutlookWidget.Core" />
+    <AssemblyMetadata Include="SourceRootDirectory"
+                      Value="$(MSBuildThisFileDirectory)..\.." />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,48 @@
+<Project>
+
+  <!--
+    Central package management. Every version lives here and nowhere else, so a
+    dependency cannot drift per project. Section 13 requires the identity and
+    broker packages in particular to be centrally pinned, because the provider's
+    silent-only broker construction is validated against specific versions during
+    Phase 0 and an unnoticed bump would invalidate that evidence.
+
+    Versions resolved against nuget.org on 2026-07-28.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup Label="Windows App SDK">
+    <!--
+      Stable channel only, per section 13. Preview and Experimental packages are
+      prohibited. 2.3.1 is the version the plan pins and the version whose
+      runtime (Microsoft.WindowsAppRuntime.2 2.3.1.0) is already present on the
+      reference machine.
+    -->
+    <PackageVersion Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="Authentication">
+    <!--
+      MSAL plus the brokered-authentication package. The companion uses a real
+      HWND and interactive acquisition; the provider uses the same broker package
+      with a zero parent handle and silent acquisition only.
+    -->
+    <PackageVersion Include="Microsoft.Identity.Client" Version="4.87.0" />
+    <PackageVersion Include="Microsoft.Identity.Client.Broker" Version="4.87.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Platform">
+    <!-- Windows DPAPI, CurrentUser scope, for the protected snapshot. -->
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup Label="Test">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+  Phase 0 gate 1 manifest: package installation and certificate trust only.
+
+  The widget provider registration is deliberately ABSENT. A prior plan review split gate 1
+  (a signed MSIX installs, and the certificate can be trusted) from gate 2 (the widget is
+  discoverable and pinnable), because they fail for unrelated reasons and conflating them sends
+  a sideload or certificate-policy problem into widget debugging. Registering a COM server and a
+  widget extension here would put manifest-schema risk inside the very test that is supposed to
+  isolate device policy.
+
+  Gate 2 adds, on top of this file:
+    - com:Extension Category="windows.comServer" with an ExeServer for the provider
+    - uap3:AppExtension Name="com.microsoft.windows.widgets" with the widget definitions
+
+  Publisher below must match the signing certificate Subject EXACTLY. Package identity is name
+  plus publisher, so a mismatch does not produce a warning — it produces a different package
+  that installs alongside rather than upgrading, losing widget pins and package-local state.
+  scripts/New-DevelopmentCertificate.ps1 prints the exact string to use, and
+  scripts/Build-Package.ps1 refuses to build when the two disagree.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <!--
+    Publisher is the certificate Subject as Windows NORMALIZES it, not as it was typed.
+    "CN=415 Group, Inc." was requested; the store holds CN="415 Group, Inc." because a comma is a
+    element separator in an X.500 name and the value must therefore be quoted. The inner quotes
+    are XML-escaped here.
+
+    Do not "tidy" this by removing the quotes. It would still look correct, and it would produce a
+    different package identity than the certificate signs, which is the mismatch Build-Package.ps1
+    exists to catch.
+  -->
+  <Identity
+    Name="415Group.OutlookInboxWidget"
+    Publisher="CN=&quot;415 Group, Inc.&quot;"
+    Version="0.1.1.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Outlook Inbox Widget</DisplayName>
+    <PublisherDisplayName>415 Group, Inc.</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <!--
+      MinVersion is the plan's supported baseline: Windows 11 24H2, build 26100. MaxVersionTested
+      records the build this was actually verified on, which is 26200 on the reference machine.
+    -->
+    <TargetDeviceFamily
+      Name="Windows.Desktop"
+      MinVersion="10.0.26100.0"
+      MaxVersionTested="10.0.26200.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <Application
+      Id="App"
+      Executable="OutlookWidget.App\OutlookWidget.App.exe"
+      EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Outlook Inbox Widget"
+        Description="Glanceable Microsoft 365 Inbox counts and newest messages."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png" />
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!--
+      internetClient for Microsoft Graph. runFullTrust because this is a packaged desktop
+      application rather than a UWP app.
+
+      Nothing else. Section 3 forbids broad filesystem access, elevation, a run-full-trust
+      service, or any other restricted capability unless Phase 0 proves one is strictly
+      required — and nothing so far has.
+    -->
+    <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+
+</Package>

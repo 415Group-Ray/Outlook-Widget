@@ -1,0 +1,43 @@
+<Project>
+
+  <PropertyGroup>
+    <!--
+      x64 only in v1. ARM64 is added only if the author actually runs an ARM64
+      device (section 15).
+    -->
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>false</InvariantGlobalization>
+
+    <!--
+      Warnings are errors. The coordination subsystem depends on details a warning
+      would otherwise let through, and this project has static-analysis checks that
+      are only meaningful if the build is clean.
+    -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <!-- No telemetry leaves the device (section 11). -->
+    <DOTNET_CLI_TELEMETRY_OPTOUT>1</DOTNET_CLI_TELEMETRY_OPTOUT>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Product identity">
+    <Company>415 Group, Inc.</Company>
+    <Product>Outlook Inbox Widget</Product>
+    <!--
+      Four-part MSIX versions are set in the package manifest. This assembly
+      version is independent of it and is bumped per release, not per build.
+    -->
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+</Project>

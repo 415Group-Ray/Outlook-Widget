@@ -1,0 +1,84 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{json,yml,yaml,xml,csproj,props,targets,appxmanifest}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.ps1]
+indent_size = 4
+
+[*.cs]
+# Namespaces and usings
+csharp_style_namespace_declarations = file_scoped:warning
+dotnet_sort_system_directives_first = true
+csharp_using_directive_placement = outside_namespace:warning
+
+# Prefer explicit types where the type is not apparent from the right-hand side.
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = false:suggestion
+
+# Modern language features
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_prefer_switch_expression = true:suggestion
+csharp_style_prefer_pattern_matching = true:suggestion
+csharp_prefer_braces = true:warning
+csharp_style_prefer_readonly_struct = true:suggestion
+
+# this. is not used
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_property = false:warning
+dotnet_style_qualification_for_method = false:warning
+dotnet_style_qualification_for_event = false:warning
+
+# Readonly and immutability, which the snapshot and lease records depend on
+dotnet_style_readonly_field = true:warning
+dotnet_style_prefer_auto_properties = true:suggestion
+
+# Naming
+dotnet_naming_rule.private_fields_underscore.severity = warning
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = underscore_camel
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_camel.required_prefix = _
+dotnet_naming_style.underscore_camel.capitalization = camel_case
+
+# Async correctness matters more than usual here. A missing await inside a
+# mutation-mutex critical section is the exact defect the plan's static checks
+# exist to prevent, so surface it as an error rather than a warning.
+dotnet_diagnostic.CS4014.severity = error
+dotnet_diagnostic.CA2007.severity = none
+
+# The coordination code intentionally uses synchronous file and mutex APIs inside
+# critical sections; do not suggest async alternatives there.
+dotnet_diagnostic.CA1849.severity = none
+
+# Untrusted mailbox text is length-bound and sanitized rather than formatted with
+# culture assumptions; keep the culture analyzers loud.
+dotnet_diagnostic.CA1305.severity = warning
+dotnet_diagnostic.CA1307.severity = warning
+
+[tests/**/*.cs]
+# Tests deliberately construct wedged peers, abandoned mutexes, and forced thread
+# hops. Several analyzers object to precisely those constructions.
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA2000.severity = none
+dotnet_diagnostic.CA1861.severity = none
+
+# xUnit1051 wants every cancellable call to use the ambient test cancellation token.
+# These tests are about cancellation and timeout behaviour: they pass tokens they
+# construct themselves, or CancellationToken.None to assert that an operation is
+# deliberately non-cancellable. Substituting the ambient token would test something
+# else, so the rule is off here rather than suppressed line by line.
+dotnet_diagnostic.xUnit1051.severity = none
