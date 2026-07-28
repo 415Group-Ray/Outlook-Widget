@@ -387,7 +387,7 @@ Three separate observations, kept separate because they prove different things:
 | 0.2.1.0 → 0.2.1.0, same version | Yes | **Failed** with `0x80073D02`. This is the finding |
 | 0.2.1.0 → 0.2.1.0 with `-ForceApplicationShutdown` | Yes | Succeeded; deployment terminated the provider |
 | 0.2.1.0 → **0.2.2.0**, a real version upgrade | No — already exited | Succeeded with the widget still pinned |
-| 0.2.2.0 → **0.2.3.0**, a real version upgrade | **Yes** | Succeeded with `-ForceApplicationShutdown`; the script's pre-install notice fired correctly |
+| 0.2.2.0 → **0.2.3.0**, a real version upgrade | **Yes** | Succeeded with `-ForceApplicationShutdown`; the script's pre-install notice fired correctly, the pin survived, and the widget still renders afterwards |
 
 The 0.2.1.0 → 0.2.2.0 upgrade had one limitation worth stating: the provider had already exited from
 the previous force-shutdown and the Board had not re-activated it, so the in-use path was not
@@ -406,15 +406,32 @@ second check is what makes it end to end: a rendered card alone would not have d
 because the Widgets host retains the last card it was given. **This is the observation gate 3's
 package-update case rests on.**
 
-*0.2.2.0 → 0.2.3.0 was verified differently, and less completely.* It established the operational
-half — a live provider, the pre-install notice, and `-ForceApplicationShutdown` carrying the upgrade
-through with the pin intact. Afterwards the provider was confirmed to COM-activate from a cold start
-and to create both named notification events. **The Board was not reopened, so whether the widget
-re-renders on 0.2.3.0 is unobserved**, and the provider process was stopped by hand after the
-activation check rather than being left for the Board to reuse. Nothing here needs it: gate 3's
-package-update case is already carried by the 0.2.2.0 observation above, and this install was run to
-validate a code change rather than to re-prove the gate. It is recorded this way so the two are not
-read as one stronger result than either is.
+*0.2.2.0 → 0.2.3.0 was verified differently, and stops one step short.* It established the
+operational half — a live provider, the pre-install notice, and `-ForceApplicationShutdown` carrying
+the upgrade through with the pin intact. Afterwards the provider was confirmed to COM-activate from a
+cold start and to create both named notification events. **The widget was then confirmed to still
+render on 0.2.3.0.**
+
+What that render does and does not establish is worth being exact about, because the difference is
+the one this report got wrong once already. It establishes that the upgrade did not break the pinned
+widget, which is the outcome that matters operationally. It does **not** by itself prove the 0.2.3.0
+provider delivered that card: the Widgets host retains the last card it was given, the card is
+visually identical between the two versions, and no provider process was running when the package
+version was checked afterwards — provider lifetime is demand-driven. Distinguishing a fresh delivery
+from a retained card needs the companion launched from the widget to report a `0.2.3.0` package
+identity, which is the check that made the 0.2.1.0 → 0.2.2.0 upgrade end to end. That was not done
+here.
+
+Nothing depends on it. Gate 3's package-update case is carried by the 0.2.2.0 observation above, and
+this install was run to validate a code change rather than to re-prove the gate — a purpose the cold
+activation check already served. Recorded at this precision so the two installs are not read as one
+stronger result than either is.
+
+**One thing the render does establish, and it is the reason the install happened.** The delivery
+sink's composition changed in this build — it now takes the disclosure read as a delegate and
+re-checks before every host call. A widget that still renders is evidence that the new constructor
+wiring works in the real Widgets host rather than only under `CoCreateInstance`, which is the part a
+unit test could not reach.
 
 ## Observed characteristic: provider lifetime is demand-driven, not pin-driven
 
