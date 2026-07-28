@@ -165,6 +165,7 @@ public sealed class RefreshCoordinator
     private readonly IDeliveryRequester _delivery;
     private readonly ISystemClock _clock;
     private readonly IOperationalLogger _logger;
+    private readonly TimeSpan _asyncDeadline;
 
     private readonly Lock _debounceGate = new();
     private long _lastManualRefreshTicks = long.MinValue;
@@ -176,11 +177,32 @@ public sealed class RefreshCoordinator
         IDeliveryRequester delivery,
         ISystemClock? clock = null,
         IOperationalLogger? logger = null)
+        : this(
+            cache,
+            leases,
+            commits,
+            delivery,
+            clock,
+            logger,
+            CoordinationBounds.AsyncDeadline)
+    {
+    }
+
+    internal RefreshCoordinator(
+        ProtectedCache cache,
+        RefreshLeaseStore leases,
+        StateCommitCoordinator commits,
+        IDeliveryRequester delivery,
+        ISystemClock? clock,
+        IOperationalLogger? logger,
+        TimeSpan asyncDeadline)
     {
         ArgumentNullException.ThrowIfNull(cache);
         ArgumentNullException.ThrowIfNull(leases);
         ArgumentNullException.ThrowIfNull(commits);
         ArgumentNullException.ThrowIfNull(delivery);
+
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(asyncDeadline, TimeSpan.Zero);
 
         // Fail here rather than as a rare mid-commit lease reclaim in production.
         CoordinationBounds.Validate();
@@ -191,6 +213,7 @@ public sealed class RefreshCoordinator
         _delivery = delivery;
         _clock = clock ?? SystemClock.Instance;
         _logger = logger ?? NullOperationalLogger.Instance;
+        _asyncDeadline = asyncDeadline;
     }
 
     /// <summary>
@@ -255,7 +278,7 @@ public sealed class RefreshCoordinator
             // awaited step. It does not bound the commit, which is synchronous and
             // deliberately non-cancellable once entered.
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            deadline.CancelAfter(CoordinationBounds.AsyncDeadline);
+            deadline.CancelAfter(_asyncDeadline);
 
             long capturedGeneration = _cache.ReadGeneration();
 
@@ -319,9 +342,19 @@ public sealed class RefreshCoordinator
                 StateCommitOutcome.Committed => RefreshOutcome.Committed,
                 StateCommitOutcome.Discarded => RefreshOutcome.Discarded,
                 StateCommitOutcome.ContentionTimeout => RefreshOutcome.SkippedContention,
+                StateCommitOutcome.Cancelled when deadline.IsCancellationRequested
+                                                  && !cancellationToken.IsCancellationRequested =>
+                    RefreshOutcome.DeadlineExceeded,
                 StateCommitOutcome.Cancelled => RefreshOutcome.Cancelled,
                 _ => RefreshOutcome.CommitFailed,
             };
+
+            if (outcome == RefreshOutcome.DeadlineExceeded)
+            {
+                _logger.Record(
+                    OperationalEventId.RefreshDeadlineExceeded,
+                    OperationalOutcome.Timeout);
+            }
 
             if (outcome == RefreshOutcome.Committed)
             {

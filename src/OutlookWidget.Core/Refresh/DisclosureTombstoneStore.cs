@@ -290,32 +290,28 @@ public sealed class DisclosureTombstoneStore
     /// <see cref="DisclosureSuppression.CommitAndClear"/>, and only after that
     /// operation's state commit has succeeded.
     /// </summary>
-    internal void DeleteOwn(Guid operationId)
+    internal bool DeleteOwn(Guid operationId)
     {
-        lock (_activeGate)
-        {
-            _activeOperations.Remove(operationId);
-        }
-
         string path = FilePathFor(operationId);
 
         if (TryDeleteFile(path))
         {
+            lock (_activeGate)
+            {
+                _activeOperations.Remove(operationId);
+            }
+
             _logger.Record(OperationalEventId.DisclosureSuppressionCleared, OperationalOutcome.Success);
-        }
-        else
-        {
-            // The file is already gone, or could not be deleted. Either way this
-            // operation no longer needs it, and leaving it would suppress
-            // indefinitely — but it must not be retried against a *different*
-            // operation's file, which is precisely why deletion is by own ID only.
-            _logger.Record(OperationalEventId.DisclosureSuppressionCleared, OperationalOutcome.Failed);
+            SignalSuppressEvent();
+            return true;
         }
 
-        // Signal either way: a listener that re-reads state is always correct, and a
-        // missed signal after a successful commit would leave the widget suppressed
-        // until the next activation.
-        SignalSuppressEvent();
+        // Keep the operation active and report failure to its handle. A transient sharing
+        // violation must remain retryable; declaring the handle cleared here would strand its
+        // tombstone until explicit orphan recovery and could leave counts-only mode active after
+        // the user successfully chose full disclosure.
+        _logger.Record(OperationalEventId.DisclosureSuppressionCleared, OperationalOutcome.Failed);
+        return false;
     }
 
     private string FilePathFor(Guid operationId) =>
@@ -505,7 +501,6 @@ public sealed class DisclosureSuppression
             return;
         }
 
-        _cleared = true;
-        _store.DeleteOwn(_operationId);
+        _cleared = _store.DeleteOwn(_operationId);
     }
 }

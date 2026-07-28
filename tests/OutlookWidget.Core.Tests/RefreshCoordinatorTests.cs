@@ -303,6 +303,55 @@ public sealed class RefreshCoordinatorTests
     }
 
     [Fact]
+    public async Task An_internal_deadline_expiring_during_commit_wait_is_not_reported_as_caller_cancellation()
+    {
+        using var fixture = new CoordinationFixture();
+        var delivery = new CountingDeliveryRequester();
+        var coordinator = new RefreshCoordinator(
+            fixture.Cache,
+            fixture.Leases,
+            fixture.Commits,
+            delivery,
+            fixture.Clock,
+            fixture.Logger,
+            asyncDeadline: TimeSpan.FromMilliseconds(100));
+
+        MutexHoldingPeer? peer = null;
+
+        try
+        {
+            var fetcher = new StubFetcher(_ =>
+            {
+                // Lease claim has completed before the fetcher runs. Take the mutation mutex now
+                // so the commit wait, rather than the lease claim, crosses the internal deadline.
+                peer = MutexHoldingPeer.Start(
+                    fixture.Paths.MutationMutexName,
+                    holdFor: TimeSpan.FromMilliseconds(500),
+                    fixture.Root);
+                peer.WaitUntilHolding(TimeSpan.FromSeconds(5));
+
+                return Task.FromResult<RefreshPayload?>(
+                    new RefreshPayload(Payload("too late"), 5));
+            });
+
+            RefreshResult result = await coordinator.RefreshAsync(
+                fetcher,
+                RefreshTrigger.Activation);
+
+            Assert.Equal(RefreshOutcome.DeadlineExceeded, result.Outcome);
+            Assert.Equal(DeliveryRequestOutcome.NotRequested, result.Delivery);
+            Assert.Equal(0, delivery.Requests);
+            Assert.Equal(Caching.CacheReadStatus.Absent, fixture.Cache.Read().Status);
+            Assert.True(fixture.Logger.Saw(
+                Diagnostics.OperationalEventId.RefreshDeadlineExceeded));
+        }
+        finally
+        {
+            peer?.Dispose();
+        }
+    }
+
+    [Fact]
     public async Task A_refresh_superseded_while_its_io_was_in_flight_is_discarded()
     {
         using var fixture = new CoordinationFixture();

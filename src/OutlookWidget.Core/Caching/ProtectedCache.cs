@@ -5,6 +5,28 @@ using OutlookWidget.Core.Refresh;
 
 namespace OutlookWidget.Core.Caching;
 
+internal interface IDataProtector
+{
+    byte[] Protect(byte[] payload, byte[] entropy);
+
+    byte[] Unprotect(byte[] payload, byte[] entropy);
+}
+
+internal sealed class CurrentUserDataProtector : IDataProtector
+{
+    public static CurrentUserDataProtector Instance { get; } = new();
+
+    private CurrentUserDataProtector()
+    {
+    }
+
+    public byte[] Protect(byte[] payload, byte[] entropy) =>
+        ProtectedData.Protect(payload, entropy, DataProtectionScope.CurrentUser);
+
+    public byte[] Unprotect(byte[] payload, byte[] entropy) =>
+        ProtectedData.Unprotect(payload, entropy, DataProtectionScope.CurrentUser);
+}
+
 /// <summary>Why a read of the protected state ended the way it did.</summary>
 public enum CacheReadStatus
 {
@@ -136,13 +158,24 @@ public sealed class ProtectedCache
 
     private readonly CoordinationPaths _paths;
     private readonly IOperationalLogger _logger;
+    private readonly IDataProtector _protector;
 
     public ProtectedCache(CoordinationPaths paths, IOperationalLogger? logger = null)
+        : this(paths, logger, CurrentUserDataProtector.Instance)
+    {
+    }
+
+    internal ProtectedCache(
+        CoordinationPaths paths,
+        IOperationalLogger? logger,
+        IDataProtector protector)
     {
         ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(protector);
 
         _paths = paths;
         _logger = logger ?? NullOperationalLogger.Instance;
+        _protector = protector;
     }
 
     /// <summary>
@@ -203,10 +236,9 @@ public sealed class ProtectedCache
 
         try
         {
-            byte[] payload = ProtectedData.Unprotect(
+            byte[] payload = _protector.Unprotect(
                 raw.AsSpan(HeaderLength).ToArray(),
-                Entropy,
-                DataProtectionScope.CurrentUser);
+                Entropy);
 
             return new CacheReadResult(CacheReadStatus.Success, generation, payload);
         }
@@ -292,10 +324,20 @@ public sealed class ProtectedCache
 
         long nextGeneration = currentGeneration + 1;
 
-        byte[] protectedPayload = ProtectedData.Protect(
-            payload,
-            Entropy,
-            DataProtectionScope.CurrentUser);
+        byte[] protectedPayload;
+
+        try
+        {
+            protectedPayload = _protector.Protect(payload, Entropy);
+        }
+        catch (CryptographicException)
+        {
+            // DPAPI can fail when the current-user profile or key material is unavailable.
+            // The prior snapshot is still authoritative, so surface a failed commit rather than
+            // letting an implementation exception escape the refresh result contract.
+            _logger.Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Failed);
+            return new CacheCommitResult(CacheCommitStatus.Failed, currentGeneration);
+        }
 
         byte[] file = new byte[HeaderLength + protectedPayload.Length];
         Magic.CopyTo(file, 0);

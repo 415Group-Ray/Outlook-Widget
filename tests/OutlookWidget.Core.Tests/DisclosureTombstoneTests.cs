@@ -377,6 +377,36 @@ public sealed class DisclosureTombstoneTests
     }
 
     [Fact]
+    public void A_failed_suppression_delete_can_be_retried_after_the_sharing_violation_clears()
+    {
+        using var fixture = new CoordinationFixture();
+        DisclosureSuppression suppression = fixture.Tombstones.Suppress(DisclosureMode.CountsOnly);
+        string path = Path.Combine(
+            fixture.Paths.SuppressionDirectory,
+            suppression.OperationId.ToString("N") + ".suppress");
+
+        using (var blocker = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            suppression.CommitAndClear();
+
+            Assert.False(suppression.IsCleared);
+            // The exclusive handle also makes the marker temporarily unreadable, so the reader
+            // fails closed to SignedOut. The key assertion is that suppression remains active and
+            // the same handle can retry once the sharing violation clears.
+            Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
+            Assert.True(fixture.Logger.Saw(
+                Diagnostics.OperationalEventId.DisclosureSuppressionCleared,
+                Diagnostics.OperationalOutcome.Failed));
+        }
+
+        suppression.CommitAndClear();
+
+        Assert.True(suppression.IsCleared);
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+        Assert.Equal(0, fixture.Tombstones.CountSuppressionFiles());
+    }
+
+    [Fact]
     public void A_missing_suppression_directory_is_not_suppression()
     {
         using var fixture = new CoordinationFixture();

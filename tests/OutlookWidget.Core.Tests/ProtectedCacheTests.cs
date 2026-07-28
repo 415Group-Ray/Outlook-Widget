@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Refresh;
@@ -11,6 +12,15 @@ namespace OutlookWidget.Core.Tests;
 /// </summary>
 public sealed class ProtectedCacheTests
 {
+    private sealed class FailingProtector : IDataProtector
+    {
+        public byte[] Protect(byte[] payload, byte[] entropy) =>
+            throw new CryptographicException("Current-user key unavailable.");
+
+        public byte[] Unprotect(byte[] payload, byte[] entropy) =>
+            throw new NotSupportedException();
+    }
+
     private static byte[] Payload(string content) => Encoding.UTF8.GetBytes(content);
 
     [Fact]
@@ -133,6 +143,33 @@ public sealed class ProtectedCacheTests
         // Nothing about a deliberate sign-out is a discard or a corruption event, and logging it
         // as one would send someone hunting a cache bug that does not exist.
         Assert.False(fixture.Logger.Saw(Diagnostics.OperationalEventId.CacheDiscardedInvalid));
+    }
+
+    [Fact]
+    public void A_DPAPI_protection_failure_becomes_a_failed_commit_and_preserves_prior_state()
+    {
+        using var fixture = new CoordinationFixture();
+        fixture.SeedState(Payload("prior"));
+
+        var failingCache = new ProtectedCache(
+            fixture.Paths,
+            fixture.Logger,
+            new FailingProtector());
+
+        CacheCommitResult result;
+
+        using (MutationLock heldLock = fixture.Mutex.Acquire())
+        {
+            result = failingCache.Commit(
+                heldLock,
+                Payload("replacement"),
+                expectedGeneration: 1);
+        }
+
+        Assert.Equal(CacheCommitStatus.Failed, result.Status);
+        Assert.Equal(1, result.Generation);
+        Assert.Equal("prior", Encoding.UTF8.GetString(fixture.Cache.Read().Payload!));
+        Assert.True(fixture.Logger.Saw(Diagnostics.OperationalEventId.StateCommitFailed));
     }
 
     [Fact]
