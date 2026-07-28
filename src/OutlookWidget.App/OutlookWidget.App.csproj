@@ -23,19 +23,18 @@
     <SelfContained>false</SelfContained>
 
     <!--
-      Required by LibraryImport, which generates pointer-based marshalling code. The two P/Invokes
-      here take a Win32 string buffer, and expressing that with raw pointers keeps the signatures
-      fully blittable so no runtime marshalling is involved. The alternative, classic DllImport,
-      would avoid unsafe code but the analyzers flag it as the legacy path, and with warnings as
-      errors that trade is worse rather than safer.
+      Required by LibraryImport, whose generated string marshalling is pointer-based. The
+      remaining P/Invoke here is MessageBoxW; the package-identity interop moved to
+      OutlookWidget.Packaging so the companion and the provider share one copy.
 
-      Confined to this project. OutlookWidget.Core has no unsafe code and must not acquire any.
+      OutlookWidget.Core has no unsafe code and must not acquire any.
     -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\OutlookWidget.Core\OutlookWidget.Core.csproj" />
+    <ProjectReference Include="..\OutlookWidget.Packaging\OutlookWidget.Packaging.csproj" />
   </ItemGroup>
 
 </Project>

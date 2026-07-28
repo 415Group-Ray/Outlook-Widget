@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      A Windows-SDK-versioned TFM, unlike every other project here.
+      Microsoft.WindowsAppSDK.Widgets ships its projection for net6.0-windows10.0.17763.0, so a
+      plain net10.0-windows target cannot see Microsoft.Windows.Widgets.Providers at all. 26100 is
+      chosen to match the package manifest's supported baseline and the installed Windows SDK
+      rather than the projection's own floor, so the compile target and the declared minimum
+      cannot drift apart.
+    -->
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+
+    <!--
+      WinExe, not Exe. The Widgets host activates this process through COM in the background, and
+      a console subsystem binary would flash a console window every time the Board starts the
+      provider. The documented sample is a console app that branches on GetConsoleWindow(); the
+      branch is unnecessary once the subsystem is correct, so this waits on the
+      last-widget-deleted event unconditionally.
+    -->
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>OutlookWidget.Provider</RootNamespace>
+    <AssemblyName>OutlookWidget.Provider</AssemblyName>
+
+    <!--
+      Deliberately NOT set to None. WindowsPackageType=None selects the unpackaged bootstrapper
+      path, which initializes the Windows App SDK runtime by dynamic dependency at startup. This
+      provider is only ever COM-activated from an installed package, so it resolves the framework
+      through the package graph instead — which is what the manifest's PackageDependency on
+      Microsoft.WindowsAppRuntime.2 is for.
+    -->
+    <PublishSingleFile>false</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+
+    <!--
+      Required by LibraryImport for the ole32 registration entry points, whose generated
+      marshalling is pointer-based. OutlookWidget.Core has no unsafe code and must not acquire
+      any.
+    -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OutlookWidget.Core\OutlookWidget.Core.csproj" />
+    <ProjectReference Include="..\OutlookWidget.Packaging\OutlookWidget.Packaging.csproj" />
+  </ItemGroup>
+
+</Project>

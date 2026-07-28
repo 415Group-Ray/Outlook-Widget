@@ -4,6 +4,10 @@
       <Platform Project="x64" />
     </Project>
     <Project Path="src/OutlookWidget.Core/OutlookWidget.Core.csproj" />
+    <Project Path="src/OutlookWidget.Packaging/OutlookWidget.Packaging.csproj" />
+    <Project Path="src/OutlookWidget.Provider/OutlookWidget.Provider.csproj">
+      <Platform Project="x64" />
+    </Project>
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OutlookWidget.Core.Tests/OutlookWidget.Core.Tests.csproj" />
