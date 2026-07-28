@@ -76,6 +76,14 @@ public enum OperationalEventId
     // Launching
     OutlookLaunchAttempted,
     OutlookLaunchFailed,
+
+    /// <summary>
+    /// The provider could not start the companion. Distinct from the Outlook events because the
+    /// consequence is different: this is the escape hatch offered by every signed-out,
+    /// sign-in-required, and broker-unavailable card, so a user who cannot reach the companion
+    /// has no route back to a working widget.
+    /// </summary>
+    CompanionLaunchFailed,
     MessageLinkOpened,
     MessageLinkRejected,
     MessageActionStaleGeneration,
