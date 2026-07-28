@@ -1,0 +1,21 @@
+{
+  // Copy this file to authentication.local.json in the same directory and replace both values
+  // with the real Entra app registration identifiers. The .local.json name is git-ignored;
+  // this template is committed and must never contain real values.
+  //
+  // Build-Package.ps1 copies authentication.local.json into the package beside BOTH executables
+  // as "authentication.json", and refuses to build if it is missing or still contains the
+  // placeholder zeros below.
+  //
+  // Neither identifier is a secret - both travel in ordinary network requests. They are kept out
+  // of Git because a committed development value is the one most likely to be pointed at the
+  // wrong environment by accident, not because disclosure would be harmful.
+  //
+  // There is deliberately no "scopes" and no "authority" field, and adding one changes nothing:
+  // the loader has nowhere to put either. Mail.ReadBasic is a compile-time constant in
+  // AuthenticationOptions, and the authority is derived from tenantId, so no file on the machine
+  // can widen this application's permission or redirect its sign-in. See docs/app-registration.md.
+
+  "tenantId": "00000000-0000-0000-0000-000000000000",
+  "clientId": "00000000-0000-0000-0000-000000000000"
+}

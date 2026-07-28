@@ -259,6 +259,50 @@ Publish-IntoLayout -ProjectName 'OutlookWidget.App' -ExecutableName 'OutlookWidg
 Publish-IntoLayout -ProjectName 'OutlookWidget.Provider' -ExecutableName 'OutlookWidget.Provider.exe'
 
 # ---------------------------------------------------------------------------
+# Authentication configuration
+# ---------------------------------------------------------------------------
+
+# The Entra registration identifiers ship beside BOTH executables rather than once at the package
+# root. Each process then reads the file from its own directory, so neither has to walk a relative
+# path out of it - the sibling-directory coupling that CompanionLauncher already needs as a
+# fallback is not worth reproducing for configuration that is loaded on every start.
+#
+# Neither identifier is a secret; both appear in ordinary network requests. They are kept out of Git
+# because a committed development value is the one most likely to be aimed at the wrong environment.
+$authSource = Join-Path $packageProject 'config\authentication.local.json'
+
+if (-not (Test-Path -LiteralPath $authSource)) {
+    throw @"
+Authentication configuration is missing: $authSource
+
+Copy src\OutlookWidget.Package\config\authentication.template.json to authentication.local.json in
+the same directory and set the real tenantId and clientId from the Entra app registration. The
+.local.json name is git-ignored deliberately; see docs/app-registration.md.
+"@
+}
+
+# Refuse the unedited template rather than shipping it. The loader also rejects an all-zero GUID at
+# runtime, so this is defence in depth - but a package that installs and then cannot authenticate is
+# a far more expensive way to discover the same mistake than a build that stops here.
+$authContent = Get-Content -LiteralPath $authSource -Raw
+
+if ($authContent -match '00000000-0000-0000-0000-000000000000') {
+    throw @"
+Authentication configuration still contains placeholder zeros: $authSource
+
+Replace tenantId and clientId with the real values from the Entra app registration. A package built
+with these would install and then fail every sign-in attempt.
+"@
+}
+
+foreach ($projectName in @('OutlookWidget.App', 'OutlookWidget.Provider')) {
+    Copy-Item -LiteralPath $authSource `
+        -Destination (Join-Path (Join-Path $layoutPath $projectName) 'authentication.json') -Force
+}
+
+Write-Output 'Authentication configuration staged beside both executables.'
+
+# ---------------------------------------------------------------------------
 # Assemble the rest of the layout
 # ---------------------------------------------------------------------------
 

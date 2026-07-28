@@ -47,6 +47,14 @@ packages/
 appsettings.Local.json
 *.local.props
 
+# Entra registration identifiers. Not secrets - both appear in ordinary network requests - but a
+# committed development value is the one most likely to be aimed at the wrong environment by
+# accident. The committed authentication.template.json carries placeholder zeros, and the loader
+# rejects those, so a package built without real values fails closed rather than authenticating
+# against a nonexistent registration.
+authentication.local.json
+authentication.json
+
 # OS and editor noise
 Thumbs.db
 ehthumbs.db

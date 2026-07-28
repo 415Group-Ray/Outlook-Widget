@@ -250,15 +250,66 @@ script fails if any key file appears under the repository root.
 
 ## What is still blocking, and what unblocks it
 
-**The Entra app registration, and nothing else.** Single-tenant, public client, delegated
-`Mail.ReadBasic` only, no secret. Gates 8, 9, 10, and 12 all wait on it. Settings are in
-[app-registration.md](app-registration.md).
+**The authentication code.** The Entra app registration itself is done — see below — so gates 8, 9,
+10, and 12 now wait on Phase 1 slice 2 rather than on a portal task.
 
-It cannot be avoided by prompting the user. Consent *is* already a user prompt — self-consent to
-`Mail.ReadBasic` at first sign-in, no administrator step — but the registration is the application's
-identity and is what issues the client ID, and no token request can be made without one. Entra does
-not implement OpenID Connect Dynamic Client Registration, so there is no bootstrap path: creating a
-registration through Graph would itself require a token. It is a one-time task, not a per-user one.
+The registration could not have been avoided by prompting the user. Consent *is* already a user
+prompt — self-consent to `Mail.ReadBasic` at first sign-in, no administrator step — but the
+registration is the application's identity and is what issues the client ID, and no token request can
+be made without one. Entra does not implement OpenID Connect Dynamic Client Registration, so there
+was no bootstrap path: creating a registration through Graph would itself require a token.
+
+## The Entra app registration, as created
+
+Recorded 2026-07-28 in the 415 Group tenant. **The raw tenant and client IDs are deliberately absent
+from this file**, which is committed; they live in git-ignored package configuration. See
+[app-registration.md](app-registration.md) for where, and for why an earlier version of that document
+contradicted itself by asking for both here.
+
+| Item | As created |
+|---|---|
+| Supported account types | Accounts in this organizational directory only — single tenant |
+| Application type | Public client, mobile and desktop |
+| Redirect URI | `ms-appx-web://microsoft.aad.brokerplugin/{client-id}`, under **Mobile and desktop applications** |
+| Allow public client flows | Yes |
+| Client secret / certificate | **None** |
+| API permission | Microsoft Graph delegated **`Mail.ReadBasic`** only; `User.Read` removed |
+| Application permissions | **None** |
+| Admin consent | **Not granted, deliberately** |
+
+The redirect URI platform matters and is a silent failure if wrong: current Microsoft documentation
+states WAM redirect URIs must be configured under *Mobile and desktop applications*, and a
+registration that places the same string under the Web platform simply never completes brokered
+sign-in.
+
+**Admin consent was deliberately not granted**, and that is a gate decision rather than an oversight.
+Gate 8 asks whether the author can self-consent to `Mail.ReadBasic` without an administrator step.
+Granting tenant-wide admin consent would pre-approve the permission, the self-consent path would
+never execute, and the gate would become unprovable while appearing to work. It stays ungranted until
+first sign-in exercises it.
+
+### Configuration, and what it deliberately cannot change
+
+The identifiers ship as `authentication.json` beside **both** executables — verified present in the
+installed 0.3.0.0 package — so neither process walks a relative path out of its own directory to find
+them. Two values are **not** configurable, and adding them to the file changes nothing because the
+loader has nowhere to put them:
+
+- **The scope.** `Mail.ReadBasic` is a compile-time constant, so no file on the machine can widen
+  what this application may read. A test writes a configuration file requesting `Mail.Read`,
+  `Mail.ReadWrite`, `User.Read`, a `common` authority, and a client secret, and asserts that every
+  one of them is ignored.
+- **The authority.** Derived from the tenant ID, so no file can redirect sign-in to `common`,
+  `organizations`, or another tenant — which would quietly turn a single-tenant registration into a
+  multi-tenant one.
+
+`Build-Package.ps1` refuses to build when the configuration is missing or still contains the
+template's placeholder zeros, and the loader rejects an all-zero GUID at runtime as well. Every load
+failure is a state rather than an exception: a provider the Widgets host started in the background
+must not die because the package shipped without configuration.
+
+The large-size card now reports `config Loaded` so the packaged configuration is observable on the
+device without the raw identifiers ever appearing on a surface someone could read over a shoulder.
 
 **Gate 11 also waits on it**, though indirectly: cached-first refresh and cross-process invalidation
 cannot be observed until there is something to refresh and something to commit.

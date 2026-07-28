@@ -1,11 +1,13 @@
 using System.Runtime.InteropServices;
 using Microsoft.Windows.Widgets.Providers;
+using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Delivery;
 using OutlookWidget.Core.Diagnostics;
 using OutlookWidget.Core.Launching;
 using OutlookWidget.Core.Refresh;
 using OutlookWidget.Packaging;
+using OutlookWidget.Provider.Cards;
 
 namespace OutlookWidget.Provider;
 
@@ -79,6 +81,15 @@ internal static partial class Program
         paths.EnsureCreated();
 
         IOperationalLogger logger = NullOperationalLogger.Instance;
+
+        // Read once at startup rather than on the delivery path, and deliberately NOT fatal. A
+        // package shipped without configuration cannot authenticate, which is a card the user
+        // should see rather than a provider process that dies in the background where the Widgets
+        // host started it. Nothing consumes the options yet — authentication arrives in slice 2 —
+        // so only the status is surfaced, so that "the package shipped without configuration" is
+        // distinguishable on the device from "authentication is not built yet".
+        AuthenticationConfigurationResult configuration = AuthenticationConfiguration.Load(logger);
+        SkeletonCard.ConfigurationStatus = configuration.Status;
 
         var cache = new ProtectedCache(paths, logger);
         var tombstones = new DisclosureTombstoneStore(paths, logger);
