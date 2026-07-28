@@ -113,16 +113,42 @@ if (-not $SkipSigning) {
     # documented no-argument example fail with "no code-signing certificate" unless the caller
     # happened to pass the quoted form by hand.
     $comparableRequested = (($CertificateSubject -replace '"', '') -replace '\s+', ' ').Trim().ToLowerInvariant()
+    $managedFriendlyName = 'Outlook Inbox Widget development signing'
+    $codeSigningEkuOid = '1.3.6.1.5.5.7.3.3'
+
+    function Test-IsManagedCertificate {
+        param(
+            [Parameter(Mandatory)]
+            [System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate
+        )
+
+        if ($Certificate.FriendlyName -ne $managedFriendlyName) {
+            return $false
+        }
+
+        foreach ($extension in $Certificate.Extensions) {
+            if ($extension -is [System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension]) {
+                foreach ($usage in $extension.EnhancedKeyUsages) {
+                    if ($usage.Value -eq $codeSigningEkuOid) {
+                        return $true
+                    }
+                }
+            }
+        }
+
+        return $false
+    }
 
     $certificate = @(Get-ChildItem -Path 'Cert:\CurrentUser\My' |
         Where-Object {
             $_.HasPrivateKey -and
-            ((($_.Subject -replace '"', '') -replace '\s+', ' ').Trim().ToLowerInvariant()) -eq $comparableRequested
+            ((($_.Subject -replace '"', '') -replace '\s+', ' ').Trim().ToLowerInvariant()) -eq $comparableRequested -and
+            (Test-IsManagedCertificate -Certificate $_)
         }) |
         Sort-Object -Property NotAfter -Descending | Select-Object -First 1
 
     if (-not $certificate) {
-        throw "No code-signing certificate with private key matching Subject '$CertificateSubject' in CurrentUser\My. Run scripts/New-DevelopmentCertificate.ps1 first."
+        throw "No managed Outlook Inbox Widget code-signing certificate with private key matching Subject '$CertificateSubject' in CurrentUser\My. Run scripts/New-DevelopmentCertificate.ps1 first."
     }
 
     # The manifest, by contrast, is compared EXACTLY against the certificate's stored subject.

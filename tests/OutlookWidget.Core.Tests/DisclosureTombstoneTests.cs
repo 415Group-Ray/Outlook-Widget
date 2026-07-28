@@ -1,3 +1,4 @@
+using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Refresh;
 using OutlookWidget.Core.Tests.TestInfrastructure;
 
@@ -186,7 +187,7 @@ public sealed class DisclosureTombstoneTests
     {
         using var fixture = new CoordinationFixture();
         var recoveryStore = new DisclosureTombstoneStore(
-            new CoordinationPaths(fixture.Paths.RootDirectory),
+            new CoordinationPaths(fixture.Paths.RootDirectory, fixture.Scope),
             fixture.Logger,
             fixture.Clock);
 
@@ -557,5 +558,21 @@ public sealed class DisclosureTombstoneTests
         // An absent directory is a first run, not an unreadable state. Treating it as
         // suppression would leave a fresh install permanently showing the signed-out card.
         Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+    }
+
+    [Fact]
+    public void An_inaccessible_suppression_directory_fails_closed_instead_of_looking_absent()
+    {
+        using var fixture = new CoordinationFixture();
+        var inaccessible = new DisclosureTombstoneStore(
+            fixture.Paths,
+            fixture.Logger,
+            fixture.Clock,
+            (_, _) => throw new UnauthorizedAccessException("Injected inaccessible directory."));
+
+        Assert.Equal(DisclosureMode.SignedOut, inaccessible.GetEffectiveMode());
+        Assert.True(fixture.Logger.Saw(
+            Diagnostics.OperationalEventId.DisclosureSuppressionEnumerationFailed,
+            Diagnostics.OperationalOutcome.Failed));
     }
 }

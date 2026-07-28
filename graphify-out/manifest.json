@@ -10,9 +10,9 @@
     "semantic_hash": "f3efa930ba4d2682e384c7c8434d0a35"
   },
   "scripts/Build-Package.ps1": {
-    "mtime": 1785252107.9284635,
-    "ast_hash": "bb7fa4d1a56578345d3112855c6ec0fc",
-    "semantic_hash": "bb7fa4d1a56578345d3112855c6ec0fc"
+    "mtime": 1785259382.9103105,
+    "ast_hash": "c5cf710a24b18eacea2256fcf659c0f6",
+    "semantic_hash": ""
   },
   "scripts/Install-DevelopmentPackage.ps1": {
     "mtime": 1785250849.0247173,
@@ -100,8 +100,8 @@
     "semantic_hash": "148bc4d86674e3fb8444f5ae5c4e0b5d"
   },
   "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs": {
-    "mtime": 1785257835.7771518,
-    "ast_hash": "c24fff07884ff0eca9096d31a4f50882",
+    "mtime": 1785259375.9684606,
+    "ast_hash": "20cc6af5e939b3c084017d76abf94ea2",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Refresh/ISystemClock.cs": {
@@ -155,8 +155,8 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs": {
-    "mtime": 1785257842.424173,
-    "ast_hash": "e92f1b5b5ffe54a658964a74de8fa6f0",
+    "mtime": 1785259464.034987,
+    "ast_hash": "73e6a1edb28218bb1a765c2a69d18758",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/GlobalUsings.cs": {

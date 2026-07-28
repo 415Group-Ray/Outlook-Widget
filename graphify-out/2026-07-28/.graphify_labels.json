@@ -26,5 +26,6 @@
   "24": "Test-OutlookLaunch.ps1",
   "25": "Install-DevelopmentPackage.ps1",
   "26": "GlobalUsings.cs",
-  "27": "DisclosureTombstoneStore"
+  "27": "DeliveryWorker",
+  "28": "RecordingLogger"
 }

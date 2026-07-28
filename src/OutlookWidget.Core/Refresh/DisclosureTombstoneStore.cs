@@ -54,6 +54,7 @@ public sealed class DisclosureTombstoneStore
     private readonly CoordinationPaths _paths;
     private readonly IOperationalLogger _logger;
     private readonly ISystemClock _clock;
+    private readonly Func<string, string, string[]> _enumerateFiles;
 
     /// <summary>
     /// Operations this process has suppressed and not yet cleared, shared by every store for
@@ -66,12 +67,23 @@ public sealed class DisclosureTombstoneStore
         CoordinationPaths paths,
         IOperationalLogger? logger = null,
         ISystemClock? clock = null)
+        : this(paths, logger, clock, Directory.GetFiles)
+    {
+    }
+
+    internal DisclosureTombstoneStore(
+        CoordinationPaths paths,
+        IOperationalLogger? logger,
+        ISystemClock? clock,
+        Func<string, string, string[]> enumerateFiles)
     {
         ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(enumerateFiles);
 
         _paths = paths;
         _logger = logger ?? NullOperationalLogger.Instance;
         _clock = clock ?? SystemClock.Instance;
+        _enumerateFiles = enumerateFiles;
         _activeRegistry = GetActiveRegistry(paths.SuppressionDirectory);
     }
 
@@ -165,12 +177,16 @@ public sealed class DisclosureTombstoneStore
 
         try
         {
-            if (!Directory.Exists(_paths.SuppressionDirectory))
-            {
-                return DisclosureMode.Full;
-            }
-
-            files = Directory.GetFiles(_paths.SuppressionDirectory, "*" + FileExtension);
+            // Directory.Exists returns false both when the directory is legitimately absent and
+            // when Windows cannot query it. Using it as a precheck would turn ACL damage or a
+            // transient filesystem failure into Full disclosure. Enumerate directly so the
+            // exception preserves that distinction.
+            files = _enumerateFiles(_paths.SuppressionDirectory, "*" + FileExtension);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // A missing directory is the normal first-run/uninstalled-state case.
+            return DisclosureMode.Full;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {

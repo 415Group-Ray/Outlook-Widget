@@ -20,9 +20,9 @@
     "semantic_hash": "ab7f02a645b56364762ffad9bbab59ce"
   },
   "scripts/New-DevelopmentCertificate.ps1": {
-    "mtime": 1785252086.6798596,
-    "ast_hash": "ff0bfc2c577f9d42cd7e40a742e66e44",
-    "semantic_hash": "ff0bfc2c577f9d42cd7e40a742e66e44"
+    "mtime": 1785257845.7743526,
+    "ast_hash": "2591409cdcae1319f2bb365fe2d25d11",
+    "semantic_hash": ""
   },
   "scripts/New-PlaceholderAssets.ps1": {
     "mtime": 1785250440.9042976,
@@ -100,8 +100,8 @@
     "semantic_hash": "148bc4d86674e3fb8444f5ae5c4e0b5d"
   },
   "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs": {
-    "mtime": 1785256968.3150856,
-    "ast_hash": "7117f871ea6e8a5b19d27b0291d2c131",
+    "mtime": 1785257835.7771518,
+    "ast_hash": "c24fff07884ff0eca9096d31a4f50882",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Refresh/ISystemClock.cs": {
@@ -155,8 +155,8 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs": {
-    "mtime": 1785256971.655066,
-    "ast_hash": "24ef2b6954c9a4f4c4a8ff1ed7bf766d",
+    "mtime": 1785257842.424173,
+    "ast_hash": "e92f1b5b5ffe54a658964a74de8fa6f0",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/GlobalUsings.cs": {
@@ -185,9 +185,9 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/StateCommitCoordinatorTests.cs": {
-    "mtime": 1785249009.2717743,
-    "ast_hash": "8baeba521bb543573a737e48545b67c5",
-    "semantic_hash": "8baeba521bb543573a737e48545b67c5"
+    "mtime": 1785257839.2558026,
+    "ast_hash": "51e76ef2711cde3b4fa717d9139936a5",
+    "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/TestInfrastructure/CoordinationFixture.cs": {
     "mtime": 1785248509.0742543,
@@ -225,9 +225,9 @@
     "semantic_hash": "3ec1816a4296d602096915c6ad36c4d5"
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1785252175.6651297,
-    "ast_hash": "ad13f619bc87ba0e6e2070074dd11925",
-    "semantic_hash": "ad13f619bc87ba0e6e2070074dd11925"
+    "mtime": 1785257849.058005,
+    "ast_hash": "318d51b77c2cc8ecc323ac96539242b8",
+    "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
     "mtime": 1785249501.2353024,

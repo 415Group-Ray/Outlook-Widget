@@ -198,6 +198,17 @@
       "norm_label": "find-sdktool()"
     },
     {
+      "label": "Test-IsManagedCertificate()",
+      "file_type": "code",
+      "source_file": "scripts/Build-Package.ps1",
+      "source_location": "L119",
+      "_origin": "ast",
+      "id": "scripts_build_package_test_ismanagedcertificate",
+      "community": 22,
+      "community_name": "Build-Package.ps1",
+      "norm_label": "test-ismanagedcertificate()"
+    },
+    {
       "label": "Install-DevelopmentPackage.ps1",
       "file_type": "code",
       "source_file": "scripts/Install-DevelopmentPackage.ps1",
@@ -599,7 +610,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_coordinationpaths",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "coordinationpaths.cs"
     },
     {
@@ -632,7 +643,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_coordinationpaths_outlookwidget_core_caching_coordinationpaths",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "coordinationpaths"
     },
     {
@@ -643,7 +654,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_coordinationpaths_cs_string",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "string"
     },
     {
@@ -677,7 +688,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_coordinationpaths_outlookwidget_core_caching_coordinationpaths_ensurecreated",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".ensurecreated()"
     },
     {
@@ -687,8 +698,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "protectedcache.cs"
     },
     {
@@ -705,7 +716,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_idataprotector",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "idataprotector"
     },
     {
@@ -722,7 +733,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_idataprotector_protect",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".protect()"
     },
     {
@@ -739,7 +750,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_idataprotector_unprotect",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".unprotect()"
     },
     {
@@ -755,8 +766,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_currentuserdataprotector",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "currentuserdataprotector"
     },
     {
@@ -772,8 +783,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_currentuserdataprotector_protect",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": ".protect()"
     },
     {
@@ -789,8 +800,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_currentuserdataprotector_unprotect",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": ".unprotect()"
     },
     {
@@ -806,8 +817,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_cachereadstatus",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "cachereadstatus"
     },
     {
@@ -823,8 +834,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_cachereadresult",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "cachereadresult"
     },
     {
@@ -840,8 +851,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_cachecommitstatus",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "cachecommitstatus"
     },
     {
@@ -858,7 +869,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_cachecommitresult",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "cachecommitresult"
     },
     {
@@ -875,7 +886,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_protectedcache",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "protectedcache"
     },
     {
@@ -886,7 +897,7 @@
       "_origin": "ast",
       "id": "byte",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "byte"
     },
     {
@@ -897,7 +908,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_cs_int",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "int"
     },
     {
@@ -913,8 +924,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_protectedcache_read",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 5,
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".read()"
     },
     {
@@ -931,7 +942,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_protectedcache_readgeneration",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".readgeneration()"
     },
     {
@@ -948,7 +959,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_protectedcache_commit",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".commit()"
     },
     {
@@ -965,7 +976,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_protectedcache_clear",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".clear()"
     },
     {
@@ -982,7 +993,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_protectedcache_removeorphanedtemporaryfiles",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".removeorphanedtemporaryfiles()"
     },
     {
@@ -999,7 +1010,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_protectedcache_writeandreplace",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".writeandreplace()"
     },
     {
@@ -1016,7 +1027,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_protectedcache_trydelete",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".trydelete()"
     },
     {
@@ -1070,8 +1081,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "idisposable",
-      "community": 10,
-      "community_name": ".Start",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "idisposable"
     },
     {
@@ -1187,8 +1198,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_delivery_deliveryworker_outlookwidget_core_delivery_deliveryworker_runonepass",
-      "community": 27,
-      "community_name": "DeliveryWorker",
+      "community": 5,
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".runonepass()"
     },
     {
@@ -1232,8 +1243,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_delivery_iwidgetdeliverysink_outlookwidget_core_delivery_deliverystate",
-      "community": 3,
-      "community_name": ".SeedState",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "deliverystate"
     },
     {
@@ -1345,7 +1356,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_diagnostics_ioperationallogger_outlookwidget_core_diagnostics_ioperationallogger",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "ioperationallogger"
     },
     {
@@ -1361,8 +1372,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_diagnostics_ioperationallogger_outlookwidget_core_diagnostics_ioperationallogger_record",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 5,
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".record()"
     },
     {
@@ -1372,8 +1383,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_diagnostics_ioperationallogger_cs_timespan",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 5,
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "timespan"
     },
     {
@@ -1640,7 +1651,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuremode",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "disclosuremode.cs"
     },
     {
@@ -1657,7 +1668,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuremode_outlookwidget_core_refresh_disclosuremode",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "disclosuremode"
     },
     {
@@ -1679,13 +1690,13 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "disclosuretombstonestore"
     },
     {
@@ -1696,19 +1707,8 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_cs_string",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "string"
-    },
-    {
-      "label": "HashSet",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "hashset",
-      "community": 5,
-      "community_name": "DisclosureTombstoneTests",
-      "norm_label": "hashset"
     },
     {
       "label": "Lock",
@@ -1718,24 +1718,57 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_cs_lock",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "lock"
+    },
+    {
+      "label": "Dictionary",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "dictionary",
+      "community": 5,
+      "community_name": "DisclosureTombstoneStore",
+      "norm_label": "dictionary"
+    },
+    {
+      "label": "Func",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_cs_func",
+      "community": 5,
+      "community_name": "DisclosureTombstoneStore",
+      "norm_label": "func"
+    },
+    {
+      "label": "ActiveOperationRegistry",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "activeoperationregistry",
+      "community": 5,
+      "community_name": "DisclosureTombstoneStore",
+      "norm_label": "activeoperationregistry"
     },
     {
       "label": ".Suppress()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L81",
+      "source_location": "L98",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_suppress",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".suppress()"
     },
     {
@@ -1746,7 +1779,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_cs_guid",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "guid"
     },
     {
@@ -1757,228 +1790,274 @@
       "_origin": "ast",
       "id": "action",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "action"
     },
     {
       "label": ".GetEffectiveMode()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L157",
+      "source_location": "L174",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_geteffectivemode",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".geteffectivemode()"
     },
     {
       "label": ".IsSuppressed()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L210",
+      "source_location": "L231",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_issuppressed",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".issuppressed()"
     },
     {
       "label": ".CountSuppressionFiles()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L215",
+      "source_location": "L236",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_countsuppressionfiles",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".countsuppressionfiles()"
     },
     {
       "label": ".ClearAllOrphans()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L240",
+      "source_location": "L261",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_clearallorphans",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".clearallorphans()"
     },
     {
       "label": ".DeleteOwn()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L324",
+      "source_location": "L345",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_deleteown",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".deleteown()"
     },
     {
       "label": ".CompleteWithoutClearing()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L356",
+      "source_location": "L377",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_completewithoutclearing",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".completewithoutclearing()"
+    },
+    {
+      "label": ".GetActiveRegistry()",
+      "file_type": "code",
+      "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
+      "source_location": "L385",
+      "metadata": {
+        "namespace": "OutlookWidget.Core.Refresh",
+        "scope_chain": [
+          "s105"
+        ]
+      },
+      "_origin": "ast",
+      "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_getactiveregistry",
+      "community": 5,
+      "community_name": "DisclosureTombstoneStore",
+      "norm_label": ".getactiveregistry()"
+    },
+    {
+      "label": "ActiveOperationRegistry",
+      "file_type": "code",
+      "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
+      "source_location": "L403",
+      "metadata": {
+        "is_nested_type": true,
+        "namespace": "OutlookWidget.Core.Refresh",
+        "scope_chain": [
+          "s105"
+        ]
+      },
+      "_origin": "ast",
+      "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_activeoperationregistry",
+      "community": 5,
+      "community_name": "DisclosureTombstoneStore",
+      "norm_label": "activeoperationregistry"
+    },
+    {
+      "label": "HashSet",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "hashset",
+      "community": 5,
+      "community_name": "DisclosureTombstoneStore",
+      "norm_label": "hashset"
     },
     {
       "label": ".FilePathFor()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L364",
+      "source_location": "L410",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_filepathfor",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".filepathfor()"
     },
     {
       "label": ".ReadMode()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L367",
+      "source_location": "L413",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_readmode",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".readmode()"
     },
     {
       "label": ".TryGetOperationId()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L415",
+      "source_location": "L461",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_trygetoperationid",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".trygetoperationid()"
     },
     {
       "label": ".IsOwnerProcessAlive()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L427",
+      "source_location": "L473",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_isownerprocessalive",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".isownerprocessalive()"
     },
     {
       "label": ".TryDeleteFile()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L472",
+      "source_location": "L518",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_trydeletefile",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".trydeletefile()"
     },
     {
       "label": ".SignalSuppressEvent()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L485",
+      "source_location": "L531",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_signalsuppressevent",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".signalsuppressevent()"
     },
     {
       "label": "DisclosureSuppression",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L514",
+      "source_location": "L560",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuresuppression",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "disclosuresuppression"
     },
     {
@@ -1989,41 +2068,41 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_cs_bool",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "bool"
     },
     {
       "label": ".CommitAndClear()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L545",
+      "source_location": "L591",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuresuppression_commitandclear",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".commitandclear()"
     },
     {
       "label": ".CompleteWithoutClearing()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L563",
+      "source_location": "L609",
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s101"
+          "s105"
         ]
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuresuppression_completewithoutclearing",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".completewithoutclearing()"
     },
     {
@@ -2090,7 +2169,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_leaserecord",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "leaserecord.cs"
     },
     {
@@ -2107,7 +2186,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_leaserecord_outlookwidget_core_refresh_leaserecord",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "leaserecord"
     },
     {
@@ -2118,7 +2197,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_leaserecord_cs_guid",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "guid"
     },
     {
@@ -2152,7 +2231,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_leaserecord_outlookwidget_core_refresh_leaserecord_isownedby",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".isownedby()"
     },
     {
@@ -2163,7 +2242,7 @@
       "_origin": "ast",
       "id": "jsonserializeroptions",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "jsonserializeroptions"
     },
     {
@@ -2197,7 +2276,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_leaserecord_outlookwidget_core_refresh_leaserecord_tryparse",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".tryparse()"
     },
     {
@@ -2208,7 +2287,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_mutationmutex",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "mutationmutex.cs"
     },
     {
@@ -2225,7 +2304,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_mutationmutex_outlookwidget_core_refresh_mutationlockoutcome",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "mutationlockoutcome"
     },
     {
@@ -2242,7 +2321,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_mutationmutex_outlookwidget_core_refresh_mutationmutex",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "mutationmutex"
     },
     {
@@ -2253,7 +2332,7 @@
       "_origin": "ast",
       "id": "mutex",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "mutex"
     },
     {
@@ -2264,7 +2343,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_mutationmutex_cs_bool",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "bool"
     },
     {
@@ -2281,7 +2360,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_mutationmutex_outlookwidget_core_refresh_mutationmutex_acquire",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".acquire()"
     },
     {
@@ -2292,7 +2371,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_mutationmutex_cs_cancellationtoken",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "cancellationtoken"
     },
     {
@@ -2309,7 +2388,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_mutationmutex_outlookwidget_core_refresh_mutationmutex_dispose",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".dispose()"
     },
     {
@@ -2326,7 +2405,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_mutationmutex_outlookwidget_core_refresh_mutationlock",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "mutationlock"
     },
     {
@@ -2337,7 +2416,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_mutationmutex_cs_int",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "int"
     },
     {
@@ -2354,7 +2433,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_mutationmutex_outlookwidget_core_refresh_mutationlock_owned",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".owned()"
     },
     {
@@ -2371,7 +2450,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_mutationmutex_outlookwidget_core_refresh_mutationlock_notacquired",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".notacquired()"
     },
     {
@@ -2405,7 +2484,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_mutationmutex_outlookwidget_core_refresh_mutationlock_throwifnotheld",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".throwifnotheld()"
     },
     {
@@ -2416,7 +2495,7 @@
       "_origin": "ast",
       "id": "suppressmessage",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "suppressmessage"
     },
     {
@@ -2815,8 +2894,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_leaseclaim",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": "leaseclaim"
     },
     {
@@ -2833,7 +2912,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_refreshleasestore",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "refreshleasestore"
     },
     {
@@ -2849,8 +2928,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_refreshleasestore_tryclaim",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": ".tryclaim()"
     },
     {
@@ -2860,8 +2939,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_cs_cancellationtoken",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": "cancellationtoken"
     },
     {
@@ -2878,7 +2957,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_refreshleasestore_clear",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".clear()"
     },
     {
@@ -2889,7 +2968,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_cs_guid",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "guid"
     },
     {
@@ -2905,8 +2984,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_refreshleasestore_isleaselive",
-      "community": 0,
-      "community_name": ".Record",
+      "community": 2,
+      "community_name": ".RefreshAsync",
       "norm_label": ".isleaselive()"
     },
     {
@@ -2923,7 +3002,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_refreshleasestore_readrecord",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".readrecord()"
     },
     {
@@ -2940,7 +3019,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_refreshleasestore_trywriterecord",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".trywriterecord()"
     },
     {
@@ -2951,7 +3030,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "statecommitcoordinator.cs"
     },
     {
@@ -2968,7 +3047,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_istatecommitaction",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "istatecommitaction"
     },
     {
@@ -2985,7 +3064,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_istatecommitaction_execute",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".execute()"
     },
     {
@@ -3002,7 +3081,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_commitsnapshotaction",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "commitsnapshotaction"
     },
     {
@@ -3019,7 +3098,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_commitsnapshotaction_execute",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".execute()"
     },
     {
@@ -3036,7 +3115,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_clearstateaction",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "clearstateaction"
     },
     {
@@ -3053,7 +3132,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_clearstateaction_execute",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".execute()"
     },
     {
@@ -3070,7 +3149,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_statecommitoutcome",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "statecommitoutcome"
     },
     {
@@ -3087,7 +3166,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_statecommitresult",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "statecommitresult"
     },
     {
@@ -3104,7 +3183,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_statecommitcoordinator",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "statecommitcoordinator"
     },
     {
@@ -3121,7 +3200,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_statecommitcoordinator_commitrefresh",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".commitrefresh()"
     },
     {
@@ -3132,7 +3211,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_cs_cancellationtoken",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "cancellationtoken"
     },
     {
@@ -3149,7 +3228,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_statecommitcoordinator_commitdisclosurechange",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".commitdisclosurechange()"
     },
     {
@@ -3166,7 +3245,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_statecommitcoordinator_attempt",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".attempt()"
     },
     {
@@ -3183,7 +3262,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statecommitcoordinator_outlookwidget_core_refresh_statecommitcoordinator_signalstatechanged",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".signalstatechanged()"
     },
     {
@@ -3851,7 +3930,7 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "func",
+      "id": "tests_outlookwidget_core_tests_deliveryworkertests_cs_func",
       "community": 3,
       "community_name": ".SeedState",
       "norm_label": "func"
@@ -4148,34 +4227,34 @@
       "label": "DisclosureTombstoneTests",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L10",
+      "source_location": "L11",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "disclosuretombstonetests"
     },
     {
       "label": ".No_suppression_by_default()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L12",
+      "source_location": "L13",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_no_suppression_by_default",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".no_suppression_by_default()"
     },
     {
@@ -4186,194 +4265,211 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_cs_fact",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "fact"
     },
     {
       "label": ".Suppression_is_active_from_the_moment_it_is_written_and_needs_no_mutex()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L21",
+      "source_location": "L22",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_suppression_is_active_from_the_moment_it_is_written_and_needs_no_mutex",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".suppression_is_active_from_the_moment_it_is_written_and_needs_no_mutex()"
     },
     {
       "label": ".Suppression_persists_when_the_commit_fails_and_clears_only_on_explicit_success()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L42",
+      "source_location": "L43",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_suppression_persists_when_the_commit_fails_and_clears_only_on_explicit_success",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".suppression_persists_when_the_commit_fails_and_clears_only_on_explicit_success()"
     },
     {
       "label": ".Enabling_more_disclosure_is_rejected_as_a_suppression()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L61",
+      "source_location": "L62",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_enabling_more_disclosure_is_rejected_as_a_suppression",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".enabling_more_disclosure_is_rejected_as_a_suppression()"
     },
     {
       "label": ".An_unreadable_suppression_file_fails_closed_to_signed_out()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L72",
+      "source_location": "L73",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_an_unreadable_suppression_file_fails_closed_to_signed_out",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".an_unreadable_suppression_file_fails_closed_to_signed_out()"
     },
     {
       "label": ".An_empty_suppression_file_fails_closed_to_signed_out()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L88",
+      "source_location": "L89",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_an_empty_suppression_file_fails_closed_to_signed_out",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".an_empty_suppression_file_fails_closed_to_signed_out()"
     },
     {
       "label": ".A_file_claiming_full_disclosure_is_treated_as_signed_out()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L100",
+      "source_location": "L101",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_a_file_claiming_full_disclosure_is_treated_as_signed_out",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".a_file_claiming_full_disclosure_is_treated_as_signed_out()"
     },
     {
       "label": ".A_file_surviving_a_crash_keeps_suppression_active()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L114",
+      "source_location": "L115",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_a_file_surviving_a_crash_keeps_suppression_active",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".a_file_surviving_a_crash_keeps_suppression_active()"
     },
     {
       "label": ".Orphans_are_cleared_only_by_an_explicit_action()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L133",
+      "source_location": "L134",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_orphans_are_cleared_only_by_an_explicit_action",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".orphans_are_cleared_only_by_an_explicit_action()"
     },
     {
       "label": ".Recovery_does_not_delete_the_marker_of_an_operation_still_in_flight()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L152",
+      "source_location": "L153",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_recovery_does_not_delete_the_marker_of_an_operation_still_in_flight",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".recovery_does_not_delete_the_marker_of_an_operation_still_in_flight()"
+    },
+    {
+      "label": ".Stores_for_the_same_path_share_the_active_operation_registry()",
+      "file_type": "code",
+      "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
+      "source_location": "L185",
+      "metadata": {
+        "namespace": "OutlookWidget.Core.Tests",
+        "scope_chain": [
+          "s121"
+        ]
+      },
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_stores_for_the_same_path_share_the_active_operation_registry",
+      "community": 5,
+      "community_name": "DisclosureTombstoneStore",
+      "norm_label": ".stores_for_the_same_path_share_the_active_operation_registry()"
     },
     {
       "label": ".A_completed_failure_keeps_suppression_but_becomes_eligible_for_explicit_recovery()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L184",
+      "source_location": "L205",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_a_completed_failure_keeps_suppression_but_becomes_eligible_for_explicit_recovery",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".a_completed_failure_keeps_suppression_but_becomes_eligible_for_explicit_recovery()"
     },
     {
       "label": ".Recovery_cannot_delete_a_marker_during_its_publication_window()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L210",
+      "source_location": "L231",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_recovery_cannot_delete_a_marker_during_its_publication_window",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".recovery_cannot_delete_a_marker_during_its_publication_window()"
     },
     {
@@ -4384,195 +4480,212 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_cs_task",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": "task"
     },
     {
       "label": ".Recovery_rechecks_operations_published_after_recovery_starts()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L246",
+      "source_location": "L267",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_recovery_rechecks_operations_published_after_recovery_starts",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".recovery_rechecks_operations_published_after_recovery_starts()"
     },
     {
       "label": ".Publication_failure_rolls_back_the_active_registration()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L276",
+      "source_location": "L297",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_publication_failure_rolls_back_the_active_registration",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".publication_failure_rolls_back_the_active_registration()"
     },
     {
       "label": ".Recovery_does_not_delete_a_marker_whose_owner_process_is_still_running()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L305",
+      "source_location": "L326",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_recovery_does_not_delete_a_marker_whose_owner_process_is_still_running",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".recovery_does_not_delete_a_marker_whose_owner_process_is_still_running()"
     },
     {
       "label": ".Recovery_clears_a_marker_this_process_wrote_but_already_resolved()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L343",
+      "source_location": "L364",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_recovery_clears_a_marker_this_process_wrote_but_already_resolved",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".recovery_clears_a_marker_this_process_wrote_but_already_resolved()"
     },
     {
       "label": ".Overlapping_operations_each_delete_only_their_own_file()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L367",
+      "source_location": "L388",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_overlapping_operations_each_delete_only_their_own_file",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".overlapping_operations_each_delete_only_their_own_file()"
     },
     {
       "label": ".The_effective_mode_is_the_strongest_present_not_the_most_recently_written()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L394",
+      "source_location": "L415",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_the_effective_mode_is_the_strongest_present_not_the_most_recently_written",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".the_effective_mode_is_the_strongest_present_not_the_most_recently_written()"
     },
     {
       "label": ".The_weaker_operation_finishing_first_still_leaves_the_stronger_mode_in_force()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L416",
+      "source_location": "L437",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_the_weaker_operation_finishing_first_still_leaves_the_stronger_mode_in_force",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".the_weaker_operation_finishing_first_still_leaves_the_stronger_mode_in_force()"
     },
     {
       "label": ".Concurrent_overlapping_operations_never_leave_zero_files_while_one_is_pending()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L432",
+      "source_location": "L453",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_concurrent_overlapping_operations_never_leave_zero_files_while_one_is_pending",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".concurrent_overlapping_operations_never_leave_zero_files_while_one_is_pending()"
     },
     {
       "label": ".Clearing_twice_is_harmless_and_does_not_touch_another_operation_file()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L482",
+      "source_location": "L503",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_clearing_twice_is_harmless_and_does_not_touch_another_operation_file",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".clearing_twice_is_harmless_and_does_not_touch_another_operation_file()"
     },
     {
       "label": ".A_failed_suppression_delete_can_be_retried_after_the_sharing_violation_clears()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L500",
+      "source_location": "L521",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_a_failed_suppression_delete_can_be_retried_after_the_sharing_violation_clears",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".a_failed_suppression_delete_can_be_retried_after_the_sharing_violation_clears()"
     },
     {
       "label": ".A_missing_suppression_directory_is_not_suppression()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L530",
+      "source_location": "L551",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s121"
         ]
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_a_missing_suppression_directory_is_not_suppression",
       "community": 5,
-      "community_name": "DisclosureTombstoneTests",
+      "community_name": "DisclosureTombstoneStore",
       "norm_label": ".a_missing_suppression_directory_is_not_suppression()"
+    },
+    {
+      "label": ".An_inaccessible_suppression_directory_fails_closed_instead_of_looking_absent()",
+      "file_type": "code",
+      "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
+      "source_location": "L563",
+      "metadata": {
+        "namespace": "OutlookWidget.Core.Tests",
+        "scope_chain": [
+          "s121"
+        ]
+      },
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_an_inaccessible_suppression_directory_fails_closed_instead_of_looking_absent",
+      "community": 5,
+      "community_name": "DisclosureTombstoneStore",
+      "norm_label": ".an_inaccessible_suppression_directory_fails_closed_instead_of_looking_absent()"
     },
     {
       "label": "GlobalUsings.cs",
@@ -4822,8 +4935,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": "protectedcachetests"
     },
     {
@@ -4840,8 +4953,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_failingprotector",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 0,
+      "community_name": "MutationLock",
       "norm_label": "failingprotector"
     },
     {
@@ -4857,8 +4970,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_failingprotector_protect",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 0,
+      "community_name": "MutationLock",
       "norm_label": ".protect()"
     },
     {
@@ -4874,8 +4987,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_failingprotector_unprotect",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 0,
+      "community_name": "MutationLock",
       "norm_label": ".unprotect()"
     },
     {
@@ -4891,8 +5004,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_payload",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".payload()"
     },
     {
@@ -4908,8 +5021,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_round_trips_a_payload_and_advances_the_generation",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".round_trips_a_payload_and_advances_the_generation()"
     },
     {
@@ -4919,8 +5032,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_cs_fact",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": "fact"
     },
     {
@@ -4936,8 +5049,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_generation_is_readable_without_a_dpapi_round_trip",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".generation_is_readable_without_a_dpapi_round_trip()"
     },
     {
@@ -4953,8 +5066,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_a_stale_expected_generation_is_refused_so_an_in_flight_refresh_cannot_resurrect_data",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".a_stale_expected_generation_is_refused_so_an_in_flight_refresh_cannot_resurrect_data()"
     },
     {
@@ -4970,8 +5083,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_an_unconditional_commit_wins_regardless_of_the_generation",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".an_unconditional_commit_wins_regardless_of_the_generation()"
     },
     {
@@ -4987,8 +5100,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_clear_removes_the_payload_but_still_advances_the_generation",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".clear_removes_the_payload_but_still_advances_the_generation()"
     },
     {
@@ -5004,8 +5117,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_a_cleared_cache_is_not_reported_as_corrupt_and_logs_no_corruption",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".a_cleared_cache_is_not_reported_as_corrupt_and_logs_no_corruption()"
     },
     {
@@ -5021,8 +5134,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_a_dpapi_protection_failure_becomes_a_failed_commit_and_preserves_prior_state",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".a_dpapi_protection_failure_becomes_a_failed_commit_and_preserves_prior_state()"
     },
     {
@@ -5038,8 +5151,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_a_cleared_cache_survives_a_reread_by_a_separate_cache_instance",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".a_cleared_cache_survives_a_reread_by_a_separate_cache_instance()"
     },
     {
@@ -5055,8 +5168,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_corrupt_state_is_discarded_rather_than_rendered",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".corrupt_state_is_discarded_rather_than_rendered()"
     },
     {
@@ -5072,8 +5185,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_a_file_with_the_wrong_magic_is_treated_as_corrupt",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".a_file_with_the_wrong_magic_is_treated_as_corrupt()"
     },
     {
@@ -5089,8 +5202,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_an_unsupported_format_version_is_discarded_and_not_migrated",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".an_unsupported_format_version_is_discarded_and_not_migrated()"
     },
     {
@@ -5106,8 +5219,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_a_reader_holding_the_snapshot_open_does_not_block_a_commit",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".a_reader_holding_the_snapshot_open_does_not_block_a_commit()"
     },
     {
@@ -5123,8 +5236,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_a_reader_without_fileshare_delete_provokes_the_bounded_retry_and_the_prior_snapshot_survives",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".a_reader_without_fileshare_delete_provokes_the_bounded_retry_and_the_prior_snapshot_survives()"
     },
     {
@@ -5140,8 +5253,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_a_commit_without_the_mutex_is_refused",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".a_commit_without_the_mutex_is_refused()"
     },
     {
@@ -5157,8 +5270,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_protectedcachetests_orphaned_temporary_files_from_a_killed_commit_are_removed",
-      "community": 7,
-      "community_name": "ProtectedCacheTests",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".orphaned_temporary_files_from_a_killed_commit_are_removed()"
     },
     {
@@ -5962,7 +6075,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_outlookwidget_core_tests_testinfrastructure_coordinationfixture",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "coordinationfixture"
     },
     {
@@ -5973,7 +6086,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_cs_list",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": "list"
     },
     {
@@ -5990,7 +6103,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_outlookwidget_core_tests_testinfrastructure_coordinationfixture_track",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".track()"
     },
     {
@@ -6024,7 +6137,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_outlookwidget_core_tests_testinfrastructure_coordinationfixture_dispose",
       "community": 0,
-      "community_name": ".Record",
+      "community_name": "MutationLock",
       "norm_label": ".dispose()"
     },
     {
@@ -6185,8 +6298,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_outlookwidget_core_tests_testinfrastructure_fakewidgethost",
-      "community": 3,
-      "community_name": ".SeedState",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "fakewidgethost"
     },
     {
@@ -6196,8 +6309,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_cs_lock",
-      "community": 3,
-      "community_name": ".SeedState",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "lock"
     },
     {
@@ -6207,8 +6320,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_cs_list",
-      "community": 3,
-      "community_name": ".SeedState",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "list"
     },
     {
@@ -6218,8 +6331,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "manualreseteventslim",
-      "community": 3,
-      "community_name": ".SeedState",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "manualreseteventslim"
     },
     {
@@ -6229,8 +6342,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_cs_int",
-      "community": 3,
-      "community_name": ".SeedState",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "int"
     },
     {
@@ -6240,8 +6353,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_cs_ireadonlylist",
-      "community": 3,
-      "community_name": ".SeedState",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "ireadonlylist"
     },
     {
@@ -6257,8 +6370,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_outlookwidget_core_tests_testinfrastructure_fakewidgethost_throwonnextdelivery",
-      "community": 3,
-      "community_name": ".SeedState",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": ".throwonnextdelivery()"
     },
     {
@@ -6274,8 +6387,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_outlookwidget_core_tests_testinfrastructure_fakewidgethost_cancelnextdelivery",
-      "community": 3,
-      "community_name": ".SeedState",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": ".cancelnextdelivery()"
     },
     {
@@ -6353,8 +6466,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_outlookwidget_core_tests_testinfrastructure_fakewidgethost_deliver",
-      "community": 3,
-      "community_name": ".SeedState",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": ".deliver()"
     },
     {
@@ -6370,8 +6483,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_outlookwidget_core_tests_testinfrastructure_fakewidgethost_dispose",
-      "community": 3,
-      "community_name": ".SeedState",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": ".dispose()"
     },
     {
@@ -6381,8 +6494,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer",
-      "community": 10,
-      "community_name": ".Start",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "mutexholdingpeer.cs"
     },
     {
@@ -6398,8 +6511,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer",
-      "community": 10,
-      "community_name": ".Start",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "mutexholdingpeer"
     },
     {
@@ -6409,8 +6522,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "process",
-      "community": 10,
-      "community_name": ".Start",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "process"
     },
     {
@@ -6420,8 +6533,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_cs_string",
-      "community": 10,
-      "community_name": ".Start",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "string"
     },
     {
@@ -6431,8 +6544,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_cs_bool",
-      "community": 10,
-      "community_name": ".Start",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "bool"
     },
     {
@@ -6459,8 +6572,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_cs_timespan",
-      "community": 10,
-      "community_name": ".Start",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": "timespan"
     },
     {
@@ -6476,8 +6589,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_waituntilholding",
-      "community": 10,
-      "community_name": ".Start",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": ".waituntilholding()"
     },
     {
@@ -6493,8 +6606,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_kill",
-      "community": 10,
-      "community_name": ".Start",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": ".kill()"
     },
     {
@@ -6510,8 +6623,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_dispose",
-      "community": 10,
-      "community_name": ".Start",
+      "community": 27,
+      "community_name": "DeliveryWorker",
       "norm_label": ".dispose()"
     },
     {
@@ -8809,6 +8922,17 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "scripts/Build-Package.ps1",
+      "source_location": "L119",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_build_package",
+      "target": "scripts_build_package_test_ismanagedcertificate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "scripts/New-DevelopmentCertificate.ps1",
       "source_location": "L92",
       "weight": 1.0,
@@ -9445,6 +9569,23 @@
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
+      "source_location": "L1",
+      "weight": 1.0,
+      "metadata": {
+        "using_kind": "namespace",
+        "target_fqn": "OutlookWidget.Core.Caching",
+        "scope_kind": "file"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_disclosuretombstonetests",
+      "target": "csharp_namespace:e3f9a2f03a60d9cf",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/ProtectedCacheTests.cs",
       "source_location": "L3",
       "weight": 1.0,
@@ -9552,7 +9693,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L50",
+      "source_location": "L54",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -9698,7 +9839,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L101",
+      "source_location": "L118",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_suppress",
@@ -11615,7 +11756,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L51",
+      "source_location": "L55",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -11751,7 +11892,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L261",
+      "source_location": "L282",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_clearallorphans",
@@ -11763,7 +11904,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L335",
+      "source_location": "L356",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_deleteown",
@@ -11775,7 +11916,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L174",
+      "source_location": "L195",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_geteffectivemode",
@@ -11787,7 +11928,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L391",
+      "source_location": "L437",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_readmode",
@@ -11799,7 +11940,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L141",
+      "source_location": "L158",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_suppress",
@@ -12091,7 +12232,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L1",
+      "source_location": "L2",
       "weight": 1.0,
       "metadata": {
         "using_kind": "namespace",
@@ -12492,7 +12633,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L529",
+      "source_location": "L575",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -12507,7 +12648,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L157",
+      "source_location": "L174",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -12522,7 +12663,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L367",
+      "source_location": "L413",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -12537,7 +12678,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L84",
+      "source_location": "L101",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -12552,7 +12693,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L514",
+      "source_location": "L560",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12574,7 +12715,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L516",
+      "source_location": "L562",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -12589,22 +12730,52 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L58",
+      "source_location": "L64",
       "weight": 1.0,
       "context": "field",
       "metadata": {
-        "ref_token": "HashSet"
+        "ref_token": "ActiveOperationRegistry"
       },
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
-      "target": "hashset",
+      "target": "activeoperationregistry",
       "confidence_score": 1.0
     },
     {
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L59",
+      "source_location": "L51",
+      "weight": 1.0,
+      "context": "field",
+      "metadata": {
+        "ref_token": "Dictionary"
+      },
+      "_origin": "ast",
+      "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
+      "target": "dictionary",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
+      "source_location": "L57",
+      "weight": 1.0,
+      "context": "field",
+      "metadata": {
+        "ref_token": "Func"
+      },
+      "_origin": "ast",
+      "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
+      "target": "src_outlookwidget_core_refresh_disclosuretombstonestore_cs_func",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
+      "source_location": "L50",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -12631,10 +12802,21 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
+      "source_location": "L403",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
+      "target": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_activeoperationregistry",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L242",
+      "source_location": "L263",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12645,7 +12827,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L356",
+      "source_location": "L377",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12656,7 +12838,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L215",
+      "source_location": "L236",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12667,7 +12849,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L324",
+      "source_location": "L345",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12678,7 +12860,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L364",
+      "source_location": "L410",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12689,7 +12871,18 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L157",
+      "source_location": "L385",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
+      "target": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_getactiveregistry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
+      "source_location": "L174",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12700,7 +12893,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L427",
+      "source_location": "L473",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12711,7 +12904,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L210",
+      "source_location": "L231",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12722,7 +12915,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L367",
+      "source_location": "L413",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12733,7 +12926,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L485",
+      "source_location": "L531",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12744,7 +12937,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L84",
+      "source_location": "L101",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12755,7 +12948,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L472",
+      "source_location": "L518",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12766,7 +12959,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L415",
+      "source_location": "L461",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore",
@@ -12777,7 +12970,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L52",
+      "source_location": "L56",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -12807,7 +13000,37 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L84",
+      "source_location": "L405",
+      "weight": 1.0,
+      "context": "field",
+      "metadata": {
+        "ref_token": "Lock"
+      },
+      "_origin": "ast",
+      "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_activeoperationregistry",
+      "target": "src_outlookwidget_core_refresh_disclosuretombstonestore_cs_lock",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
+      "source_location": "L385",
+      "weight": 1.0,
+      "context": "return_type",
+      "metadata": {
+        "ref_token": "ActiveOperationRegistry"
+      },
+      "_origin": "ast",
+      "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_getactiveregistry",
+      "target": "activeoperationregistry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
+      "source_location": "L101",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -12822,7 +13045,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L84",
+      "source_location": "L101",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -12837,7 +13060,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L84",
+      "source_location": "L101",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -12853,7 +13076,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L103",
+      "source_location": "L120",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_suppress",
@@ -12865,7 +13088,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L143",
+      "source_location": "L160",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_suppress",
@@ -12877,7 +13100,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L136",
+      "source_location": "L153",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_suppress",
@@ -12888,7 +13111,22 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L532",
+      "source_location": "L407",
+      "weight": 1.0,
+      "context": "generic_arg",
+      "metadata": {
+        "ref_token": "Guid"
+      },
+      "_origin": "ast",
+      "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_activeoperationregistry",
+      "target": "src_outlookwidget_core_refresh_disclosuretombstonestore_cs_guid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
+      "source_location": "L578",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -12903,7 +13141,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L356",
+      "source_location": "L377",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -12918,7 +13156,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L324",
+      "source_location": "L345",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -12933,7 +13171,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L364",
+      "source_location": "L410",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -12948,7 +13186,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L415",
+      "source_location": "L461",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -12963,7 +13201,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L242",
+      "source_location": "L263",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -12979,7 +13217,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L189",
+      "source_location": "L210",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_geteffectivemode",
@@ -12991,7 +13229,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L210",
+      "source_location": "L231",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_issuppressed",
@@ -13004,7 +13242,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L130",
+      "source_location": "L131",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_a_file_surviving_a_crash_keeps_suppression_active",
@@ -13016,7 +13254,19 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L334",
+      "source_location": "L573",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_an_inaccessible_suppression_directory_fails_closed_instead_of_looking_absent",
+      "target": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_geteffectivemode"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
+      "source_location": "L355",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_recovery_does_not_delete_a_marker_whose_owner_process_is_still_running",
@@ -13025,9 +13275,33 @@
     {
       "relation": "calls",
       "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
+      "source_location": "L199",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_stores_for_the_same_path_share_the_active_operation_registry",
+      "target": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_geteffectivemode"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
+      "source_location": "L198",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_stores_for_the_same_path_share_the_active_operation_registry",
+      "target": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_countsuppressionfiles"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L257",
+      "source_location": "L278",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_clearallorphans",
@@ -13039,7 +13313,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L315",
+      "source_location": "L336",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_clearallorphans",
@@ -13051,7 +13325,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L286",
+      "source_location": "L307",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_clearallorphans",
@@ -13063,7 +13337,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L269",
+      "source_location": "L290",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_clearallorphans",
@@ -13076,7 +13350,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L329",
+      "source_location": "L350",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_recovery_does_not_delete_a_marker_whose_owner_process_is_still_running",
@@ -13087,8 +13361,20 @@
       "context": "call",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
+      "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
+      "source_location": "L197",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_stores_for_the_same_path_share_the_active_operation_registry",
+      "target": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_clearallorphans"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L552",
+      "source_location": "L598",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuresuppression_commitandclear",
@@ -13099,7 +13385,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L326",
+      "source_location": "L347",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_deleteown",
@@ -13111,7 +13397,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L336",
+      "source_location": "L357",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_deleteown",
@@ -13123,7 +13409,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L328",
+      "source_location": "L349",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuretombstonestore_deleteown",
@@ -13136,7 +13422,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L570",
+      "source_location": "L616",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuresuppression_completewithoutclearing",
@@ -13146,7 +13432,22 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L519",
+      "source_location": "L407",
+      "weight": 1.0,
+      "context": "field",
+      "metadata": {
+        "ref_token": "HashSet"
+      },
+      "_origin": "ast",
+      "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_activeoperationregistry",
+      "target": "hashset",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
+      "source_location": "L565",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -13161,7 +13462,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L545",
+      "source_location": "L591",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuresuppression",
@@ -13172,7 +13473,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs",
-      "source_location": "L563",
+      "source_location": "L609",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuresuppression",
@@ -13185,7 +13486,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L206",
+      "source_location": "L227",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_a_completed_failure_keeps_suppression_but_becomes_eligible_for_explicit_recovery",
@@ -13197,7 +13498,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L511",
+      "source_location": "L532",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_a_failed_suppression_delete_can_be_retried_after_the_sharing_violation_clears",
@@ -13209,7 +13510,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L490",
+      "source_location": "L511",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_clearing_twice_is_harmless_and_does_not_touch_another_operation_file",
@@ -13221,7 +13522,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L384",
+      "source_location": "L405",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_overlapping_operations_each_delete_only_their_own_file",
@@ -13233,7 +13534,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L243",
+      "source_location": "L264",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_recovery_cannot_delete_a_marker_during_its_publication_window",
@@ -13245,7 +13546,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L354",
+      "source_location": "L375",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_recovery_clears_a_marker_this_process_wrote_but_already_resolved",
@@ -13257,7 +13558,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L180",
+      "source_location": "L181",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_recovery_does_not_delete_the_marker_of_an_operation_still_in_flight",
@@ -13269,7 +13570,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L273",
+      "source_location": "L294",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_recovery_rechecks_operations_published_after_recovery_starts",
@@ -13281,7 +13582,19 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L55",
+      "source_location": "L201",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_stores_for_the_same_path_share_the_active_operation_registry",
+      "target": "src_outlookwidget_core_refresh_disclosuretombstonestore_outlookwidget_core_refresh_disclosuresuppression_commitandclear"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
+      "source_location": "L56",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_suppression_persists_when_the_commit_fails_and_clears_only_on_explicit_success",
@@ -13293,7 +13606,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L408",
+      "source_location": "L429",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_the_effective_mode_is_the_strongest_present_not_the_most_recently_written",
@@ -13305,7 +13618,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L426",
+      "source_location": "L447",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_the_weaker_operation_finishing_first_still_leaves_the_stronger_mode_in_force",
@@ -13329,7 +13642,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L192",
+      "source_location": "L213",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_a_completed_failure_keeps_suppression_but_becomes_eligible_for_explicit_recovery",
@@ -15860,7 +16173,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L4",
+      "source_location": "L5",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -17316,7 +17629,7 @@
       },
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_deliveryworkertests_outlookwidget_core_tests_deliveryworkertests_waitfor",
-      "target": "func",
+      "target": "tests_outlookwidget_core_tests_deliveryworkertests_cs_func",
       "confidence_score": 1.0
     },
     {
@@ -17924,7 +18237,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L2",
+      "source_location": "L3",
       "weight": 1.0,
       "metadata": {
         "using_kind": "namespace",
@@ -17940,7 +18253,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L10",
+      "source_location": "L11",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -17951,7 +18264,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L184",
+      "source_location": "L205",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -17962,7 +18275,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L500",
+      "source_location": "L521",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -17973,7 +18286,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L100",
+      "source_location": "L101",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -17984,7 +18297,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L114",
+      "source_location": "L115",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -17995,7 +18308,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L530",
+      "source_location": "L551",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18006,7 +18319,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L88",
+      "source_location": "L89",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18017,7 +18330,18 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L72",
+      "source_location": "L563",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
+      "target": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_an_inaccessible_suppression_directory_fails_closed_instead_of_looking_absent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
+      "source_location": "L73",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18028,7 +18352,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L482",
+      "source_location": "L503",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18039,7 +18363,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L432",
+      "source_location": "L453",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18050,7 +18374,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L61",
+      "source_location": "L62",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18061,7 +18385,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L12",
+      "source_location": "L13",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18072,7 +18396,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L133",
+      "source_location": "L134",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18083,7 +18407,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L367",
+      "source_location": "L388",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18094,7 +18418,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L276",
+      "source_location": "L297",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18105,7 +18429,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L210",
+      "source_location": "L231",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18116,7 +18440,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L343",
+      "source_location": "L364",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18127,7 +18451,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L305",
+      "source_location": "L326",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18138,7 +18462,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L152",
+      "source_location": "L153",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18149,7 +18473,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L246",
+      "source_location": "L267",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18160,7 +18484,18 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L21",
+      "source_location": "L185",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
+      "target": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_stores_for_the_same_path_share_the_active_operation_registry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
+      "source_location": "L22",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18171,7 +18506,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L42",
+      "source_location": "L43",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18182,7 +18517,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L394",
+      "source_location": "L415",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18193,7 +18528,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L416",
+      "source_location": "L437",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests",
@@ -18204,7 +18539,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L12",
+      "source_location": "L13",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18219,7 +18554,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L184",
+      "source_location": "L205",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18234,7 +18569,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L500",
+      "source_location": "L521",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18249,7 +18584,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L100",
+      "source_location": "L101",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18264,7 +18599,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L114",
+      "source_location": "L115",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18279,7 +18614,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L530",
+      "source_location": "L551",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18294,7 +18629,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L88",
+      "source_location": "L89",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18309,7 +18644,22 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L72",
+      "source_location": "L563",
+      "weight": 1.0,
+      "context": "attribute",
+      "metadata": {
+        "ref_token": "Fact"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_an_inaccessible_suppression_directory_fails_closed_instead_of_looking_absent",
+      "target": "tests_outlookwidget_core_tests_disclosuretombstonetests_cs_fact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
+      "source_location": "L73",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18324,7 +18674,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L482",
+      "source_location": "L503",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18339,7 +18689,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L432",
+      "source_location": "L453",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18354,7 +18704,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L61",
+      "source_location": "L62",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18369,7 +18719,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L133",
+      "source_location": "L134",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18384,7 +18734,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L367",
+      "source_location": "L388",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18399,7 +18749,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L276",
+      "source_location": "L297",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18414,7 +18764,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L210",
+      "source_location": "L231",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18429,7 +18779,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L343",
+      "source_location": "L364",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18444,7 +18794,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L305",
+      "source_location": "L326",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18459,7 +18809,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L152",
+      "source_location": "L153",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18474,7 +18824,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L246",
+      "source_location": "L267",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18489,7 +18839,22 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L21",
+      "source_location": "L185",
+      "weight": 1.0,
+      "context": "attribute",
+      "metadata": {
+        "ref_token": "Fact"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_stores_for_the_same_path_share_the_active_operation_registry",
+      "target": "tests_outlookwidget_core_tests_disclosuretombstonetests_cs_fact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
+      "source_location": "L22",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18504,7 +18869,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L42",
+      "source_location": "L43",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18519,7 +18884,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L394",
+      "source_location": "L415",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18534,7 +18899,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L416",
+      "source_location": "L437",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -18551,7 +18916,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L26",
+      "source_location": "L27",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests_outlookwidget_core_tests_disclosuretombstonetests_suppression_is_active_from_the_moment_it_is_written_and_needs_no_mutex",
@@ -18561,7 +18926,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L210",
+      "source_location": "L231",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -18576,7 +18941,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L432",
+      "source_location": "L453",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -18591,7 +18956,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/DisclosureTombstoneTests.cs",
-      "source_location": "L246",
+      "source_location": "L267",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -24406,5 +24771,5 @@
       "source_file": "docs/phase0-evidence.md"
     }
   ],
-  "built_at_commit": "8dd7754aee4a1602aaf05b1e2174069ebe8e8bfe"
+  "built_at_commit": "1bbc9574e27235d0a22db0af74715c900163ee60"
 }

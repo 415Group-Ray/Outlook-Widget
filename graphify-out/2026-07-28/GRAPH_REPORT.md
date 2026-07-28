@@ -1,16 +1,16 @@
 # Graph Report - Outlook Widget  (2026-07-28)
 
 ## Corpus Check
-- 49 files · ~56,983 words
+- 49 files · ~57,429 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 567 nodes · 1254 edges · 28 communities (26 shown, 2 thin omitted)
-- Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 213 edges (avg confidence: 0.81)
+- 571 nodes · 1264 edges · 29 communities (27 shown, 2 thin omitted)
+- Extraction: 83% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 217 edges (avg confidence: 0.81)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `274f2250`
+- Built from commit: `8dd7754a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -36,13 +36,14 @@
 - Cross-Process Coordination
 - Disclosure Tombstones
 - Final Convergence Privacy Guarantee
-- DisclosureTombstoneStore
+- DeliveryWorker
+- RecordingLogger
 
 ## God Nodes (most connected - your core abstractions)
 1. `RefreshCoordinatorTests` - 26 edges
 2. `OutlookWidget.Core.Refresh` - 24 edges
-3. `DisclosureTombstoneTests` - 23 edges
-4. `DisclosureTombstoneStore` - 22 edges
+3. `DisclosureTombstoneTests` - 24 edges
+4. `DisclosureTombstoneStore` - 23 edges
 5. `DeliveryWorkerTests` - 18 edges
 6. `ProtectedCacheTests` - 18 edges
 7. `MutationLock` - 17 edges
@@ -53,12 +54,12 @@
 ## Surprising Connections (you probably didn't know these)
 - `Cache is discarded and refetched, never migrated` --semantically_similar_to--> `No telemetry; logging API shape prevents sensitive data`  [INFERRED] [semantically similar]
   docs/troubleshooting.md → README.md
-- `CoordinationFixture` --references--> `CoordinationPaths`  [EXTRACTED]
-  tests/OutlookWidget.Core.Tests/TestInfrastructure/CoordinationFixture.cs → src/OutlookWidget.Core/Caching/CoordinationPaths.cs
 - `FailingProtector` --implements--> `IDataProtector`  [EXTRACTED]
   tests/OutlookWidget.Core.Tests/ProtectedCacheTests.cs → src/OutlookWidget.Core/Caching/ProtectedCache.cs
 - `FakeWidgetHost` --implements--> `IWidgetDeliverySink`  [EXTRACTED]
   tests/OutlookWidget.Core.Tests/TestInfrastructure/FakeWidgetHost.cs → src/OutlookWidget.Core/Delivery/IWidgetDeliverySink.cs
+- `RecordingLogger` --implements--> `IOperationalLogger`  [EXTRACTED]
+  tests/OutlookWidget.Core.Tests/TestInfrastructure/CoordinationFixture.cs → src/OutlookWidget.Core/Diagnostics/IOperationalLogger.cs
 - `CoordinationFixture` --references--> `DisclosureTombstoneStore`  [EXTRACTED]
   tests/OutlookWidget.Core.Tests/TestInfrastructure/CoordinationFixture.cs → src/OutlookWidget.Core/Refresh/DisclosureTombstoneStore.cs
 
@@ -75,11 +76,11 @@
 - **Load-bearing coordination invariants** — readme_mutationlock_ref_struct, readme_mandatory_mutex_timeout, readme_single_flight_expiring_record, readme_provider_only_updatewidget, readme_one_suppression_file_per_operation, readme_cross_process_concurrency_suite [EXTRACTED 1.00]
 - **MSIX signing, publisher identity, and packaging chain** — docs_phase0_evidence_signing_decisions, docs_phase0_evidence_publisher_subject_quoting, docs_phase0_evidence_build_package_ps1, docs_phase0_evidence_msbuild_comma_path_constraint, docs_phase0_evidence_gate_1_signed_msix_install, docs_troubleshooting_install_failures [INFERRED 0.85]
 
-## Communities (28 total, 2 thin omitted)
+## Communities (29 total, 2 thin omitted)
 
 ### Community 0 - ".Record"
 Cohesion: 0.06
-Nodes (35): byte, Count, Id, Mutex, Outcome, int, CacheCommitResult, IDataProtector (+27 more)
+Nodes (37): byte, JsonSerializerOptions, Mutex, string, CoordinationPaths, int, CacheCommitResult, CacheCommitStatus (+29 more)
 
 ### Community 1 - "OutlookWidget.Core (shared .NET library)"
 Cohesion: 0.05
@@ -94,12 +95,12 @@ Cohesion: 0.17
 Nodes (12): Func, ManualResetEventSlim, DeliveryState, Fact, TimeSpan, DeliveryWorkerTests, int, IReadOnlyList (+4 more)
 
 ### Community 4 - "OutlookWidget.Core.Refresh"
-Cohesion: 0.13
-Nodes (13): OutlookWidget.Core.Tests.TestInfrastructure, OutlookWidget.Core.Tests, OutlookWidget.Core.Diagnostics, OutlookWidget.Core.Refresh, OutlookWidget.Core.Delivery, OutlookWidget.App, OutlookWidget.Core.Caching, CacheCommitStatus (+5 more)
+Cohesion: 0.18
+Nodes (8): OutlookWidget.Core.Tests.TestInfrastructure, OutlookWidget.Core.Tests, OutlookWidget.Core.Diagnostics, OutlookWidget.Core.Refresh, OutlookWidget.Core.Delivery, OutlookWidget.App, OutlookWidget.Core.Caching, LeaseClaimStatus
 
 ### Community 5 - "DisclosureTombstoneTests"
-Cohesion: 0.18
-Nodes (3): Fact, Task, DisclosureTombstoneTests
+Cohesion: 0.09
+Nodes (12): Action, HashSet, DisclosureMode, bool, Guid, Lock, string, DisclosureSuppression (+4 more)
 
 ### Community 6 - "Outlook Inbox Widget"
 Cohesion: 0.07
@@ -110,8 +111,8 @@ Cohesion: 0.22
 Nodes (3): Fact, FailingProtector, ProtectedCacheTests
 
 ### Community 8 - ".Current"
-Cohesion: 0.09
-Nodes (19): JsonSerializerOptions, string, CoordinationPaths, TimeSpan, BootSessionStamp, DateTimeOffset, ISystemClock, SystemClock (+11 more)
+Cohesion: 0.16
+Nodes (11): TimeSpan, BootSessionStamp, DateTimeOffset, ISystemClock, SystemClock, Fact, BootSessionStampTests, DateTimeOffset (+3 more)
 
 ### Community 9 - "Program"
 Cohesion: 0.17
@@ -153,9 +154,13 @@ Nodes (4): Gate 7 — Outlook launch resolution, OutlookLauncher two launch cand
 Cohesion: 0.67
 Nodes (3): Cross-Process Coordination, Expiring Refresh Lease, Stable Package Identity
 
-### Community 27 - "DisclosureTombstoneStore"
-Cohesion: 0.10
-Nodes (17): Action, CancellationTokenSource, HashSet, SemaphoreSlim, bool, Lock, long, DeliveryWorker (+9 more)
+### Community 27 - "DeliveryWorker"
+Cohesion: 0.22
+Nodes (8): CancellationTokenSource, SemaphoreSlim, bool, Lock, long, DeliveryWorker, IWidgetDeliverySink, Thread
+
+### Community 28 - "RecordingLogger"
+Cohesion: 0.17
+Nodes (11): Count, Id, Outcome, OperationalEventId, OperationalOutcome, TimeSpan, NullOperationalLogger, IReadOnlyList (+3 more)
 
 ## Ambiguous Edges - Review These
 - `Tray/Popover Fallback Surface` → `Widgets Policy Preflight (AllowNewsAndInterests)`  [AMBIGUOUS]
@@ -171,15 +176,15 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `Tray/Popover Fallback Surface` and `Widgets Policy Preflight (AllowNewsAndInterests)`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `OutlookWidget.Core.Refresh` connect `OutlookWidget.Core.Refresh` to `.Record`, `.RefreshAsync`, `.Current`, `.Start`, `CoordinationStaticAnalysisTests`, `DisclosureTombstoneStore`?**
-  _High betweenness centrality (0.093) - this node is a cross-community bridge._
-- **Why does `CoordinationFixture` connect `.Record` to `.RefreshAsync`, `.SeedState`, `OutlookWidget.Core.Refresh`, `.Current`, `.Start`, `DisclosureTombstoneStore`?**
+- **Why does `OutlookWidget.Core.Refresh` connect `OutlookWidget.Core.Refresh` to `.Record`, `.RefreshAsync`, `DisclosureTombstoneTests`, `.Current`, `CoordinationStaticAnalysisTests`?**
+  _High betweenness centrality (0.092) - this node is a cross-community bridge._
+- **Why does `CoordinationFixture` connect `.Record` to `.RefreshAsync`, `.SeedState`, `OutlookWidget.Core.Refresh`, `DisclosureTombstoneTests`, `.Current`, `.Start`, `RecordingLogger`?**
   _High betweenness centrality (0.058) - this node is a cross-community bridge._
-- **Why does `DisclosureTombstoneStore` connect `DisclosureTombstoneStore` to `.Current`, `.Record`?**
-  _High betweenness centrality (0.039) - this node is a cross-community bridge._
+- **Why does `DisclosureTombstoneStore` connect `DisclosureTombstoneTests` to `.Record`, `.Current`, `DeliveryWorker`, `OutlookWidget.Core.Refresh`?**
+  _High betweenness centrality (0.041) - this node is a cross-community bridge._
 - **What connects `net10.0-windows`, `Microsoft.NET.Sdk`, `OutlookWidget.App` to the rest of the system?**
   _27 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `.Record` be split into smaller, more focused modules?**
-  _Cohesion score 0.06241519674355495 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.055087719298245616 - nodes in this community are weakly interconnected._
 - **Should `OutlookWidget.Core (shared .NET library)` be split into smaller, more focused modules?**
   _Cohesion score 0.05081585081585081 - nodes in this community are weakly interconnected._
