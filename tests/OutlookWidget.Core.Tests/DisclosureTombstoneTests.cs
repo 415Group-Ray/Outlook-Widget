@@ -218,6 +218,36 @@ public sealed class DisclosureTombstoneTests
     }
 
     [Fact]
+    public async Task Recovery_rechecks_operations_published_after_recovery_starts()
+    {
+        using var fixture = new CoordinationFixture();
+        using var readyToEnumerate = new ManualResetEventSlim(initialState: false);
+        using var continueRecovery = new ManualResetEventSlim(initialState: false);
+
+        Task<int> recovery = Task.Run(() =>
+            fixture.Tombstones.ClearAllOrphans(beforeEnumeration: () =>
+            {
+                readyToEnumerate.Set();
+                continueRecovery.Wait();
+            }));
+
+        Assert.True(readyToEnumerate.Wait(TimeSpan.FromSeconds(5)));
+
+        // Recovery has started but has not enumerated. Publish a live marker now. A stale snapshot
+        // taken before this point would omit it and delete it when enumeration resumes.
+        DisclosureSuppression suppression =
+            fixture.Tombstones.Suppress(DisclosureMode.SignedOut);
+
+        continueRecovery.Set();
+
+        Assert.Equal(0, await recovery);
+        Assert.Equal(1, fixture.Tombstones.CountSuppressionFiles());
+        Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
+
+        suppression.CommitAndClear();
+    }
+
+    [Fact]
     public void Publication_failure_rolls_back_the_active_registration()
     {
         using var fixture = new CoordinationFixture();

@@ -237,7 +237,9 @@ public sealed class DisclosureTombstoneStore
     /// automatic timeout — an automatic clear would re-disclose the previous account's
     /// subjects at exactly the moment nobody was watching.
     /// </remarks>
-    public int ClearAllOrphans()
+    public int ClearAllOrphans() => ClearAllOrphans(beforeEnumeration: null);
+
+    internal int ClearAllOrphans(Action? beforeEnumeration)
     {
         int removed = 0;
 
@@ -248,33 +250,10 @@ public sealed class DisclosureTombstoneStore
                 return 0;
             }
 
-            // Snapshot the operations this process currently has in flight. Recovery must not
-            // delete a live operation's marker: if that operation's commit then times out, the
-            // old snapshot still holds the previous account's subjects and nothing would be
-            // suppressing them any more — the fail-closed guarantee inverted by the very action
-            // meant to restore it.
-            //
-            // An in-process registry is authoritative here rather than merely convenient. The
-            // companion is single-instance and serialises its own disclosure-changing
-            // operations, and this recovery action is a companion action, so any operation that
-            // could race it is running in this process. PID liveness is used only as a secondary
-            // guard below, never as the primary test, because it races PID reuse.
-            HashSet<Guid> active;
-            lock (_activeGate)
-            {
-                active = [.. _activeOperations];
-            }
+            beforeEnumeration?.Invoke();
 
             foreach (string file in Directory.GetFiles(_paths.SuppressionDirectory, "*" + FileExtension))
             {
-                if (TryGetOperationId(file) is Guid operationId && active.Contains(operationId))
-                {
-                    _logger.Record(
-                        OperationalEventId.DisclosureSuppressionActive,
-                        OperationalOutcome.Skipped);
-                    continue;
-                }
-
                 if (IsOwnerProcessAlive(file))
                 {
                     // Written by a process that still exists. It is not an orphan, and the user
@@ -285,7 +264,37 @@ public sealed class DisclosureTombstoneStore
                     continue;
                 }
 
-                if (TryDeleteFile(file))
+                bool deleted;
+
+                if (TryGetOperationId(file) is Guid operationId)
+                {
+                    // Recheck under the same gate Suppress holds while registering and publishing.
+                    // A one-time snapshot is stale as soon as the gate is released: a new marker can
+                    // become visible before enumeration and be absent from that snapshot. Keeping
+                    // this check and deletion together makes "active or deleted" atomic with
+                    // respect to every in-process disclosure operation.
+                    lock (_activeGate)
+                    {
+                        if (_activeOperations.Contains(operationId))
+                        {
+                            _logger.Record(
+                                OperationalEventId.DisclosureSuppressionActive,
+                                OperationalOutcome.Skipped);
+                            continue;
+                        }
+
+                        deleted = TryDeleteFile(file);
+                    }
+                }
+                else
+                {
+                    // A registered operation always has a GUID filename, so an unparseable name
+                    // cannot race the active registry. It still follows the fail-closed owner
+                    // liveness check above before explicit recovery may remove it.
+                    deleted = TryDeleteFile(file);
+                }
+
+                if (deleted)
                 {
                     removed++;
                 }

@@ -73,13 +73,13 @@ pwsh -File scripts/Test-PackagePrerequisites.ps1
 ## Repository layout
 
 ```text
-src/OutlookWidget.Core      Surface-agnostic core: coordination, caching, auth, Graph, models
-src/OutlookWidget.App       WinUI 3 companion for sign-in, settings, diagnostics  (not yet built)
-src/OutlookWidget.Provider  Widgets Board provider, packaged COM local server     (not yet built)
-src/OutlookWidget.Package   MSIX identity, widget and COM registration            (not yet built)
+src/OutlookWidget.Core      Surface-agnostic coordination, caching, refresh, delivery, diagnostics
+src/OutlookWidget.App       Packaged companion; currently the Phase 0 probe, not finished WinUI
+src/OutlookWidget.Provider  Planned packaged COM Widgets provider                 (not yet built)
+src/OutlookWidget.Package   Implemented MSIX identity, assets, and companion registration
 tests/                      Automated tests, including the concurrency suite
 docs/                       Evidence report, app registration, troubleshooting
-scripts/                    Preflight and Outlook-launch probes
+scripts/                    Preflight, signing, packaging, installation, asset, launch probes
 ```
 
 ## Build and test
