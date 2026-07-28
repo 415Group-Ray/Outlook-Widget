@@ -30,11 +30,28 @@
     Skip step 1. Use when the certificate is already trusted, or to test whether installation
     fails for a reason other than trust.
 
+.PARAMETER ForceApplicationShutdown
+    Terminate this package's running processes so the upgrade can proceed.
+
+    Needed more often than it sounds. The widget provider runs for as long as a widget is
+    pinned, and a running process from the package being replaced makes deployment fail with
+    0x80073D02, "resources it modifies are currently in use". So a pinned widget blocks its own
+    update, and the message names a package rather than a process, which does not obviously point
+    at the provider.
+
+    Terminating the provider mid-update is safe by design rather than by luck: no named primitive
+    is ever held across an await, refresh single-flight is an expiring lease record rather than a
+    held lock, and a killed disclosure operation leaves its tombstone in place, which fails closed.
+    The Widgets host re-activates the provider on demand afterwards.
+
 .PARAMETER Uninstall
     Remove the installed package instead of installing.
 
 .EXAMPLE
     pwsh -File scripts/Install-DevelopmentPackage.ps1
+
+.EXAMPLE
+    pwsh -File scripts/Install-DevelopmentPackage.ps1 -SkipCertificateTrust -ForceApplicationShutdown
 
 .EXAMPLE
     pwsh -File scripts/Install-DevelopmentPackage.ps1 -Uninstall
@@ -44,6 +61,7 @@ param(
     [string]$PackagePath,
     [string]$PublicCertificatePath = (Join-Path $env:LOCALAPPDATA 'OutlookWidget\signing\OutlookWidget-Development.cer'),
     [switch]$SkipCertificateTrust,
+    [switch]$ForceApplicationShutdown,
     [switch]$Uninstall
 )
 
@@ -162,16 +180,70 @@ if ($existing) {
     Write-Output '  version error, remove the package first and record that rollback loses widget pins.'
 }
 
+# Report a running provider BEFORE attempting the install rather than after it fails.
+#
+# The provider runs for as long as a widget is pinned, and deployment refuses to replace a package
+# whose processes are running. The platform error names the package, not the process, so without
+# this the operator sees "resources it modifies are currently in use" and has no reason to connect
+# it to a pinned widget.
+$runningProvider = @(Get-Process -Name 'OutlookWidget.Provider' -ErrorAction SilentlyContinue)
+
+if ($runningProvider.Count -gt 0) {
+    Write-Output ''
+    Write-Output "  NOTE: $($runningProvider.Count) OutlookWidget.Provider process(es) are running,"
+    Write-Output '  which means a widget is currently pinned. Deployment cannot replace a package'
+    Write-Output '  whose processes are running.'
+
+    if ($ForceApplicationShutdown) {
+        Write-Output '  -ForceApplicationShutdown was passed, so deployment will terminate them.'
+    }
+    else {
+        Write-Output '  Re-run with -ForceApplicationShutdown to terminate them, or unpin the widget'
+        Write-Output '  first. Unpinning also removes the pin, so it is the worse option for testing'
+        Write-Output '  an upgrade with a widget in place.'
+    }
+}
+
+$addArguments = @{
+    Path        = $PackagePath
+    ErrorAction = 'Stop'
+}
+
+if ($ForceApplicationShutdown) {
+    # The documented flag for exactly this situation. Preferred over stopping the process by hand,
+    # because deployment sequences the shutdown against its own package lock rather than racing it.
+    $addArguments['ForceApplicationShutdown'] = $true
+}
+
 try {
-    Add-AppxPackage -Path $PackagePath -ErrorAction Stop
+    Add-AppxPackage @addArguments
     Write-Output '  Installed.'
 }
 catch {
+    $message = $_.Exception.Message
+
     Write-Output ''
     Write-Output 'Step 2 FAILED.'
-    Write-Output "  $($_.Exception.GetType().Name): $($_.Exception.Message)"
+    Write-Output "  $($_.Exception.GetType().Name): $message"
     Write-Output ''
+
+    if ($message -match '0x80073D02') {
+        # Named first and separately, because it is by far the most likely cause in this project
+        # and it is not a packaging, certificate, or policy problem at all.
+        Write-Output 'CAUSE: a process from this package is running, so deployment will not replace it.'
+        Write-Output 'This is normal here — the widget provider runs for as long as a widget is pinned.'
+        Write-Output ''
+        Write-Output 'Re-run with -ForceApplicationShutdown:'
+        Write-Output "  pwsh -File scripts/Install-DevelopmentPackage.ps1 -SkipCertificateTrust -ForceApplicationShutdown"
+        Write-Output ''
+        Write-Output 'Terminating the provider mid-update is safe by design: no named primitive is held'
+        Write-Output 'across an await, refresh single-flight is an expiring lease rather than a held lock,'
+        Write-Output 'and a killed disclosure operation leaves its fail-closed tombstone in place.'
+        exit 1
+    }
+
     Write-Output 'Distinguish the causes before changing anything:'
+    Write-Output '  - package processes running      -> HRESULT 0x80073D02; use -ForceApplicationShutdown'
     Write-Output '  - certificate not trusted        -> step 1 did not take effect'
     Write-Output '  - sideloading blocked by policy  -> device policy, same class as a gate 1 failure'
     Write-Output '  - publisher mismatch             -> manifest Publisher differs from the certificate Subject'
