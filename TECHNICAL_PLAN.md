@@ -4,7 +4,11 @@ Status: **Approved for Phase 0** — single-user v1, New Outlook only. Coordinat
 
 Planning date: **2026-07-27**
 
-Implementation status: **Phase 0 in progress; the native surface and packaging are proven.** Gates 1, 2, 3, 4, 5 (as superseded below), 6, and the native half of 7 have all passed on the reference machine, including cold activation, reboot survival, instance recovery, upgrade with a widget pinned, and clean provider exit on unpin. The section 18 fallback branch is therefore **not** taken. The coordination subsystem (Phase 1 slice 1) and the Windows Widgets provider are implemented, packaged, installed, and observed working in the Widgets Board. **Every remaining Phase 0 gate — 8, 9, 10, and 12 — waits on the Entra app registration, and nothing else does.** `docs/phase0-evidence.md` is authoritative for what has actually been measured.
+Implementation status: **Phase 0 in progress; the native surface and packaging are proven.** Gates 1, 2, 3, 4, 5 (as superseded below), 6, and the native half of 7 have all passed on the reference machine, including cold activation, reboot survival, instance recovery, upgrade with a widget pinned, and clean provider exit on unpin. The section 18 fallback branch is therefore **not** taken. The coordination subsystem (Phase 1 slice 1) and the Windows Widgets provider are implemented, packaged, installed, and observed working in the Widgets Board.
+
+**Gate 11 has not passed**, and it is the one native-surface gate still open: cached-first refresh and cross-process invalidation across real Board activation and provider recycle cannot be observed before authentication and Graph exist. Its signalling half is real and measured, but the gate is not met. It does not affect the fallback decision, because both surfaces consume the same coordination core.
+
+**Every remaining Phase 0 gate depends on authentication.** Gates 8, 9, 10, and 12 wait on the Entra app registration; gate 11 waits on a real refresh, which waits on the same thing. `docs/phase0-evidence.md` is authoritative for what has actually been measured.
 
 This plan describes a lightweight Windows 11 Outlook inbox widget for a single Microsoft 365 tenant. It incorporates the decisions approved during planning:
 

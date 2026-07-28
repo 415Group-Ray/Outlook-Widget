@@ -1,17 +1,25 @@
 # Phase 0 evidence report
 
-Status: **in progress.** **Every native-surface gate now passes.** Gates 1, 2, 3, 4, 5 (as
+Status: **in progress.** **Every native-surface gate except 11 now passes.** Gates 1, 2, 3, 4, 5 (as
 superseded), 6, and the native half of 7 were all observed on the reference machine: the widget is
-discoverable, pinnable, renders at all three sizes, survives a reboot with its instance restored,
-launches New Outlook and the companion from its actions, and its provider process exits when the
-widget is unpinned. The section 18 tray/popover fallback branch is **not** taken.
+discoverable, pinnable, renders at all three sizes, survives a reboot and a package upgrade with its
+instance restored, launches New Outlook and the companion from its actions, and its provider process
+exits when the widget is unpinned. The section 18 tray/popover fallback branch is **not** taken.
+
+**Gate 11 has not passed and cannot yet.** It asks for cached-first refresh and cross-process
+invalidation across real Board activation and provider recycle, and neither a refresh nor a state
+commit is possible before authentication and Graph exist. Its signalling half is now real — see the
+native-surface table — but the gate is open, and it is not a gate that decides between the native
+surface and the fallback.
 
 Gate 5 was superseded after the Board was measured to allow only one instance per widget definition.
 Two rendering defects were found by the resize test and fixed in 0.2.1.0.
 
-**What remains is entirely downstream of the Entra app registration** — gates 8, 9, 10, and 12.
-There is no outstanding native-surface or packaging question. Nothing below is a projection; each row
-records what was actually observed, and unproven items say so rather than being marked pass.
+**What remains all depends on authentication:** gates 8, 9, 10, and 12 wait on the Entra app
+registration, and gate 11 waits on a real refresh, which waits on the same thing. There is no
+outstanding *activation, lifecycle, rendering, launch, or packaging* question. Nothing below is a
+projection; each row records what was actually observed, and unproven items say so rather than being
+marked pass.
 
 Reference machine: the author's own Entra-managed PC. Recorded 2026-07-28.
 
@@ -70,7 +78,15 @@ permission.
 | 5 — two instances at different sizes render independently | **Superseded; replacement PASSES** | **A second instance could not be pinned.** After pinning, the picker entry was greyed out and marked as added. The cause is not the manifest: the installed definition carries `AllowMultiple="true"` and declares all three sizes. The replacement gate — one instance rendering correctly at small, medium, and large — **passes**, with two rendering defects found and fixed along the way. See the gate 5 section below |
 | 6 — widget action launches the companion | **PASS** | Clicking **Open companion** on the pinned widget launched the companion, which displayed package identity `415Group.OutlookInboxWidget_0.2.0.0_x64__dgbvqhastx60y` and its coordination root inside the package store. Note that the companion did **not** report a launch argument, which is the correct outcome and is explained below: the documented shell-activation candidate succeeded, and that path carries no arguments |
 | 9 — provider silent-only acquisition with a zero parent handle | **Not started** | Needs the Entra registration and the broker skeleton. A source-level test now asserts the provider contains no `AcquireTokenInteractive`, which is the enforcement rather than the gate |
-| 11 — cached-first refresh and cross-process invalidation | **Partly established; the signalling path is now real** | The coordination subsystem passes 135 automated tests including genuine multi-process contention. Separately, and new: **the named events now exist.** Both `OutlookWidget-StateChanged-v1` and `OutlookWidget-SuppressDetails-v1` were confirmed present while the installed provider ran. Until `StateChangeListener` was written nothing created them, so `StateCommitCoordinator` and `DisclosureTombstoneStore` were opening a non-existent event and swallowing the failure — every cross-process signal in the product was a silent no-op. The gate still requires the behaviour across real Board activation and provider recycle |
+| 11 — cached-first refresh and cross-process invalidation | **Partly established; NOT passed** | The coordination subsystem passes 136 automated tests including genuine multi-process contention. Separately, and new: **the named events now exist.** Both `OutlookWidget-StateChanged-v1` and `OutlookWidget-SuppressDetails-v1` were confirmed present while the installed provider ran. Until `StateChangeListener` was written nothing created them, so `StateCommitCoordinator` and `DisclosureTombstoneStore` were opening a non-existent event and swallowing the failure — every cross-process signal in the product was a silent no-op. **The gate itself is not met:** it requires cached-first refresh and cross-process invalidation observed across real Board activation and provider recycle, and neither a refresh nor a state commit can happen until authentication and Graph exist. It cannot be closed in Phase 0's native work |
+
+**Gate 11 is the one native-surface gate that has not passed, and it is not a surface-choice gate.**
+The decision between the native provider and the tray/popover fallback rests on discoverability,
+pinning, rendering, lifecycle, and launch — all of which pass. Gate 11 asks whether refresh and
+invalidation behave correctly across a real host, which would be equally unproven on the fallback
+surface because both consume the same coordination core. So the fallback branch is settled while
+gate 11 stays open, and any status claim elsewhere must say "every native-surface gate **except 11**"
+rather than "every native-surface gate".
 
 ### Gate 5 — the Widgets Board allows only one instance of a widget definition
 
@@ -221,11 +237,15 @@ identity and is what issues the client ID, and no token request can be made with
 not implement OpenID Connect Dynamic Client Registration, so there is no bootstrap path: creating a
 registration through Graph would itself require a token. It is a one-time task, not a per-user one.
 
+**Gate 11 also waits on it**, though indirectly: cached-first refresh and cross-process invalidation
+cannot be observed until there is something to refresh and something to commit.
+
 No longer blocking:
 
-- **Every native-surface and packaging observation.** Discoverability, pinning, rendering at all
-  three sizes, reboot survival, instance recovery, both launch actions, final-instance process exit,
-  and upgrade with a widget pinned have all been observed on the reference machine.
+- **Every activation, lifecycle, rendering, launch, and packaging observation.** Discoverability,
+  pinning, rendering at all three sizes, reboot survival, instance recovery, both launch actions,
+  final-instance process exit, and upgrade with a widget pinned have all been observed on the
+  reference machine.
 
 No longer blocking, having been resolved during this work:
 
@@ -376,12 +396,25 @@ provider was alive from the pinned widget, the script's pre-install notice fired
 `-ForceApplicationShutdown` carried the upgrade through. That is the complete case: a real version
 increment, a pinned widget, and a running provider.
 
-**The upgrade was then confirmed end to end.** The pinned widget still rendered afterwards, and the
+**Which upgrade was confirmed how, kept separate because the two were verified differently.**
+
+*0.2.1.0 → 0.2.2.0 was confirmed end to end.* The pinned widget still rendered afterwards, and the
 companion launched from it reported package full name
-`415Group.OutlookInboxWidget_0.2.2.0_x64__dgbvqhastx60y` — so the upgraded package is genuinely the
+`415Group.OutlookInboxWidget_0.2.2.0_x64__dgbvqhastx60y` — so the upgraded package was genuinely the
 one serving the widget, rather than a stale provider still running from the previous version. That
-last check matters: a rendered card alone would not have distinguished the two, because the Widgets
-host retains the last card it was given.
+second check is what makes it end to end: a rendered card alone would not have distinguished the two,
+because the Widgets host retains the last card it was given. **This is the observation gate 3's
+package-update case rests on.**
+
+*0.2.2.0 → 0.2.3.0 was verified differently, and less completely.* It established the operational
+half — a live provider, the pre-install notice, and `-ForceApplicationShutdown` carrying the upgrade
+through with the pin intact. Afterwards the provider was confirmed to COM-activate from a cold start
+and to create both named notification events. **The Board was not reopened, so whether the widget
+re-renders on 0.2.3.0 is unobserved**, and the provider process was stopped by hand after the
+activation check rather than being left for the Board to reuse. Nothing here needs it: gate 3's
+package-update case is already carried by the 0.2.2.0 observation above, and this install was run to
+validate a code change rather than to re-prove the gate. It is recorded this way so the two are not
+read as one stronger result than either is.
 
 ## Observed characteristic: provider lifetime is demand-driven, not pin-driven
 

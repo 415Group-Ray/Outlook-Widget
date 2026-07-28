@@ -7,8 +7,12 @@ messages, without opening Outlook.
 built and tested, and a signed MSIX registers a COM widget provider that appears in the Widgets
 Board, pins, renders at small, medium, and large, survives both a reboot and a package upgrade with
 its instance restored, launches New Outlook and the companion from its actions, and exits when
-unpinned. **Every native-surface and packaging Phase 0 gate has passed on the reference machine**, so
-the tray/popover fallback is not being built.
+unpinned. **Every native-surface Phase 0 gate except gate 11 has passed on the reference machine**,
+so the tray/popover fallback is not being built.
+
+Gate 11 — cached-first refresh and cross-process invalidation across a real host — has *not* passed
+and cannot until authentication and Graph exist. It is not a gate that decides between the native
+surface and the fallback, because both consume the same coordination core.
 
 The provider currently draws a placeholder card describing coordination state, because there is no
 authentication or Microsoft Graph access yet — **nothing here shows real mail.** That is the next

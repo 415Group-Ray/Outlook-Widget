@@ -210,13 +210,13 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785265541.7657032,
-    "ast_hash": "8129a9ce5433c2b2438a2e7487682939",
+    "mtime": 1785267974.7520435,
+    "ast_hash": "03f9709c73065de362bbcf1b4162607e",
     "semantic_hash": ""
   },
   "TECHNICAL_PLAN.md": {
-    "mtime": 1785265527.3616076,
-    "ast_hash": "40cc0410b51c8576dcedae4311c045ab",
+    "mtime": 1785267994.4721584,
+    "ast_hash": "e1ce05e878c49719262201b349be5195",
     "semantic_hash": ""
   },
   "docs/app-registration.md": {
@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1785267286.6348972,
-    "ast_hash": "e3541df80e75cd5ccfbe7808b2f25c7e",
+    "mtime": 1785267965.709154,
+    "ast_hash": "f5e0fcd6a5bf29225647c43bdf99293d",
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
@@ -235,8 +235,8 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1785267137.0086,
-    "ast_hash": "7aa803d1ee68991b6c4ee92426c4d8b7",
+    "mtime": 1785267983.1450312,
+    "ast_hash": "926a399436bdfde63e5feb26e8ef87af",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
