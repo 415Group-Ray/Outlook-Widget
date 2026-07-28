@@ -158,6 +158,13 @@ regression that would otherwise return silently.
   same package family. No elevation was needed for the upgrade, because the certificate was
   already trusted from the first install — so only the very first install on a machine requires
   an administrator.
+- **Corrected package-local state path in the installed probe.** The launched 0.1.1.0 Phase 0
+  probe reported package family `415Group.OutlookInboxWidget_dgbvqhastx60y` and coordination
+  root `%LocalAppData%\Packages\415Group.OutlookInboxWidget_dgbvqhastx60y\LocalCache\Local\OutlookWidget`.
+  This is target-device evidence that the packaged process now uses uninstall-scoped storage,
+  rather than relying only on the path-selection unit test. The same probe displayed the
+  configured 2-second mutex wait, 20-second async deadline, and 30-second lease horizon. It
+  remains a packaging probe: this does not establish any Widgets Board/provider gate.
 - **Signature verification after trust.** `signtool verify /pa` reports
   `Number of files successfully Verified: 1` once the certificate is in
   `LocalMachine\TrustedPeople`. Before trust it failed with an untrusted-root error, which is

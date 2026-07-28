@@ -101,6 +101,13 @@ public sealed class StateCommitCoordinatorTests
         Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
         Assert.False(suppression.IsCleared);
 
+        // The failed operation is over, but its marker must remain fail-closed. Completing the
+        // handle unregisters only the live-operation guard so that a later, explicit recovery
+        // action in this same process can remove the interrupted operation.
+        suppression.CompleteWithoutClearing();
+        Assert.Equal(1, fixture.Tombstones.ClearAllOrphans());
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+
         // The snapshot is still there — nothing was committed — which is precisely why the
         // tombstone rather than the cache has to be authoritative in this window.
         Assert.NotNull(fixture.Cache.Read().Payload);

@@ -51,7 +51,8 @@
     material out of the working tree entirely.
 
 .PARAMETER Force
-    Replace an existing certificate with the same Subject instead of reusing it.
+    Replace an existing certificate created by this script instead of reusing it. Certificates
+    that merely share the Subject are never removed.
 
 .EXAMPLE
     pwsh -File scripts/New-DevelopmentCertificate.ps1
@@ -116,12 +117,47 @@ function Get-ComparableSubject {
 }
 
 $comparableRequested = Get-ComparableSubject -Value $Subject
+$managedFriendlyName = 'Outlook Inbox Widget development signing'
+$codeSigningEkuOid = '1.3.6.1.5.5.7.3.3'
 
-$existing = @(Get-ChildItem -Path 'Cert:\CurrentUser\My' |
+function Test-IsManagedCertificate {
+    param(
+        [Parameter(Mandatory)]
+        [System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate
+    )
+
+    if ($Certificate.FriendlyName -ne $managedFriendlyName) {
+        return $false
+    }
+
+    foreach ($extension in $Certificate.Extensions) {
+        if ($extension -is [System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension]) {
+            foreach ($usage in $extension.EnhancedKeyUsages) {
+                if ($usage.Value -eq $codeSigningEkuOid) {
+                    return $true
+                }
+            }
+        }
+    }
+
+    return $false
+}
+
+$subjectMatches = @(Get-ChildItem -Path 'Cert:\CurrentUser\My' |
     Where-Object {
         $_.HasPrivateKey -and
         (Get-ComparableSubject -Value $_.Subject) -eq $comparableRequested
     })
+
+$existing = @($subjectMatches | Where-Object { Test-IsManagedCertificate -Certificate $_ })
+$unmanagedMatches = @($subjectMatches | Where-Object { -not (Test-IsManagedCertificate -Certificate $_) })
+
+if ($unmanagedMatches.Count -gt 0) {
+    Write-Warning (
+        "Ignoring $($unmanagedMatches.Count) same-subject certificate(s) not managed by this " +
+        'script. They will not be reused or removed.'
+    )
+}
 
 if ($existing.Count -gt 0 -and -not $Force) {
     $certificate = $existing | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
@@ -131,7 +167,7 @@ if ($existing.Count -gt 0 -and -not $Force) {
 }
 else {
     if ($existing.Count -gt 0) {
-        Write-Output "Replacing $($existing.Count) existing certificate(s) for '$Subject'."
+        Write-Output "Replacing $($existing.Count) managed certificate(s) for '$Subject'."
         $existing | Remove-Item -Force
     }
 
@@ -143,7 +179,7 @@ else {
         -KeyLength 2048 `
         -CertStoreLocation 'Cert:\CurrentUser\My' `
         -NotAfter (Get-Date).AddYears($ValidYears) `
-        -FriendlyName 'Outlook Inbox Widget development signing'
+        -FriendlyName $managedFriendlyName
 
     Write-Output "Created a code-signing certificate for '$Subject'."
 }

@@ -182,6 +182,32 @@ public sealed class DisclosureTombstoneTests
     }
 
     [Fact]
+    public void A_completed_failure_keeps_suppression_but_becomes_eligible_for_explicit_recovery()
+    {
+        using var fixture = new CoordinationFixture();
+
+        DisclosureSuppression failed =
+            fixture.Tombstones.Suppress(DisclosureMode.SignedOut);
+
+        failed.CompleteWithoutClearing();
+
+        // Completing a failure must not itself re-disclose the previous snapshot.
+        Assert.False(failed.IsCleared);
+        Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
+        Assert.Equal(1, fixture.Tombstones.CountSuppressionFiles());
+
+        // It is no longer a live operation, so the same companion process can honor the user's
+        // explicit "clear interrupted operations" action.
+        Assert.Equal(1, fixture.Tombstones.ClearAllOrphans());
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+
+        // Completion is terminal: an old handle cannot later delete a marker reused at the same
+        // path or otherwise mutate recovered state.
+        failed.CommitAndClear();
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+    }
+
+    [Fact]
     public async Task Recovery_cannot_delete_a_marker_during_its_publication_window()
     {
         using var fixture = new CoordinationFixture();

@@ -345,6 +345,22 @@ public sealed class DisclosureTombstoneStore
         return false;
     }
 
+    /// <summary>
+    /// Marks a failed operation as no longer running without weakening its suppression.
+    /// </summary>
+    /// <remarks>
+    /// The marker deliberately remains on disk and continues to fail closed. Removing only the
+    /// in-process registration lets the companion's explicit orphan-recovery action distinguish
+    /// this completed failure from a disclosure operation that is still actively committing.
+    /// </remarks>
+    internal void CompleteWithoutClearing(Guid operationId)
+    {
+        lock (_activeGate)
+        {
+            _activeOperations.Remove(operationId);
+        }
+    }
+
     private string FilePathFor(Guid operationId) =>
         Path.Combine(_paths.SuppressionDirectory, operationId.ToString("N") + FileExtension);
 
@@ -499,6 +515,7 @@ public sealed class DisclosureSuppression
 {
     private readonly DisclosureTombstoneStore _store;
     private readonly Guid _operationId;
+    private bool _completed;
     private bool _cleared;
 
     internal DisclosureSuppression(DisclosureTombstoneStore store, Guid operationId, DisclosureMode mode)
@@ -527,11 +544,30 @@ public sealed class DisclosureSuppression
     /// </remarks>
     public void CommitAndClear()
     {
-        if (_cleared)
+        if (_completed)
         {
             return;
         }
 
         _cleared = _store.DeleteOwn(_operationId);
+        _completed = _cleared;
+    }
+
+    /// <summary>
+    /// Completes an unsuccessful disclosure operation while leaving its fail-closed marker.
+    /// </summary>
+    /// <remarks>
+    /// Call this after the state commit has definitively failed and the operation will not retry.
+    /// The tombstone remains authoritative until the user invokes explicit orphan recovery.
+    /// </remarks>
+    public void CompleteWithoutClearing()
+    {
+        if (_completed)
+        {
+            return;
+        }
+
+        _store.CompleteWithoutClearing(_operationId);
+        _completed = true;
     }
 }
