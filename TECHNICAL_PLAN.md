@@ -616,7 +616,11 @@ Manual refresh should remain responsive and must not create parallel requests. A
 
 ## 12. Project folder structure
 
-The repository already exists on `main` with one initial commit and `.gitattributes`. Commit and push `TECHNICAL_PLAN.md` and `TECHNICAL_PLAN-review.md` before relocation so no planning artifact depends on the old working directory. Before Phase 0, relocate the working clone to a short, non-OneDrive path. Preserve Git history and verify the remote after the move; do not reinitialize the repository.
+The repository remains in its current OneDrive-backed location. That preserves the author's development portability and keeps source, build paths, and generated artifacts inside the project environment already authorized for Codex and Claude Code. Mark the repository **Always keep on this device** so builds never depend on Files On-Demand hydration.
+
+Keep volatile outputs such as `bin/`, `obj/`, `.vs/`, `AppPackages/`, and test results under the project root and exclude them from Git. They may still sync through OneDrive; that is acceptable unless Phase 0 produces evidence of recurring contention. Do not treat OneDrive folder-selection controls as a build-output exclusion mechanism: they remove unchecked folders from the local machine rather than keeping them local-only.
+
+If a build or MSIX packaging operation encounters a sharing violation plausibly caused by OneDrive, record it, pause synchronization, and retry the same operation. Relocating the clone or redirecting outputs outside the project is a fallback only after the problem recurs, and must include an explicit Codex/Claude workspace-permission check before adoption. The signing private key remains outside both the repository and OneDrive as specified in section 15.
 
 ```text
 OutlookWidget.sln
@@ -687,7 +691,7 @@ Current-version sources:
 
 ## 14. Local build and debugging workflow
 
-1. Confirm the plan and its review are committed and pushed, then move or freshly clone the repository outside OneDrive before scaffolding (for example, to a short local source path); confirm `git status`, history, and `origin`.
+1. Confirm the plan is committed and pushed; confirm `git status`, history, and `origin`; and mark the OneDrive-backed repository **Always keep on this device**.
 2. Create a feature branch per implementation phase.
 3. Restore only centrally pinned dependencies from the feeds allowed by `nuget.config`.
 4. Build x64 Debug.
@@ -699,6 +703,8 @@ Current-version sources:
 10. Run focused unit/integration tests after each component change.
 11. Run the complete test suite and package-install test before each milestone review.
 12. Commit logical units such as provider activation, WAM sign-in, Graph snapshot, cache protection, or packaging—not broad mixed commits.
+
+Build and package from the OneDrive-backed project first. If an operation fails with a sharing violation, capture the failing path, pause OneDrive synchronization, and retry before attributing the failure to the code. Only recurring, reproducible contention justifies relocating the clone or redirecting build outputs, and any external path must be added deliberately to the development tools' permitted workspace.
 
 No credentials belong in source control. Tenant and client IDs are identifiers rather than secrets, but development and production values should still be supplied through environment-specific package configuration to prevent accidental cross-environment use.
 
@@ -779,7 +785,7 @@ Microsoft documents silent signed-MSIX deployment through Intune: [Deploy MSIX w
 
 ### Phase 0 acceptance gates
 
-Preconditions: the clone is outside OneDrive; the target device permits Widgets; the Entra registration exists.
+Preconditions: the OneDrive-backed clone is fully available locally; volatile outputs are excluded from Git; the signing private key is outside the repository and OneDrive; the target device permits Widgets; and the Entra registration exists.
 
 1. Signed MSIX installs without the Store on the author's Entra-managed PC, and the public certificate can be trusted there under current device policy.
 2. The widget is discoverable in the Widgets Board and can be pinned.
@@ -882,7 +888,7 @@ Each phase ends with a user review before the next begins.
 ### Phase 0 — feasibility spike
 
 - Widgets-policy preflight on the target device and Entra registration creation.
-- Repository relocation outside OneDrive and certificate-storage check.
+- OneDrive/build preflight: mark the repository **Always keep on this device**, confirm volatile outputs are excluded from Git, verify the private signing key is outside OneDrive, and build/package from the current clone first. Record any sharing violation and the result of a pause-sync retry; relocate only if contention is recurring and reproducible.
 - Signing decisions recorded before the first install: certificate Subject, its validity period and key-retention location, manifest `Publisher`, the stated section 15 continuity position, timestamping, and whether managed-device policy permits trusting the public certificate.
 - Minimal signed MSIX, provider registration, companion activation.
 - Complete provider lifecycle skeleton, including COM registration/process lifetime, all six callbacks, `GetWidgetInfos()` recovery, multiple instances, and final-instance exit.
@@ -976,7 +982,8 @@ If a critical Phase 0 native gate fails, stop native provider work and first bui
 | Graph throttling/service outage | Refresh failure | Low request volume, concurrent bounded GETs, cached state, `Retry-After`, backoff |
 | Windows Widgets investment/roadmap changes over a 2–3 year horizon | Native surface loses priority despite not being deprecated | Keep auth, Graph, cache, and display models surface-agnostic; exercise fallback only if needed |
 | Windows App SDK regression | Provider instability | Stable channel only, version pinning, upgrade tests before dependency updates |
-| OneDrive locks output or syncs a private signing key | Intermittent builds or credential exposure | Move clone before Phase 0; keep private certificate in cert store or non-synced path |
+| OneDrive briefly locks build or MSIX output | Intermittent build/package failure | Keep the portable clone in OneDrive and fully available locally; on a sharing violation, capture the path, pause sync, and retry. Relocate or redirect outputs only after recurring reproducible contention and an explicit tool-permission check |
+| A private signing key is placed in the project tree and synced | Credential exposure | Keep the private key in `CurrentUser\My` or a dedicated non-synced secure path; never create or export a `.pfx` under the repository |
 | New Outlook is absent on the current development PC | Launch tests impossible locally | Install it on a designated test PC before Phase 0 launch gates |
 
 ## 20. Rough effort assessment
