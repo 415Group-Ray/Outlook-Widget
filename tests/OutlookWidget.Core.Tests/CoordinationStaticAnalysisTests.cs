@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using OutlookWidget.Core.Diagnostics;
 using OutlookWidget.Core.Refresh;
+using OutlookWidget.Core.Tests.TestInfrastructure;
 
 namespace OutlookWidget.Core.Tests;
 
@@ -23,104 +24,10 @@ namespace OutlookWidget.Core.Tests;
 /// </remarks>
 public sealed class CoordinationStaticAnalysisTests
 {
-    private static string CoreSourceDirectory
-    {
-        get
-        {
-            string? configured = typeof(CoordinationStaticAnalysisTests).Assembly
-                .GetCustomAttributes<AssemblyMetadataAttribute>()
-                .FirstOrDefault(a => a.Key == "CoreSourceDirectory")
-                ?.Value;
+    private static IEnumerable<string> CoreSourceFiles() => RepositorySources.CoreSourceFiles();
 
-            Assert.False(
-                string.IsNullOrWhiteSpace(configured),
-                "The CoreSourceDirectory assembly metadata is missing; these checks cannot run.");
-
-            string resolved = Path.GetFullPath(configured!);
-            Assert.True(Directory.Exists(resolved), $"Core source directory not found: {resolved}");
-            return resolved;
-        }
-    }
-
-    private static IEnumerable<string> CoreSourceFiles() =>
-        Directory.EnumerateFiles(CoreSourceDirectory, "*.cs", SearchOption.AllDirectories)
-            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",
-                       StringComparison.OrdinalIgnoreCase)
-                   && !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",
-                       StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>
-    /// Strips line comments, block comments, and string literals, so a rule never fires on prose
-    /// that merely discusses the prohibited construction. These files document their own
-    /// invariants at length, so this matters: without it, every check here would fail on its own
-    /// explanation.
-    /// </summary>
-    private static string StripCommentsAndStrings(string source)
-    {
-        var output = new System.Text.StringBuilder(source.Length);
-        int i = 0;
-
-        while (i < source.Length)
-        {
-            // Block comment
-            if (i + 1 < source.Length && source[i] == '/' && source[i + 1] == '*')
-            {
-                int end = source.IndexOf("*/", i + 2, StringComparison.Ordinal);
-                i = end < 0 ? source.Length : end + 2;
-                continue;
-            }
-
-            // Line comment, which also covers /// documentation
-            if (i + 1 < source.Length && source[i] == '/' && source[i + 1] == '/')
-            {
-                int end = source.IndexOf('\n', i);
-                i = end < 0 ? source.Length : end;
-                continue;
-            }
-
-            // Verbatim string
-            if (i + 1 < source.Length && source[i] == '@' && source[i + 1] == '"')
-            {
-                i += 2;
-                while (i < source.Length)
-                {
-                    if (source[i] == '"')
-                    {
-                        if (i + 1 < source.Length && source[i + 1] == '"')
-                        {
-                            i += 2;
-                            continue;
-                        }
-
-                        i++;
-                        break;
-                    }
-
-                    i++;
-                }
-
-                continue;
-            }
-
-            // Ordinary string
-            if (source[i] == '"')
-            {
-                i++;
-                while (i < source.Length && source[i] != '"')
-                {
-                    i += source[i] == '\\' ? 2 : 1;
-                }
-
-                i++;
-                continue;
-            }
-
-            output.Append(source[i]);
-            i++;
-        }
-
-        return output.ToString();
-    }
+    private static string StripCommentsAndStrings(string source) =>
+        RepositorySources.StripCommentsAndStrings(source);
 
     [Fact]
     public void No_call_site_uses_the_parameterless_WaitOne()
@@ -248,6 +155,148 @@ public sealed class CoordinationStaticAnalysisTests
         Assert.True(
             offenders.Count == 0,
             "OutlookWidget.Core must not reference UpdateWidget directly. Found in: "
+                + string.Join(", ", offenders));
+    }
+
+    /// <summary>
+    /// The name of the one file permitted to call the widget host.
+    /// </summary>
+    private const string DeliverySinkFileName = "WidgetDeliverySink.cs";
+
+    [Fact]
+    public void Exactly_one_provider_file_calls_UpdateWidget()
+    {
+        // The companion-side rule above says the core may not reach the host at all. This is the
+        // other half: within the provider, which may, the call must exist in exactly one place.
+        //
+        // Both halves are needed. Core having no reference proves the companion cannot deliver;
+        // it says nothing about a second call site being added inside the provider for
+        // convenience — a refresh handler calling UpdateWidget directly, say — which would put two
+        // host calls in flight and let a slow older payload land after a newer logout. A payload
+        // already handed to the host cannot be retracted, so this is enforced by counting call
+        // sites rather than by validating after the fact.
+        var offenders = new List<string>();
+        bool sinkFound = false;
+
+        foreach (string file in RepositorySources.ProviderSourceFiles())
+        {
+            string code = StripCommentsAndStrings(File.ReadAllText(file));
+
+            if (!code.Contains("UpdateWidget", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (Path.GetFileName(file).Equals(DeliverySinkFileName, StringComparison.Ordinal))
+            {
+                sinkFound = true;
+                continue;
+            }
+
+            offenders.Add(Path.GetFileName(file));
+        }
+
+        Assert.True(
+            offenders.Count == 0,
+            $"Only {DeliverySinkFileName} may call UpdateWidget. Found in: "
+                + string.Join(", ", offenders));
+
+        // And the sink must still be the one doing it. Without this, deleting the call entirely
+        // would pass a test whose whole subject is where that call lives.
+        Assert.True(
+            sinkFound,
+            $"{DeliverySinkFileName} no longer calls UpdateWidget. Either the single delivery call "
+                + "site moved, in which case this test's expectation must move with it, or widget "
+                + "delivery has been removed.");
+    }
+
+    [Fact]
+    public void The_delivery_sink_re_reads_disclosure_before_calling_the_host()
+    {
+        // Invariant 8 requires disclosure to be re-read immediately before the host call. The
+        // worker reads it once per pass and hands over one DeliveryState, which satisfies that only
+        // for the first instance: UpdateWidget is synchronous with no timeout, so a wedged host can
+        // park the loop on instance one while a logout or hide-details commit lands, and every
+        // later instance would receive the pre-tombstone payload. Those calls have not reached the
+        // host yet, so withholding them is still possible.
+        //
+        // Checked by source order rather than behaviour because the sink lives in the provider,
+        // which this project cannot reference without adopting the provider's target framework.
+        // The ordering is the whole property, so asserting it textually is not much weaker than
+        // asserting it dynamically would be.
+        string sink = StripCommentsAndStrings(File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, DeliverySinkFileName)));
+
+        int reRead = sink.IndexOf("_readDisclosureMode()", StringComparison.Ordinal);
+        int hostCall = sink.IndexOf("UpdateWidget(", StringComparison.Ordinal);
+
+        Assert.True(
+            reRead >= 0,
+            $"{DeliverySinkFileName} must re-read the effective disclosure mode through its "
+                + "injected reader. If the mechanism was renamed, this expectation must move with "
+                + "it rather than being deleted.");
+
+        Assert.True(hostCall >= 0, $"{DeliverySinkFileName} no longer calls UpdateWidget.");
+
+        Assert.True(
+            reRead < hostCall,
+            "The disclosure re-read must precede the UpdateWidget call. Reading it afterwards, or "
+                + "only once before the loop, reintroduces the window where a suppressed payload "
+                + "is delivered to an instance the host had not yet been given.");
+    }
+
+    [Fact]
+    public void The_provider_has_no_reference_to_interactive_authentication()
+    {
+        // Section 3 requires the provider to be silent-only and to fail closed: broker- or
+        // UI-required failures become a signed-out card with an action to open the companion, not
+        // an authentication prompt. A prompt from the provider would be a window with no owner,
+        // raised by a process the user did not start, over whatever they were doing.
+        //
+        // The core check nearby keeps the interactive API out of shared code. This keeps it out of
+        // the provider itself, which is the process that must never show it.
+        var offenders = new List<string>();
+
+        foreach (string file in RepositorySources.ProviderSourceFiles())
+        {
+            string code = StripCommentsAndStrings(File.ReadAllText(file));
+
+            if (code.Contains("AcquireTokenInteractive", StringComparison.Ordinal))
+            {
+                offenders.Add(Path.GetFileName(file));
+            }
+        }
+
+        Assert.True(
+            offenders.Count == 0,
+            "The provider must have no interactive authentication path. Found in: "
+                + string.Join(", ", offenders));
+    }
+
+    [Fact]
+    public void No_provider_call_site_uses_the_parameterless_WaitOne()
+    {
+        // The provider blocks on the last-widget-deleted signal and on named events. Every wait
+        // that can be contended must be bounded for the same reason it must be in the core: an
+        // indefinite wait has no recovery path. The one deliberate exception is the process's
+        // own shutdown wait, which is a ManualResetEventSlim rather than a mutex and is the
+        // process's entire reason to remain alive.
+        var prohibited = new Regex(@"\.WaitOne\s*\(\s*\)", RegexOptions.Compiled);
+        var offenders = new List<string>();
+
+        foreach (string file in RepositorySources.ProviderSourceFiles())
+        {
+            string code = StripCommentsAndStrings(File.ReadAllText(file));
+
+            foreach (Match match in prohibited.Matches(code))
+            {
+                offenders.Add($"{Path.GetFileName(file)} at offset {match.Index}");
+            }
+        }
+
+        Assert.True(
+            offenders.Count == 0,
+            "Every mutex acquisition must pass a timeout. Parameterless WaitOne() found in: "
                 + string.Join(", ", offenders));
     }
 

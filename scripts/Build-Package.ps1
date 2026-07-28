@@ -180,7 +180,6 @@ losing widget pins and package-local cache and settings.
 # ---------------------------------------------------------------------------
 
 Write-Output ''
-Write-Output 'Publishing OutlookWidget.App...'
 
 if (Test-Path -LiteralPath $layoutPath) {
     Remove-Item -LiteralPath $layoutPath -Recurse -Force
@@ -188,56 +187,76 @@ if (Test-Path -LiteralPath $layoutPath) {
 
 New-Item -ItemType Directory -Force -Path $layoutPath | Out-Null
 
-$appLayout = Join-Path $layoutPath 'OutlookWidget.App'
+function Publish-IntoLayout {
+    <#
+    .SYNOPSIS
+        Publishes one project into its own subdirectory of the package layout.
 
-# Executable paths in the manifest are relative to the package root, so each application gets its
-# own subdirectory in the layout and the manifest refers to it as OutlookWidget.App\...exe.
-#
-# Publish to a comma-free staging directory, then copy into the layout.
-#
-# This is not superstition. The dotnet CLI turns --output into an MSBuild PublishDir property,
-# and MSBuild splits property values on commas — so any output path containing one is parsed as
-# several bogus switches and fails with MSB1006. This repository lives under
-# "OneDrive - 415 Group, Inc", which contains a comma, so publishing directly into the layout
-# cannot work here.
-#
-# Staging outside the repository also keeps publish intermediates out of OneDrive's sync scope,
-# which section 12 asks for. MSBuild comma escaping (%2C) would be the alternative, but it is
-# fragile across CLI versions and hides the constraint instead of naming it.
-$staging = Join-Path ([System.IO.Path]::GetTempPath()) ("OutlookWidget-publish-" + [Guid]::NewGuid().ToString('N'))
+    .DESCRIPTION
+        Executable paths in the manifest are relative to the package root, and the two
+        executables must not share a directory: they have different target frameworks and the
+        provider carries Windows App SDK projection assemblies the companion does not. Merging
+        them would let one project's assembly versions silently win over the other's.
 
-if ($staging -like '*,*') {
-    throw "The staging path unexpectedly contains a comma, which MSBuild cannot accept: $staging"
-}
+        Publishes to a comma-free staging directory, then copies into the layout. This is not
+        superstition. The dotnet CLI turns --output into an MSBuild PublishDir property, and
+        MSBuild splits property values on commas — so any output path containing one is parsed as
+        several bogus switches and fails with MSB1006. This repository lives under
+        "OneDrive - 415 Group, Inc", which contains a comma, so publishing directly into the
+        layout cannot work here.
 
-try {
-    $publishOutput = dotnet publish (Join-Path $repoRoot 'src\OutlookWidget.App\OutlookWidget.App.csproj') `
-        --configuration $Configuration `
-        --runtime win-x64 `
-        --self-contained false `
-        --output $staging `
-        --nologo 2>&1
+        Staging outside the repository also keeps publish intermediates out of OneDrive's sync
+        scope, which section 12 asks for. MSBuild comma escaping (%2C) would be the alternative,
+        but it is fragile across CLI versions and hides the constraint instead of naming it.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$ProjectName,
+        [Parameter(Mandatory)][string]$ExecutableName
+    )
 
-    if ($LASTEXITCODE -ne 0) {
-        # Surface the real reason. Swallowing publish output and reporting only "publish failed"
-        # turns a one-line MSBuild message into a debugging session.
-        $publishOutput | ForEach-Object { "  $_" }
-        throw "dotnet publish failed with exit code $LASTEXITCODE."
+    Write-Output "Publishing $ProjectName..."
+
+    $targetDirectory = Join-Path $layoutPath $ProjectName
+    $staging = Join-Path ([System.IO.Path]::GetTempPath()) ("OutlookWidget-publish-" + [Guid]::NewGuid().ToString('N'))
+
+    if ($staging -like '*,*') {
+        throw "The staging path unexpectedly contains a comma, which MSBuild cannot accept: $staging"
     }
 
-    New-Item -ItemType Directory -Force -Path $appLayout | Out-Null
-    Copy-Item -Path (Join-Path $staging '*') -Destination $appLayout -Recurse -Force
-}
-finally {
-    if (Test-Path -LiteralPath $staging) {
-        Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue
+    try {
+        $projectPath = Join-Path $repoRoot "src\$ProjectName\$ProjectName.csproj"
+
+        $publishOutput = dotnet publish $projectPath `
+            --configuration $Configuration `
+            --runtime win-x64 `
+            --self-contained false `
+            --output $staging `
+            --nologo 2>&1
+
+        if ($LASTEXITCODE -ne 0) {
+            # Surface the real reason. Swallowing publish output and reporting only "publish
+            # failed" turns a one-line MSBuild message into a debugging session.
+            $publishOutput | ForEach-Object { "  $_" }
+            throw "dotnet publish failed for $ProjectName with exit code $LASTEXITCODE."
+        }
+
+        New-Item -ItemType Directory -Force -Path $targetDirectory | Out-Null
+        Copy-Item -Path (Join-Path $staging '*') -Destination $targetDirectory -Recurse -Force
+    }
+    finally {
+        if (Test-Path -LiteralPath $staging) {
+            Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    $publishedExe = Join-Path $targetDirectory $ExecutableName
+    if (-not (Test-Path -LiteralPath $publishedExe)) {
+        throw "Published output is missing the executable the manifest references: $publishedExe"
     }
 }
 
-$publishedExe = Join-Path $appLayout 'OutlookWidget.App.exe'
-if (-not (Test-Path -LiteralPath $publishedExe)) {
-    throw "Published output is missing the executable the manifest references: $publishedExe"
-}
+Publish-IntoLayout -ProjectName 'OutlookWidget.App' -ExecutableName 'OutlookWidget.App.exe'
+Publish-IntoLayout -ProjectName 'OutlookWidget.Provider' -ExecutableName 'OutlookWidget.Provider.exe'
 
 # ---------------------------------------------------------------------------
 # Assemble the rest of the layout
@@ -246,21 +265,144 @@ if (-not (Test-Path -LiteralPath $publishedExe)) {
 Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $layoutPath 'AppxManifest.xml') -Force
 Copy-Item -LiteralPath $assetsPath -Destination (Join-Path $layoutPath 'Assets') -Recurse -Force
 
-# Every asset the manifest names must exist, or makeappx fails late with a less obvious message.
-$referencedAssets = @(
-    $manifest.Package.Properties.Logo
-    $manifest.Package.Applications.Application.VisualElements.Square150x150Logo
-    $manifest.Package.Applications.Application.VisualElements.Square44x44Logo
-) | Where-Object { $_ }
+# The widget AppExtension declares PublicFolder="Public", which names a folder the widget host may
+# read from the package. MSIX cannot contain an empty directory, so the folder needs at least one
+# file to exist at all. Nothing is published through it today, and the note says so rather than
+# leaving a mystery file in an installed package.
+$publicFolder = Join-Path $layoutPath 'Public'
+New-Item -ItemType Directory -Force -Path $publicFolder | Out-Null
+Set-Content -LiteralPath (Join-Path $publicFolder 'README.txt') -Encoding utf8 -Value @'
+Declared by the widget AppExtension as PublicFolder. Present because an MSIX cannot contain an
+empty directory. Nothing is published through it; the widget provider passes its content to the
+Widgets host through UpdateWidget rather than through files.
+'@
 
-foreach ($asset in $referencedAssets) {
-    $assetPath = Join-Path $layoutPath $asset
-    if (-not (Test-Path -LiteralPath $assetPath)) {
-        throw "The manifest references '$asset' but it is not in the layout. Run scripts/New-PlaceholderAssets.ps1."
+# Every path the manifest names must exist in the layout, or makeappx fails late with a message
+# that does not say which reference was wrong.
+#
+# Collected by walking the manifest rather than by listing paths here a second time. A hardcoded
+# list is the thing that goes stale: the widget icon and screenshot were added to the manifest and
+# a duplicated list would still have validated only the three application logos, so a missing
+# screenshot would have surfaced as a widget absent from the picker.
+$namespaces = [System.Xml.XmlNamespaceManager]::new($manifest.NameTable)
+$namespaces.AddNamespace('m', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10')
+$namespaces.AddNamespace('uap', 'http://schemas.microsoft.com/appx/manifest/uap/windows10')
+$namespaces.AddNamespace('uap3', 'http://schemas.microsoft.com/appx/manifest/uap/windows10/3')
+$namespaces.AddNamespace('com', 'http://schemas.microsoft.com/appx/manifest/com/windows10')
+
+$referencedPaths = [System.Collections.Generic.List[string]]::new()
+
+# Attribute references. Unprefixed attributes are in no namespace, so these need no prefix in the
+# expression even though every element in this manifest is namespaced.
+foreach ($attribute in @('Square150x150Logo', 'Square44x44Logo', 'Path', 'Executable')) {
+    foreach ($node in $manifest.SelectNodes("//@$attribute")) {
+        $referencedPaths.Add($node.Value)
+    }
+}
+
+# Properties/Logo is an ELEMENT whose text is the path, not an attribute. Collecting it with the
+# attributes above silently found nothing, so the store logo was the one manifest reference this
+# check did not cover.
+foreach ($node in $manifest.SelectNodes('//m:Properties/m:Logo', $namespaces)) {
+    $referencedPaths.Add($node.InnerText)
+}
+
+# The manifest itself also names the two executables, which the publish step has already verified,
+# so those are re-checked here only because a wrong Executable attribute and a failed publish
+# produce the same symptom and this distinguishes them.
+foreach ($reference in ($referencedPaths | Sort-Object -Unique)) {
+    $resolved = Join-Path $layoutPath $reference
+    if (-not (Test-Path -LiteralPath $resolved)) {
+        throw @"
+The manifest references '$reference' but it is not in the layout: $resolved
+
+If it is an image, run scripts/New-PlaceholderAssets.ps1. If it is an executable, check the
+Executable attribute against the subdirectory names Publish-IntoLayout creates.
+"@
     }
 }
 
 Write-Output "Layout assembled at $layoutPath"
+Write-Output "Verified $($referencedPaths.Count) manifest path reference(s)."
+
+# The COM class the provider registers at runtime, the class the manifest declares, and the class
+# the widget extension activates must all be the same GUID. A mismatch installs cleanly and then
+# fails activation with nothing surfaced in the Widgets Board, so it is checked before packing as
+# well as in the test suite — the test suite does not run as part of packaging.
+$comClassNode = $manifest.SelectSingleNode('//com:Class/@Id', $namespaces)
+# The m: prefix is required even though CreateInstance carries no prefix in the manifest. The
+# document element declares the foundation namespace as the DEFAULT namespace, so every unprefixed
+# descendant element inherits it — including the widget registration elements inside
+# uap3:Properties. In XPath an unprefixed name means "no namespace", so //CreateInstance matches
+# nothing and this check silently reported a missing ClassId on a manifest that had one.
+$activationNode = $manifest.SelectSingleNode('//m:CreateInstance/@ClassId', $namespaces)
+
+if (-not $comClassNode) {
+    throw 'The manifest declares no com:Class. The provider cannot be COM-activated without one.'
+}
+
+if (-not $activationNode) {
+    throw 'The widget extension declares no CreateInstance ClassId. The widget will not activate.'
+}
+
+$comClassId = $comClassNode.Value
+$activationClassId = $activationNode.Value
+
+# The third value: the GUID the provider actually registers with OLE at runtime.
+#
+# Comparing only the two manifest values was the original mistake. Those two agreeing proves the
+# manifest is internally consistent and says nothing about whether the running provider registers
+# that class - and the runtime GUID is the one that can drift independently, because it lives in a
+# different file that packaging does not otherwise read. A drift there produces a package that
+# installs cleanly and a widget that fails to activate, which is precisely the failure this section
+# exists to prevent. The test suite checks all three, but the test suite does not run during
+# packaging, so the check has to exist here too.
+$providerProgram = Join-Path $repoRoot 'src\OutlookWidget.Provider\Program.cs'
+
+if (-not (Test-Path -LiteralPath $providerProgram)) {
+    throw "Cannot verify the runtime CLSID: $providerProgram does not exist."
+}
+
+$providerSource = Get-Content -LiteralPath $providerProgram -Raw
+$runtimeMatch = [regex]::Match($providerSource, 'ProviderClassId\s*=\s*new\("(?<guid>[0-9A-Fa-f-]{36})"\)')
+
+if (-not $runtimeMatch.Success) {
+    # Refuse rather than skip. A silently unverifiable check is worse than no check, because the
+    # surrounding output would still claim all three values were compared.
+    throw @"
+Could not read Program.ProviderClassId from $providerProgram.
+
+The declaration form changed, so the runtime CLSID cannot be compared against the manifest. Update
+this pattern together with the declaration rather than removing the check.
+"@
+}
+
+$runtimeClassId = $runtimeMatch.Groups['guid'].Value
+
+# Parsed rather than string-compared. Casing and brace style are irrelevant to COM, so a mismatch
+# there would be noise; a genuinely different value must fail.
+$ids = [ordered]@{
+    'com:Class Id'            = $comClassId
+    'CreateInstance ClassId'  = $activationClassId
+    'Program.ProviderClassId' = $runtimeClassId
+}
+
+$distinct = @($ids.Values | ForEach-Object { [Guid]::Parse($_) } | Select-Object -Unique)
+
+if ($distinct.Count -ne 1) {
+    $detail = ($ids.Keys | ForEach-Object { "  {0,-24} {1}" -f $_, $ids[$_] }) -join "`n"
+
+    throw @"
+Provider CLSID mismatch. This installs cleanly and then fails to activate, with nothing surfaced in
+the Widgets Board.
+
+$detail
+
+All three must be the same GUID.
+"@
+}
+
+Write-Output "Provider CLSID: $comClassId (manifest, widget extension, and provider source agree)"
 
 # ---------------------------------------------------------------------------
 # Pack

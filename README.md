@@ -3,11 +3,33 @@
 A glanceable Windows 11 widget showing Microsoft 365 Inbox counts and the newest few email
 messages, without opening Outlook.
 
-**Status: early implementation.** The cross-process coordination core is built and tested,
-and an installable signed MSIX exists as the Phase 0 packaging probe. It is not the finished
-companion experience, and no widget appears on a Widgets Board yet. See
-[docs/phase0-evidence.md](docs/phase0-evidence.md) for exactly what has and has not been
-proven, and [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
+**Status: early implementation, native surface proven.** The cross-process coordination core is
+built and tested, and a signed MSIX registers a COM widget provider that appears in the Widgets
+Board, pins, renders at small, medium, and large, survives both a reboot and a package upgrade with
+its instance restored, launches New Outlook and the companion from its actions, and exits when
+unpinned. **Every native-surface Phase 0 gate except gates 9 and 11 has passed on the reference
+machine**, so the tray/popover fallback is not being built.
+
+Both open gates wait on authentication. **Gate 9** — silent-only token acquisition from the provider
+with a zero parent handle — is not started. **Gate 11** — cached-first refresh and cross-process
+invalidation across a real host — cannot be observed until there is something to refresh. Gate 11
+could not decide between the native surface and the fallback, because both consume the same
+coordination core; gate 9 could, because a provider that cannot get a token silently would show
+sign-in-required forever while a tray app could authenticate in its own UI process.
+
+The provider currently draws a placeholder card describing coordination state, because there is no
+authentication or Microsoft Graph access yet — **nothing here shows real mail.** That is the next
+phase, and it waits on an Entra app registration. See
+[docs/phase0-evidence.md](docs/phase0-evidence.md) for exactly what has and has not been proven, and
+[TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
+
+### Known platform limitation: one widget instance only
+
+The Widgets Board was measured to allow only one pinned instance per widget definition, despite the
+package declaring `AllowMultiple="true"`. Once **Outlook Inbox** is pinned, its picker entry is
+greyed out and marked as added. Size and active state are still tracked per instance rather than
+globally, because that is a correctness requirement and the constraint is the host's, not this
+package's.
 
 ## What it does
 
@@ -73,14 +95,20 @@ pwsh -File scripts/Test-PackagePrerequisites.ps1
 ## Repository layout
 
 ```text
-src/OutlookWidget.Core      Surface-agnostic coordination, caching, refresh, delivery, diagnostics
-src/OutlookWidget.App       Packaged companion; currently the Phase 0 probe, not finished WinUI
-src/OutlookWidget.Provider  Planned packaged COM Widgets provider                 (not yet built)
-src/OutlookWidget.Package   Implemented MSIX identity, assets, and companion registration
-tests/                      Automated tests, including the concurrency suite
-docs/                       Evidence report, app registration, troubleshooting
-scripts/                    Preflight, signing, packaging, installation, asset, launch probes
+src/OutlookWidget.Core       Surface-agnostic coordination, caching, refresh, delivery, launching
+src/OutlookWidget.Packaging  MSIX package-identity interop, shared by the two executables
+src/OutlookWidget.App        Packaged companion; currently the Phase 0 probe, not finished WinUI
+src/OutlookWidget.Provider   Packaged COM Widgets provider; lifecycle and delivery, no mail yet
+src/OutlookWidget.Package    MSIX identity, assets, COM server and widget registration
+tests/                       Automated tests, including the concurrency suite
+docs/                        Evidence report, app registration, troubleshooting
+scripts/                     Preflight, signing, packaging, installation, asset, launch probes
 ```
+
+`OutlookWidget.Packaging` exists because two executables need the package family name and
+`OutlookWidget.Core` may not be the one to supply it: the core is deliberately free of any
+knowledge that MSIX exists, and `CoordinationPaths.Resolve` takes the family name as a parameter
+for that reason. The alternative was two copies of the same two-call Win32 buffer protocol.
 
 ## Build and test
 
@@ -90,6 +118,31 @@ supplies `makeappx.exe` and `signtool.exe`.
 ```bash
 dotnet test
 ```
+
+To produce, sign, and install the package:
+
+```bash
+pwsh -File scripts/Build-Package.ps1
+```
+
+```bash
+pwsh -File scripts/Install-DevelopmentPackage.ps1
+```
+
+The first install on a machine must be elevated, to trust the development certificate in
+`LocalMachine\TrustedPeople`. Later upgrades do not, because the certificate is already trusted.
+Pass `-SkipCertificateTrust` to install an upgrade from an ordinary session.
+
+**Once a widget is pinned, upgrades need `-ForceApplicationShutdown`:**
+
+```bash
+pwsh -File scripts/Install-DevelopmentPackage.ps1 -SkipCertificateTrust -ForceApplicationShutdown
+```
+
+The provider process runs for as long as a widget is pinned, and Windows will not replace a package
+whose processes are running — the install fails with HRESULT `0x80073D02`, whose message names the
+package rather than the process. Terminating the provider mid-update is safe by design; see
+[docs/troubleshooting.md](docs/troubleshooting.md).
 
 The suite includes real cross-process concurrency tests: they spawn peer processes that hold
 the coordination mutex, kill them mid-commit to abandon it, stall a fake widget host, and step
@@ -109,7 +162,13 @@ constraints are enforced mechanically because they are easy to break by accident
 - **Single-flight is an expiring record, not a held lock.** A killed owner leaves a record that
   expires; there is no watchdog and no reliance on `AbandonedMutexException`.
 - **Only the provider calls `UpdateWidget`,** from one serialized worker with a coalescing
-  pending marker. The companion commits state and signals; it never delivers.
+  pending marker, in exactly one file. The companion commits state and signals; it never
+  delivers. Source-level tests assert both that the core never names the call and that exactly
+  one provider file does.
+- **The provider's COM class ID appears in three places** — the provider source, the manifest's
+  COM server registration, and the widget extension's activation entry. A mismatch installs
+  cleanly and then fails to activate with nothing surfaced in the Widgets Board, so the build
+  script and a test both check the three agree.
 - **Disclosure suppression is one file per operation,** deleted only by its own operation. A
   shared file cannot be safely reclaimed, because "read the owner, then delete if it matches"
   is not an atomic conditional delete.

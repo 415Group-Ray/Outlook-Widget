@@ -1,30 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!--
-  Phase 0 gate 1 manifest: package installation and certificate trust only.
+  Gate 1 proved a signed MSIX installs and the certificate can be trusted on this managed device.
+  This manifest adds what gates 2 through 6 need: the COM server registration for the provider
+  executable, and the widget extension that makes it discoverable in the Widgets Board.
 
-  The widget provider registration is deliberately ABSENT. A prior plan review split gate 1
-  (a signed MSIX installs, and the certificate can be trusted) from gate 2 (the widget is
-  discoverable and pinnable), because they fail for unrelated reasons and conflating them sends
-  a sideload or certificate-policy problem into widget debugging. Registering a COM server and a
-  widget extension here would put manifest-schema risk inside the very test that is supposed to
-  isolate device policy.
-
-  Gate 2 adds, on top of this file:
-    - com:Extension Category="windows.comServer" with an ExeServer for the provider
-    - uap3:AppExtension Name="com.microsoft.windows.widgets" with the widget definitions
+  Those two registrations were deliberately absent from the gate 1 manifest, because gate 1 (a
+  signed MSIX installs) and gate 2 (the widget is discoverable and pinnable) fail for unrelated
+  reasons, and conflating them sends a sideload or certificate-policy problem into widget
+  debugging. That separation has served its purpose: device policy and certificate trust are now
+  known-good, so a failure from here on is a widget-platform failure rather than an ambiguous one.
 
   Publisher below must match the signing certificate Subject EXACTLY. Package identity is name
-  plus publisher, so a mismatch does not produce a warning — it produces a different package
-  that installs alongside rather than upgrading, losing widget pins and package-local state.
+  plus publisher, so a mismatch does not produce a warning — it produces a different package that
+  installs alongside rather than upgrading, losing widget pins and package-local state.
   scripts/New-DevelopmentCertificate.ps1 prints the exact string to use, and
   scripts/Build-Package.ps1 refuses to build when the two disagree.
 -->
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap rescap">
+  IgnorableNamespaces="uap uap3 com rescap">
 
   <!--
     Publisher is the certificate Subject as Windows NORMALIZES it, not as it was typed.
@@ -39,7 +38,7 @@
   <Identity
     Name="415Group.OutlookInboxWidget"
     Publisher="CN=&quot;415 Group, Inc.&quot;"
-    Version="0.1.1.0"
+    Version="0.2.4.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
@@ -57,6 +56,27 @@
       Name="Windows.Desktop"
       MinVersion="10.0.26100.0"
       MaxVersionTested="10.0.26200.0" />
+
+    <!--
+      The Windows App SDK framework package, which is where the provider's Widgets implementation
+      actually comes from.
+
+      Framework-dependent rather than self-contained. The provider's build output carries only the
+      managed projection assemblies; the native Microsoft.Windows.Widgets.dll ships in this
+      framework package and is resolved through the package graph. Omitting this declaration
+      produces a package that installs cleanly and a provider that fails to activate with a
+      missing-DLL error the Widgets Board does not surface anywhere obvious.
+
+      Every value here is taken from the pinned Microsoft.WindowsAppSDK 2.3.1 package's own
+      WindowsAppSDK-VersionInfo.xml and AppXReference.props rather than guessed, and 2.3.1.0 is
+      the version already installed on the reference machine. WindowsPackageType is deliberately
+      left unset in the provider project so it uses this path instead of the unpackaged
+      bootstrapper.
+    -->
+    <PackageDependency
+      Name="Microsoft.WindowsAppRuntime.2"
+      MinVersion="2.3.1.0"
+      Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
   </Dependencies>
 
   <Resources>
@@ -64,6 +84,12 @@
   </Resources>
 
   <Applications>
+    <!--
+      One Application, not two. The provider is a COM server rather than a second launchable app:
+      it is started by the Widgets host through CoCreateInstance and has no tile, no Start menu
+      entry, and no user-facing activation. Declaring it as an Application would put a second
+      meaningless entry in Start for a process the user never launches directly.
+    -->
     <Application
       Id="App"
       Executable="OutlookWidget.App\OutlookWidget.App.exe"
@@ -74,6 +100,116 @@
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png" />
+
+      <Extensions>
+        <!--
+          The COM server registration. This is the packaged equivalent of writing CLSID registry
+          keys, and is not widget-specific: it tells Windows which executable to start when
+          something asks to create this class.
+
+          The Class Id must equal Program.ProviderClassId in OutlookWidget.Provider AND the
+          CreateInstance ClassId below. All three are the same GUID, and a mismatch produces a
+          widget that appears in the picker and then silently fails to activate. A test asserts
+          the three agree, because nothing else catches it before a manual pin attempt.
+        -->
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:ExeServer
+              Executable="OutlookWidget.Provider\OutlookWidget.Provider.exe"
+              DisplayName="Outlook Inbox Widget provider">
+              <com:Class
+                Id="254395D8-5EAC-4A2D-9971-90C99BFFD192"
+                DisplayName="Outlook Inbox Widget provider" />
+            </com:ExeServer>
+          </com:ComServer>
+        </com:Extension>
+
+        <!--
+          The widget provider registration. The Name attribute is fixed by the platform and must
+          be exactly com.microsoft.windows.widgets.
+
+          The schema does not validate the contents of uap3:Properties beyond requiring well-formed
+          XML, so a typo inside WidgetProvider produces a package that installs and a widget that
+          never appears in the picker rather than a build error. The manifest tests exist for that
+          reason.
+        -->
+        <uap3:Extension Category="windows.appExtension">
+          <uap3:AppExtension
+            Name="com.microsoft.windows.widgets"
+            DisplayName="Outlook Inbox Widget"
+            Id="OutlookInboxWidgetProvider"
+            PublicFolder="Public">
+            <uap3:Properties>
+              <WidgetProvider>
+                <ProviderIcons>
+                  <Icon Path="Assets\StoreLogo.png" />
+                </ProviderIcons>
+
+                <!--
+                  CreateInstance, not ActivateApplication. The documentation recommends
+                  CreateInstance for providers implementing IWidgetProvider, and the alternative
+                  passes state on the command line as base64url-encoded JSON, which would put
+                  widget state into a process argument.
+                -->
+                <Activation>
+                  <CreateInstance ClassId="254395D8-5EAC-4A2D-9971-90C99BFFD192" />
+                </Activation>
+
+                <Definitions>
+                  <!--
+                    One definition with AllowMultiple, rather than several definitions.
+
+                    Gate 4 requires GetWidgetInfos() to restore every instance and gate 5 requires
+                    two instances at different sizes to render independently; both are exercised by
+                    pinning this one definition twice. Extra definitions would add manifest surface
+                    without testing anything the provider does differently, because size and active
+                    state are per instance rather than per definition.
+
+                    All three sizes are declared. Omitting Capabilities entirely would default to
+                    large only, and the card's $when conditions on $host.widgetSize would then never
+                    be exercised.
+                  -->
+                  <Definition
+                    Id="InboxWidget"
+                    DisplayName="Outlook Inbox"
+                    Description="Unread and total Inbox counts with the newest messages."
+                    AllowMultiple="true">
+                    <Capabilities>
+                      <Capability>
+                        <Size Name="small" />
+                      </Capability>
+                      <Capability>
+                        <Size Name="medium" />
+                      </Capability>
+                      <Capability>
+                        <Size Name="large" />
+                      </Capability>
+                    </Capabilities>
+
+                    <!--
+                      Both an Icon and a Screenshot are required by the widget host, not optional
+                      polish: a definition without a screenshot does not appear in the Add Widgets
+                      picker, which would look exactly like a gate 2 failure. DarkMode and LightMode
+                      are omitted, so this single screenshot serves both themes until Phase 2
+                      supplies real artwork.
+                    -->
+                    <ThemeResources>
+                      <Icons>
+                        <Icon Path="Assets\WidgetIcon.png" />
+                      </Icons>
+                      <Screenshots>
+                        <Screenshot
+                          Path="Assets\WidgetScreenshot.png"
+                          DisplayAltText="The Outlook Inbox widget showing unread counts and recent messages." />
+                      </Screenshots>
+                    </ThemeResources>
+                  </Definition>
+                </Definitions>
+              </WidgetProvider>
+            </uap3:Properties>
+          </uap3:AppExtension>
+        </uap3:Extension>
+      </Extensions>
     </Application>
   </Applications>
 
@@ -84,7 +220,8 @@
 
       Nothing else. Section 3 forbids broad filesystem access, elevation, a run-full-trust
       service, or any other restricted capability unless Phase 0 proves one is strictly
-      required — and nothing so far has.
+      required — and nothing so far has. In particular the widget registration needs no
+      capability of its own.
     -->
     <Capability Name="internetClient" />
     <rescap:Capability Name="runFullTrust" />

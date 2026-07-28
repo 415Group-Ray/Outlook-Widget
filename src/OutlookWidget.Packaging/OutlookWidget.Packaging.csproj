@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Deliberately the plain net10.0-windows TFM rather than a Windows-SDK-versioned one, even
+      though the provider that consumes this targets 10.0.26100.0.
+
+      Package identity could be read from Windows.ApplicationModel.Package.Current in a project
+      with WinRT projections, which is one line instead of two P/Invokes. That was rejected:
+      only the provider has a versioned TFM, so the companion would have to keep the interop
+      anyway and the two executables would answer the same question by two different mechanisms.
+      One mechanism that both can reference is worth more than the shorter call.
+    -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <RootNamespace>OutlookWidget.Packaging</RootNamespace>
+    <AssemblyName>OutlookWidget.Packaging</AssemblyName>
+
+    <!--
+      Required by LibraryImport for the pointer-based buffer signatures. Confined here and to
+      the companion; OutlookWidget.Core has no unsafe code and must not acquire any.
+    -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OutlookWidget.Core.Tests" />
+  </ItemGroup>
+
+</Project>
