@@ -182,6 +182,26 @@ public sealed class DisclosureTombstoneTests
     }
 
     [Fact]
+    public void Stores_for_the_same_path_share_the_active_operation_registry()
+    {
+        using var fixture = new CoordinationFixture();
+        var recoveryStore = new DisclosureTombstoneStore(
+            new CoordinationPaths(fixture.Paths.RootDirectory),
+            fixture.Logger,
+            fixture.Clock);
+
+        DisclosureSuppression inFlight =
+            fixture.Tombstones.Suppress(DisclosureMode.SignedOut);
+
+        Assert.Equal(0, recoveryStore.ClearAllOrphans());
+        Assert.Equal(1, recoveryStore.CountSuppressionFiles());
+        Assert.Equal(DisclosureMode.SignedOut, recoveryStore.GetEffectiveMode());
+
+        inFlight.CommitAndClear();
+        Assert.Equal(DisclosureMode.Full, recoveryStore.GetEffectiveMode());
+    }
+
+    [Fact]
     public void A_completed_failure_keeps_suppression_but_becomes_eligible_for_explicit_recovery()
     {
         using var fixture = new CoordinationFixture();

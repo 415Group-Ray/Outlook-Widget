@@ -47,16 +47,20 @@ public sealed class DisclosureTombstoneStore
 {
     private const string FileExtension = ".suppress";
 
+    private static readonly Lock RegistriesGate = new();
+    private static readonly Dictionary<string, WeakReference<ActiveOperationRegistry>> Registries =
+        new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+
     private readonly CoordinationPaths _paths;
     private readonly IOperationalLogger _logger;
     private readonly ISystemClock _clock;
 
     /// <summary>
-    /// Operations this process has suppressed and not yet cleared. Consulted only by
-    /// <see cref="ClearAllOrphans"/>, so that recovery cannot delete a live operation's marker.
+    /// Operations this process has suppressed and not yet cleared, shared by every store for
+    /// the same canonical suppression path. Consulted by <see cref="ClearAllOrphans"/>, so that
+    /// recovery through one service cannot delete another service's live operation marker.
     /// </summary>
-    private readonly HashSet<Guid> _activeOperations = [];
-    private readonly Lock _activeGate = new();
+    private readonly ActiveOperationRegistry _activeRegistry;
 
     public DisclosureTombstoneStore(
         CoordinationPaths paths,
@@ -68,6 +72,7 @@ public sealed class DisclosureTombstoneStore
         _paths = paths;
         _logger = logger ?? NullOperationalLogger.Instance;
         _clock = clock ?? SystemClock.Instance;
+        _activeRegistry = GetActiveRegistry(paths.SuppressionDirectory);
     }
 
     /// <summary>
@@ -120,9 +125,9 @@ public sealed class DisclosureTombstoneStore
         // recovery. Register first, then expose the marker while holding the same gate that
         // ClearAllOrphans uses to snapshot active operations. If publication fails, roll the
         // registration back before recovery can observe it.
-        lock (_activeGate)
+        lock (_activeRegistry.Gate)
         {
-            _activeOperations.Add(operationId);
+            _activeRegistry.Operations.Add(operationId);
 
             try
             {
@@ -132,7 +137,7 @@ public sealed class DisclosureTombstoneStore
             }
             catch
             {
-                _activeOperations.Remove(operationId);
+                _activeRegistry.Operations.Remove(operationId);
                 TryDeleteFile(tempPath);
                 throw;
             }
@@ -273,9 +278,9 @@ public sealed class DisclosureTombstoneStore
                     // become visible before enumeration and be absent from that snapshot. Keeping
                     // this check and deletion together makes "active or deleted" atomic with
                     // respect to every in-process disclosure operation.
-                    lock (_activeGate)
+                    lock (_activeRegistry.Gate)
                     {
-                        if (_activeOperations.Contains(operationId))
+                        if (_activeRegistry.Operations.Contains(operationId))
                         {
                             _logger.Record(
                                 OperationalEventId.DisclosureSuppressionActive,
@@ -327,9 +332,9 @@ public sealed class DisclosureTombstoneStore
 
         if (TryDeleteFile(path))
         {
-            lock (_activeGate)
+            lock (_activeRegistry.Gate)
             {
-                _activeOperations.Remove(operationId);
+                _activeRegistry.Operations.Remove(operationId);
             }
 
             _logger.Record(OperationalEventId.DisclosureSuppressionCleared, OperationalOutcome.Success);
@@ -355,10 +360,35 @@ public sealed class DisclosureTombstoneStore
     /// </remarks>
     internal void CompleteWithoutClearing(Guid operationId)
     {
-        lock (_activeGate)
+        lock (_activeRegistry.Gate)
         {
-            _activeOperations.Remove(operationId);
+            _activeRegistry.Operations.Remove(operationId);
         }
+    }
+
+    private static ActiveOperationRegistry GetActiveRegistry(string suppressionDirectory)
+    {
+        string key = Path.TrimEndingDirectorySeparator(Path.GetFullPath(suppressionDirectory));
+
+        lock (RegistriesGate)
+        {
+            if (Registries.TryGetValue(key, out WeakReference<ActiveOperationRegistry>? reference)
+                && reference.TryGetTarget(out ActiveOperationRegistry? registry))
+            {
+                return registry;
+            }
+
+            registry = new ActiveOperationRegistry();
+            Registries[key] = new WeakReference<ActiveOperationRegistry>(registry);
+            return registry;
+        }
+    }
+
+    private sealed class ActiveOperationRegistry
+    {
+        public Lock Gate { get; } = new();
+
+        public HashSet<Guid> Operations { get; } = [];
     }
 
     private string FilePathFor(Guid operationId) =>
