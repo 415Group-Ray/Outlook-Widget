@@ -367,11 +367,14 @@ Three separate observations, kept separate because they prove different things:
 | 0.2.1.0 → 0.2.1.0, same version | Yes | **Failed** with `0x80073D02`. This is the finding |
 | 0.2.1.0 → 0.2.1.0 with `-ForceApplicationShutdown` | Yes | Succeeded; deployment terminated the provider |
 | 0.2.1.0 → **0.2.2.0**, a real version upgrade | No — already exited | Succeeded with the widget still pinned |
+| 0.2.2.0 → **0.2.3.0**, a real version upgrade | **Yes** | Succeeded with `-ForceApplicationShutdown`; the script's pre-install notice fired correctly |
 
-The version upgrade is the one gate 3 names, and one limitation of it is worth stating: the provider
-had already exited from the previous force-shutdown and the Board had not re-activated it, so the
-in-use path was not re-exercised *on the version upgrade itself*. The blocking case and its remedy
-were established by the two same-version installs instead.
+The 0.2.1.0 → 0.2.2.0 upgrade had one limitation worth stating: the provider had already exited from
+the previous force-shutdown and the Board had not re-activated it, so the in-use path was not
+re-exercised on that version upgrade itself. **The 0.2.2.0 → 0.2.3.0 upgrade closed that gap** — the
+provider was alive from the pinned widget, the script's pre-install notice fired, and
+`-ForceApplicationShutdown` carried the upgrade through. That is the complete case: a real version
+increment, a pinned widget, and a running provider.
 
 **The upgrade was then confirmed end to end.** The pinned widget still rendered afterwards, and the
 companion launched from it reported package full name

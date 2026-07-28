@@ -198,9 +198,10 @@ if ($runningProvider.Count -gt 0) {
         Write-Output '  -ForceApplicationShutdown was passed, so deployment will terminate them.'
     }
     else {
-        Write-Output '  Re-run with -ForceApplicationShutdown to terminate them, or unpin the widget'
-        Write-Output '  first. Unpinning also removes the pin, so it is the worse option for testing'
-        Write-Output '  an upgrade with a widget in place.'
+        # One recovery path only, deliberately. An earlier version of this message also offered
+        # unpinning as an alternative; an operator following that destroys their widget pin for no
+        # reason, because the force-shutdown path preserves it and is safe by design.
+        Write-Output '  Re-run with -ForceApplicationShutdown, which terminates them and keeps the pin.'
     }
 }
 

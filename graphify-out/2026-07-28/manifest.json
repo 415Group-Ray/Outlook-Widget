@@ -15,8 +15,8 @@
     "semantic_hash": ""
   },
   "scripts/Install-DevelopmentPackage.ps1": {
-    "mtime": 1785259882.626444,
-    "ast_hash": "6fbecefaaec2ad752f24f2322d06c1be",
+    "mtime": 1785265093.5046675,
+    "ast_hash": "f33349b4e0a9c2d1a352abfc93927597",
     "semantic_hash": ""
   },
   "scripts/New-DevelopmentCertificate.ps1": {
@@ -210,13 +210,13 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785263650.4546661,
-    "ast_hash": "ecaa4ecf50994b4c87d7f9dc8b01cfa4",
+    "mtime": 1785265541.7657032,
+    "ast_hash": "8129a9ce5433c2b2438a2e7487682939",
     "semantic_hash": ""
   },
   "TECHNICAL_PLAN.md": {
-    "mtime": 1785263623.3492384,
-    "ast_hash": "ba5d84d0d65b4603188baddf8cc88145",
+    "mtime": 1785265527.3616076,
+    "ast_hash": "40cc0410b51c8576dcedae4311c045ab",
     "semantic_hash": ""
   },
   "docs/app-registration.md": {
@@ -225,18 +225,18 @@
     "semantic_hash": ""
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1785263640.1770108,
-    "ast_hash": "94fa7f8faef0aab3304515691ccf0357",
+    "mtime": 1785265517.7292204,
+    "ast_hash": "77c6dbf7068c76b7c44c7621eb6d8288",
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
-    "mtime": 1785259882.5319092,
-    "ast_hash": "4bde2e79bb3833bc1ee7f62a2412ce27",
+    "mtime": 1785265216.7614686,
+    "ast_hash": "1987a78f3ec11f66ca28a91b4b3078b6",
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1785262349.8676598,
-    "ast_hash": "a73a4323f54eeecd9564d39b937f6bd2",
+    "mtime": 1785265535.2454174,
+    "ast_hash": "90cb02cc72cc8a8c01c8cc75762a2156",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -290,8 +290,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Provider/Cards/SkeletonCard.cs": {
-    "mtime": 1785261013.4347723,
-    "ast_hash": "a242200ebfa9708ebee2599507943eef",
+    "mtime": 1785264208.7316172,
+    "ast_hash": "94bf87a4d7081eeb4db9cd3a74f6773b",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Provider/Cards/WidgetVerbs.cs": {

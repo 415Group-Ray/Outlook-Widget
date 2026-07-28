@@ -52,8 +52,8 @@ Distinguish four causes before changing anything:
   and a killed disclosure operation leaves its fail-closed tombstone in place. The Widgets host
   re-activates the provider on demand afterwards, and the widget keeps its pin.
 
-  Unpinning the widget first also works, but it loses the pin — so it is the worse option, and a
-  poor one if the point was to test an upgrade with a widget in place.
+  **Do not unpin the widget to work around this.** It would let the install proceed, and it
+  destroys the pin for no reason — the force-shutdown path preserves it.
 
 ## Sign-in problems
 

@@ -99,8 +99,11 @@ coverage when changing nearby behavior.
 6. Only the provider may call `WidgetManager.UpdateWidget`. The companion commits state and
    signals; it never delivers widget content.
 7. Widget delivery remains outside the refresh transaction and lease bound.
-8. Delivery is serialized and coalesced. Each pass re-reads the current snapshot, generation,
-   and tombstone immediately before calling the host.
+8. Delivery is serialized and coalesced. Each pass re-reads the current snapshot and generation
+   before rendering, and re-reads the disclosure tombstone immediately before **every** host call
+   rather than once per pass — a reduction observed mid-pass abandons the remaining instances
+   instead of sending them. Snapshot staleness only delays convergence; disclosure staleness
+   discloses, and a call not yet made can still be withheld.
 9. The privacy guarantee is final convergence, not retraction of an update already handed to
    the Widgets host. Do not claim a stronger guarantee without measured platform evidence.
 10. Cache and coordination state remain scoped to the current Windows user and stable package

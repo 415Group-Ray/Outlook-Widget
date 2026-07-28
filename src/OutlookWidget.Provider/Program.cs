@@ -84,8 +84,10 @@ internal static partial class Program
         var tombstones = new DisclosureTombstoneStore(paths, logger);
         var registry = new WidgetInstanceRegistry();
 
-        // The sole UpdateWidget call site, reached only through the serialized worker below.
-        var sink = new WidgetDeliverySink(registry, logger);
+        // The sole UpdateWidget call site, reached only through the serialized worker below. It is
+        // given the tombstone read rather than the store, so it can re-check disclosure before each
+        // host call without acquiring the ability to write or clear one.
+        var sink = new WidgetDeliverySink(registry, tombstones.GetEffectiveMode, logger);
 
         using var delivery = new DeliveryWorker(cache, tombstones, sink, logger);
 

@@ -1,6 +1,7 @@
 using Microsoft.Windows.Widgets.Providers;
 using OutlookWidget.Core.Delivery;
 using OutlookWidget.Core.Diagnostics;
+using OutlookWidget.Core.Refresh;
 using OutlookWidget.Provider.Cards;
 
 namespace OutlookWidget.Provider;
@@ -33,17 +34,38 @@ namespace OutlookWidget.Provider;
 /// the call is the ordinary case — would otherwise abort the pass and leave every later instance
 /// stale until something else happened to request delivery.
 /// </para>
+/// <para>
+/// <b>Disclosure is re-read before every host call, not once per pass.</b> A reduction mid-loop
+/// abandons the remainder rather than sending it. Those calls have not reached the host yet, so
+/// withholding them is still possible — invariant 9 gives up retraction, not the chance to not
+/// send. This currently has no live effect, because the Widgets Board was measured to allow only
+/// one pinned instance per definition, so there is never a second call to withhold. It is
+/// implemented anyway: the constraint is the host's and may change, and the cost is one directory
+/// enumeration per instance.
+/// </para>
 /// </remarks>
 internal sealed class WidgetDeliverySink : IWidgetDeliverySink
 {
     private readonly WidgetInstanceRegistry _registry;
+    private readonly Func<DisclosureMode> _readDisclosureMode;
     private readonly IOperationalLogger _logger;
 
-    public WidgetDeliverySink(WidgetInstanceRegistry registry, IOperationalLogger? logger = null)
+    /// <param name="registry">The enabled widget instances to deliver to.</param>
+    /// <param name="readDisclosureMode">
+    /// Reads the effective disclosure mode right now. Called again before <em>every</em> host call,
+    /// not once per pass — see <see cref="Deliver"/> for why that distinction is load-bearing.
+    /// </param>
+    /// <param name="logger">Metadata-free operational logging.</param>
+    public WidgetDeliverySink(
+        WidgetInstanceRegistry registry,
+        Func<DisclosureMode> readDisclosureMode,
+        IOperationalLogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(registry);
+        ArgumentNullException.ThrowIfNull(readDisclosureMode);
 
         _registry = registry;
+        _readDisclosureMode = readDisclosureMode;
         _logger = logger ?? NullOperationalLogger.Instance;
     }
 
@@ -65,6 +87,31 @@ internal sealed class WidgetDeliverySink : IWidgetDeliverySink
 
         foreach (WidgetInstance instance in instances)
         {
+            // Re-read disclosure immediately before THIS host call, not once for the pass.
+            //
+            // The worker reads the tombstone once and hands over one DeliveryState, which is
+            // "immediately before the host call" only for the first instance. UpdateWidget is
+            // synchronous with no timeout, so a wedged host can park this loop indefinitely on
+            // instance one while a logout, account switch, or hide-details commit lands. Every
+            // later instance would then receive the pre-tombstone payload — and unlike the first,
+            // those calls had NOT yet been handed to the host, so withholding them is still
+            // possible. Invariant 9 gives up retraction, not the chance to not send.
+            //
+            // Stopping rather than re-rendering: the tombstone write signals the suppress-details
+            // event, the provider's listener turns that into another delivery request, and that
+            // pass reads current state. So abandoning the remainder loses nothing except the
+            // over-disclosing content.
+            DisclosureMode current = _readDisclosureMode();
+
+            if (current > state.Mode)
+            {
+                _logger.Record(
+                    OperationalEventId.DisclosureSuppressionActive,
+                    OperationalOutcome.Discarded,
+                    recordCount: delivered);
+                return;
+            }
+
             var options = new WidgetUpdateRequestOptions(instance.Id)
             {
                 Template = SkeletonCard.Template,

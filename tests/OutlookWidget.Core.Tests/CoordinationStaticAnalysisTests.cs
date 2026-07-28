@@ -211,6 +211,41 @@ public sealed class CoordinationStaticAnalysisTests
     }
 
     [Fact]
+    public void The_delivery_sink_re_reads_disclosure_before_calling_the_host()
+    {
+        // Invariant 8 requires disclosure to be re-read immediately before the host call. The
+        // worker reads it once per pass and hands over one DeliveryState, which satisfies that only
+        // for the first instance: UpdateWidget is synchronous with no timeout, so a wedged host can
+        // park the loop on instance one while a logout or hide-details commit lands, and every
+        // later instance would receive the pre-tombstone payload. Those calls have not reached the
+        // host yet, so withholding them is still possible.
+        //
+        // Checked by source order rather than behaviour because the sink lives in the provider,
+        // which this project cannot reference without adopting the provider's target framework.
+        // The ordering is the whole property, so asserting it textually is not much weaker than
+        // asserting it dynamically would be.
+        string sink = StripCommentsAndStrings(File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, DeliverySinkFileName)));
+
+        int reRead = sink.IndexOf("_readDisclosureMode()", StringComparison.Ordinal);
+        int hostCall = sink.IndexOf("UpdateWidget(", StringComparison.Ordinal);
+
+        Assert.True(
+            reRead >= 0,
+            $"{DeliverySinkFileName} must re-read the effective disclosure mode through its "
+                + "injected reader. If the mechanism was renamed, this expectation must move with "
+                + "it rather than being deleted.");
+
+        Assert.True(hostCall >= 0, $"{DeliverySinkFileName} no longer calls UpdateWidget.");
+
+        Assert.True(
+            reRead < hostCall,
+            "The disclosure re-read must precede the UpdateWidget call. Reading it afterwards, or "
+                + "only once before the loop, reintroduces the window where a suppressed payload "
+                + "is delivered to an instance the host had not yet been given.");
+    }
+
+    [Fact]
     public void The_provider_has_no_reference_to_interactive_authentication()
     {
         // Section 3 requires the provider to be silent-only and to fail closed: broker- or
