@@ -88,6 +88,9 @@ function Find-SdkTool {
 $makeAppx = Find-SdkTool -Name 'makeappx.exe'
 Write-Output "makeappx: $makeAppx"
 
+$makePri = Find-SdkTool -Name 'makepri.exe'
+Write-Output "makepri:  $makePri"
+
 if (-not $SkipSigning) {
     $signTool = Find-SdkTool -Name 'signtool.exe'
     Write-Output "signtool: $signTool"
@@ -447,6 +450,55 @@ All three must be the same GUID.
 }
 
 Write-Output "Provider CLSID: $comClassId (manifest, widget extension, and provider source agree)"
+
+# ---------------------------------------------------------------------------
+# Index the resources
+# ---------------------------------------------------------------------------
+
+# Without a resources.pri, Windows resolves the manifest's Assets\Square44x44Logo.png to that exact
+# file and every scale- and targetsize-qualified sibling is ignored. The icon then renders from a
+# single 44px bitmap on a high-DPI display and looks soft, and the unplated taskbar variant never
+# applies at all. MakePri indexes the qualifiers so the resource loader can pick the right one.
+#
+# This is the step a Visual Studio packaging project would run for us. Packaging directly with the
+# SDK tools means running it here.
+Write-Output ''
+Write-Output 'Indexing resources...'
+
+$priConfig = Join-Path $outputRoot 'priconfig.xml'
+$priOutput = Join-Path $layoutPath 'resources.pri'
+
+if (Test-Path -LiteralPath $priConfig) {
+    Remove-Item -LiteralPath $priConfig -Force
+}
+
+# /dq en-US matches the manifest's single declared Resource language. A default qualifier that
+# disagreed with the manifest would produce a package whose resources cannot be resolved.
+& $makePri createconfig /cf $priConfig /dq en-US /o | Out-Null
+
+if ($LASTEXITCODE -ne 0) {
+    throw "makepri createconfig failed with exit code $LASTEXITCODE."
+}
+
+# /pr is the project root that gets indexed, /mn the manifest that names the resources. Run from
+# the layout so the indexed paths are package-relative.
+& $makePri new /pr $layoutPath /cf $priConfig /of $priOutput /mn (Join-Path $layoutPath 'AppxManifest.xml') /o |
+    ForEach-Object { "  $_" }
+
+if ($LASTEXITCODE -ne 0) {
+    throw "makepri new failed with exit code $LASTEXITCODE."
+}
+
+if (-not (Test-Path -LiteralPath $priOutput)) {
+    throw "makepri reported success but produced no resources.pri at $priOutput."
+}
+
+Remove-Item -LiteralPath $priConfig -Force
+
+$qualified = @(Get-ChildItem -LiteralPath (Join-Path $layoutPath 'Assets') -Filter '*.scale-*.png' -ErrorAction SilentlyContinue).Count
+$targeted = @(Get-ChildItem -LiteralPath (Join-Path $layoutPath 'Assets') -Filter '*.targetsize-*.png' -ErrorAction SilentlyContinue).Count
+
+Write-Output "Indexed resources.pri ($qualified scale variant(s), $targeted target size(s))."
 
 # ---------------------------------------------------------------------------
 # Pack

@@ -507,6 +507,41 @@ re-checks before every host call. A widget that still renders is evidence that t
 wiring works in the real Widgets host rather than only under `CoCreateInstance`, which is the part a
 unit test could not reach.
 
+## Measured: the widget screenshot was the wrong size, and nothing failed because of it
+
+The picker documentation specifies the widget screenshot as **300 pixels wide and 304 tall, with
+transparent rounded corners, showing the medium size of the widget**. The original asset was
+**480×480 and opaque**.
+
+Nothing failed. Gate 2 passed with it, because the picker accepts the image and stretches it into
+its own 300×304 slot — so a wrong-sized asset renders as a plain block that looks like the provider
+supplied no preview at all. This is the third defect in this project whose only symptom was
+"it looks slightly wrong", after the clipped small card and the dropped diagnostic newlines. None
+was reachable by a unit test; all three needed either a documented requirement to check against or
+a person looking at a screen.
+
+A test now reads each screenshot's PNG `IHDR` and asserts 300×304, so the dimension cannot drift
+back. It reads the bytes directly rather than taking an imaging dependency in the test project.
+
+## Measured: qualified asset variants do nothing without a `resources.pri`
+
+The icon assets were also single-resolution. Adding `scale-125/150/200/400` and
+`targetsize-16/24/32/48/256` files is not sufficient on its own: Windows resolves the manifest's
+`Assets\Square44x44Logo.png` to that literal file unless the package carries a `resources.pri`
+indexing the qualifiers. A Visual Studio packaging project runs MakePri for this; packaging directly
+with the SDK tools means running it explicitly, which `Build-Package.ps1` now does.
+
+Verified in the installed 0.3.1.0 package: `resources.pri` present, 32 asset files, and MakePri
+reported 15 scale variants and 10 target sizes indexed with zero warnings.
+
+The flat single-colour placeholder also had a specific visible failure worth recording: an unplated
+blue square on the taskbar's blue plate reads as a missing icon. The replacement assets are
+self-contained rounded tiles with their own gradient, so they render correctly whether or not
+Windows draws a plate behind them.
+
+Both remain placeholders in the sense of not being 415 Group branding. Phase 2 still owns final
+artwork.
+
 ## Observed characteristic: provider lifetime is demand-driven, not pin-driven
 
 Immediately after the force-shutdown, with the widget still pinned, `Get-Process

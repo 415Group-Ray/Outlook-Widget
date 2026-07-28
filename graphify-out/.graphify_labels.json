@@ -4,9 +4,9 @@
   "2": ".RefreshAsync",
   "3": ".SeedState",
   "4": "OutlookWidget.Core.Refresh",
-  "5": ".Record",
+  "5": "DisclosureTombstoneStore",
   "6": "Outlook Inbox Widget",
-  "7": "DeliveryWorker",
+  "7": "WidgetProvider",
   "8": ".Current",
   "9": "PackageIdentity",
   "10": ".Start",
@@ -28,11 +28,11 @@
   "26": "GlobalUsings.cs",
   "27": "AuthenticationConfigurationTests",
   "28": "CoordinationFixture",
-  "29": "ProtectedCache",
+  "29": ".Record",
   "30": "IOperationalLogger",
   "31": "ProtectedCache.cs",
   "32": "ProviderFactory",
   "33": "ProviderCardTests",
   "34": "StateCommitCoordinator",
-  "35": "CoordinationPaths"
+  "35": "DeliveryWorker"
 }
