@@ -109,15 +109,21 @@ public sealed class DeliveryWorker : IDisposable
     /// </remarks>
     public void RequestDelivery()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
         bool release = false;
 
+        // The disposal check must happen inside the lock, together with setting the pending
+        // marker and deciding to release. Checking an unsynchronized flag first and releasing
+        // afterwards leaves a window in which Dispose can cancel, join, and dispose the semaphore
+        // between the two — so an Activate or state-changed callback would throw
+        // ObjectDisposedException during provider shutdown. Dispose takes the same lock, so the
+        // decision and the disposal cannot interleave.
         lock (_gate)
         {
+            if (_disposed)
+            {
+                return;
+            }
+
             if (_pending)
             {
                 // Already pending. Nothing to add: the pass will read current state.
@@ -147,7 +153,17 @@ public sealed class DeliveryWorker : IDisposable
 
         if (release)
         {
-            _work.Release();
+            // Released outside the lock to keep the critical section short, and guarded because
+            // the semaphore is only ever disposed under the same lock after _disposed is set —
+            // so reaching here means it was still alive when the decision was made.
+            try
+            {
+                _work.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Shutdown won the race after all. There is nothing left to deliver to.
+            }
         }
     }
 
@@ -222,12 +238,18 @@ public sealed class DeliveryWorker : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        lock (_gate)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            // Set under the same lock RequestDelivery uses, so no requester can be between its
+            // decision to release and the release itself once this returns.
+            _disposed = true;
         }
 
-        _disposed = true;
         _shutdown.Cancel();
 
         // Do not join indefinitely. The worker may be parked inside a wedged host call,

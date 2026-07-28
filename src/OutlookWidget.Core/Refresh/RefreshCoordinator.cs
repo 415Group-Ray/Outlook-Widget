@@ -97,6 +97,15 @@ public interface IRefreshFetcher
     /// Fetches new state, observing <paramref name="cancellationToken"/> at every awaited
     /// step. Returns <see langword="null"/> when there is nothing to commit.
     /// </summary>
+    /// <remarks>
+    /// <b>Implementations must not leak arbitrary exception types.</b> The coordinator translates
+    /// cancellation, <see cref="HttpRequestException"/>, <see cref="IOException"/>,
+    /// <see cref="TimeoutException"/>, and <see cref="InvalidOperationException"/> into refresh
+    /// outcomes. Anything else — an MSAL exception in particular, since those derive from
+    /// <see cref="Exception"/> directly — must be translated here into a
+    /// <see langword="null"/> result or one of those types, so that a failed refresh stays a
+    /// result rather than becoming an unhandled exception at the caller.
+    /// </remarks>
     Task<RefreshPayload?> FetchAsync(CancellationToken cancellationToken);
 }
 
@@ -268,7 +277,20 @@ public sealed class RefreshCoordinator
             {
                 return Result(RefreshOutcome.Cancelled, DeliveryRequestOutcome.NotRequested, 0, startTicks);
             }
-            catch (Exception e) when (e is IOException or TimeoutException or InvalidOperationException)
+            // HttpRequestException is the ordinary case, not an exotic one: connection failures,
+            // DNS failures, and unsuccessful responses all surface as it. Omitting it let a
+            // routine offline refresh escape RefreshAsync instead of producing the documented
+            // FetchFailed outcome — the lease was still cleared by the finally, but the caller
+            // saw an exception where the contract promises a result.
+            //
+            // MsalException derives from Exception directly rather than from any of these, so
+            // token-acquisition failures are covered by the fetcher's own contract: it must
+            // translate them into a null payload or one of these types. IRefreshFetcher documents
+            // that obligation.
+            catch (Exception e) when (e is HttpRequestException
+                                          or IOException
+                                          or TimeoutException
+                                          or InvalidOperationException)
             {
                 _logger.Record(OperationalEventId.GraphRequestFailed, OperationalOutcome.Failed);
                 return Result(RefreshOutcome.FetchFailed, DeliveryRequestOutcome.NotRequested, 0, startTicks);

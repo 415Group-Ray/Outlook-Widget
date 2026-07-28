@@ -270,6 +270,97 @@ public sealed class DeliveryWorkerTests
     }
 
     [Fact]
+    public void Requests_racing_disposal_do_not_throw()
+    {
+        using var fixture = new CoordinationFixture();
+        using var host = new FakeWidgetHost();
+
+        fixture.SeedState(Payload("state"));
+
+        var worker = new DeliveryWorker(fixture.Cache, fixture.Tombstones, host, fixture.Logger);
+
+        // An Activate callback or state-changed listener can request delivery at the exact moment
+        // the provider shuts down after its last widget is deleted. An unsynchronized disposal
+        // flag left a window between the check and the semaphore release, so the requester could
+        // touch a disposed semaphore and throw ObjectDisposedException out of a host callback.
+        var exceptions = new System.Collections.Concurrent.ConcurrentBag<Exception>();
+
+        using var start = new ManualResetEventSlim(false);
+
+        var requesters = Enumerable.Range(0, 8).Select(_ => new Thread(() =>
+        {
+            start.Wait();
+            for (int i = 0; i < 500; i++)
+            {
+                try
+                {
+                    worker.RequestDelivery();
+                }
+                catch (Exception e)
+                {
+                    exceptions.Add(e);
+                }
+            }
+        })).ToArray();
+
+        foreach (Thread thread in requesters)
+        {
+            thread.Start();
+        }
+
+        start.Set();
+        Thread.Sleep(20);
+        worker.Dispose();
+
+        foreach (Thread thread in requesters)
+        {
+            thread.Join(TimeSpan.FromSeconds(10));
+        }
+
+        Assert.Empty(exceptions);
+    }
+
+    [Fact]
+    public void Requesting_delivery_after_disposal_is_a_no_op()
+    {
+        using var fixture = new CoordinationFixture();
+        using var host = new FakeWidgetHost();
+
+        fixture.SeedState(Payload("state"));
+
+        var worker = new DeliveryWorker(fixture.Cache, fixture.Tombstones, host, fixture.Logger);
+        worker.Dispose();
+
+        worker.RequestDelivery();
+
+        Assert.Equal(0, host.MaxConcurrentCalls);
+    }
+
+    [Fact]
+    public void A_cleared_cache_is_delivered_as_cleared_rather_than_as_corruption()
+    {
+        using var fixture = new CoordinationFixture();
+        using var host = new FakeWidgetHost();
+        using var worker = new DeliveryWorker(fixture.Cache, fixture.Tombstones, host, fixture.Logger);
+
+        fixture.SeedState(Payload("previous account"));
+
+        using (MutationLock heldLock = fixture.Mutex.Acquire())
+        {
+            fixture.Cache.Clear(heldLock);
+        }
+
+        worker.RequestDelivery();
+        Assert.True(WaitFor(() => worker.CompletedPasses >= 1, TimeSpan.FromSeconds(5)));
+
+        // What the sink is told matters: Cleared is authoritative signed-out state and renders the
+        // signed-out card, while Corrupt renders an error or recovery card. Reporting a normal
+        // sign-out as corruption would show the user a fault they did not cause.
+        Assert.Equal(Caching.CacheReadStatus.Cleared, host.Delivered[^1].ReadStatus);
+        Assert.Null(host.Delivered[^1].Payload);
+    }
+
+    [Fact]
     public void An_absent_snapshot_still_produces_a_delivery_so_the_sink_can_render_signed_out()
     {
         using var fixture = new CoordinationFixture();

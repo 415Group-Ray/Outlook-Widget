@@ -15,6 +15,20 @@ public enum CacheReadStatus
     Absent,
 
     /// <summary>
+    /// State was explicitly cleared by a logout, account switch, or cache-clear, and the
+    /// generation advanced to say so. Authoritative, and deliberately distinct from both
+    /// <see cref="Absent"/> and <see cref="Corrupt"/>.
+    /// </summary>
+    /// <remarks>
+    /// This status has to exist. <see cref="ProtectedCache.Clear"/> writes a header with no
+    /// payload, and without recognising that shape the read path would hand the empty remainder
+    /// to DPAPI, get a <see cref="CryptographicException"/>, and report a perfectly normal
+    /// sign-out as corruption — so once the disclosure tombstone lifted, the delivery sink would
+    /// render an error or recovery card instead of the signed-out card.
+    /// </remarks>
+    Cleared,
+
+    /// <summary>
     /// The file exists but its format version is not supported. This cache is
     /// reconstructible and has no migration path: discard and refetch.
     /// </summary>
@@ -179,6 +193,14 @@ public sealed class ProtectedCache
             return new CacheReadResult(CacheReadStatus.UnsupportedVersion, generation, null);
         }
 
+        // A header with no payload is the explicit cleared representation written by Clear(), and
+        // it must be recognised BEFORE unprotecting. DPAPI rejects an empty blob, so falling
+        // through would report a successful sign-out as corruption.
+        if (raw.Length == HeaderLength)
+        {
+            return new CacheReadResult(CacheReadStatus.Cleared, generation, null);
+        }
+
         try
         {
             byte[] payload = ProtectedData.Unprotect(
@@ -301,9 +323,9 @@ public sealed class ProtectedCache
         long nextGeneration = ReadGeneration() + 1;
 
         // A header-only file records the advanced generation with no payload, which is a
-        // positive statement that state was cleared. Deleting the file outright would be
-        // indistinguishable from a first run, and a first run must not look like a
-        // completed sign-out.
+        // positive statement that state was cleared, and Read() reports it as
+        // CacheReadStatus.Cleared. Deleting the file outright would be indistinguishable from a
+        // first run, and a first run must not look like a completed sign-out.
         byte[] file = new byte[HeaderLength];
         Magic.CopyTo(file, 0);
         BinaryPrimitives.WriteInt32LittleEndian(file.AsSpan(4, 4), CurrentFormatVersion);

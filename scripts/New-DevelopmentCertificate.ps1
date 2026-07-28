@@ -88,8 +88,40 @@ if ($env:OneDrive -and $resolvedOutput.StartsWith([System.IO.Path]::GetFullPath(
 # Reuse or create
 # ---------------------------------------------------------------------------
 
+function Get-ComparableSubject {
+    <#
+    .SYNOPSIS
+        Reduces an X.500 name to a form that can be compared across quoting differences.
+
+    .DESCRIPTION
+        Windows stores the requested 'CN=415 Group, Inc.' as CN="415 Group, Inc." — a comma
+        separates elements in an X.500 name, so a value containing one must be quoted. Comparing
+        raw strings therefore never matches on a second run: this script would create a fresh key,
+        overwrite the exported public certificate, and every machine that had already trusted the
+        previous certificate would reject new packages until an administrator imported it again.
+        Documented reuse behaviour that silently does the opposite is worse than none.
+
+        X500DistinguishedName cannot be used to normalize the requested form, because the
+        unquoted string is not a valid DN: it parses as 'CN=415 Group' followed by ' Inc.', which
+        contains no '=' and is rejected outright.
+
+        So both sides are reduced instead — quotes removed, whitespace collapsed, case folded. A
+        value legitimately containing a quote could in principle collide, which for this use is
+        vanishingly unlikely and fails in the safe direction anyway: a false match reuses the
+        existing certificate rather than replacing a trusted key.
+    #>
+    param([Parameter(Mandatory)][string]$Value)
+
+    return (($Value -replace '"', '') -replace '\s+', ' ').Trim().ToLowerInvariant()
+}
+
+$comparableRequested = Get-ComparableSubject -Value $Subject
+
 $existing = @(Get-ChildItem -Path 'Cert:\CurrentUser\My' |
-    Where-Object { $_.Subject -eq $Subject -and $_.HasPrivateKey })
+    Where-Object {
+        $_.HasPrivateKey -and
+        (Get-ComparableSubject -Value $_.Subject) -eq $comparableRequested
+    })
 
 if ($existing.Count -gt 0 -and -not $Force) {
     $certificate = $existing | Sort-Object -Property NotAfter -Descending | Select-Object -First 1

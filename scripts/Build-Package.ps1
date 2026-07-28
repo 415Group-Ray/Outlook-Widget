@@ -106,14 +106,29 @@ Write-Output ''
 Write-Output "Package identity: $identityName / $manifestPublisher / $identityVersion"
 
 if (-not $SkipSigning) {
+    # Match tolerantly across quoting differences, for the same reason
+    # New-DevelopmentCertificate.ps1 does: 'CN=415 Group, Inc.' is stored as
+    # CN="415 Group, Inc." because the comma requires quoting, and the unquoted form is not a
+    # valid X.500 name so it cannot simply be parsed and normalized. Matching raw strings made the
+    # documented no-argument example fail with "no code-signing certificate" unless the caller
+    # happened to pass the quoted form by hand.
+    $comparableRequested = (($CertificateSubject -replace '"', '') -replace '\s+', ' ').Trim().ToLowerInvariant()
+
     $certificate = @(Get-ChildItem -Path 'Cert:\CurrentUser\My' |
-        Where-Object { $_.Subject -eq $CertificateSubject -and $_.HasPrivateKey }) |
+        Where-Object {
+            $_.HasPrivateKey -and
+            ((($_.Subject -replace '"', '') -replace '\s+', ' ').Trim().ToLowerInvariant()) -eq $comparableRequested
+        }) |
         Sort-Object -Property NotAfter -Descending | Select-Object -First 1
 
     if (-not $certificate) {
-        throw "No code-signing certificate with private key for Subject '$CertificateSubject' in CurrentUser\My. Run scripts/New-DevelopmentCertificate.ps1 first."
+        throw "No code-signing certificate with private key matching Subject '$CertificateSubject' in CurrentUser\My. Run scripts/New-DevelopmentCertificate.ps1 first."
     }
 
+    # The manifest, by contrast, is compared EXACTLY against the certificate's stored subject.
+    # Tolerance is right for finding the certificate the user meant; it would be wrong here,
+    # because the package identity Windows computes uses the exact string. This is the check that
+    # catches a mismatch before it becomes a package that installs alongside instead of upgrading.
     if ($manifestPublisher -ne $certificate.Subject) {
         throw @"
 Publisher mismatch. This must be fixed before packaging.

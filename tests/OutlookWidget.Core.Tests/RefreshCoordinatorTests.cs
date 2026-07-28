@@ -225,6 +225,32 @@ public sealed class RefreshCoordinatorTests
     }
 
     [Fact]
+    public async Task An_ordinary_network_failure_becomes_a_result_rather_than_an_exception()
+    {
+        using var fixture = new CoordinationFixture();
+        fixture.SeedState(Payload("prior"));
+
+        RefreshCoordinator coordinator = Build(fixture, new CountingDeliveryRequester());
+
+        // HttpRequestException is the common case, not an exotic one: connection failures, DNS
+        // failures, and unsuccessful responses all surface as it. It was previously not caught, so
+        // a routine offline refresh threw out of RefreshAsync instead of returning the documented
+        // FetchFailed — breaking the contract every caller relies on.
+        var offline = new StubFetcher(_ =>
+            throw new System.Net.Http.HttpRequestException("No such host is known."));
+
+        RefreshResult result = await coordinator.RefreshAsync(offline, RefreshTrigger.Activation);
+
+        Assert.Equal(RefreshOutcome.FetchFailed, result.Outcome);
+        Assert.Equal(DeliveryRequestOutcome.NotRequested, result.Delivery);
+
+        // The cache is intact and the lease released, so the next trigger can retry.
+        Assert.Equal("prior", Encoding.UTF8.GetString(fixture.Cache.Read().Payload!));
+        Assert.False(coordinator.IsRefreshInProgress());
+        Assert.True(fixture.Logger.Saw(Diagnostics.OperationalEventId.GraphRequestFailed));
+    }
+
+    [Fact]
     public async Task A_fetch_that_outlives_the_async_deadline_commits_nothing_and_clears_the_lease()
     {
         using var fixture = new CoordinationFixture();

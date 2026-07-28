@@ -135,11 +135,107 @@ public sealed class DisclosureTombstoneTests
     {
         using var fixture = new CoordinationFixture();
 
+        // Owner PID 9999 is chosen to be almost certainly dead. A live owner is covered by the
+        // test below.
         File.WriteAllText(
             Path.Combine(fixture.Paths.SuppressionDirectory, Guid.NewGuid().ToString("N") + ".suppress"),
             "2\n2026-07-28T12:00:00.0000000+00:00\n9999\n");
 
         Assert.Equal(1, fixture.Tombstones.CountSuppressionFiles());
+
+        int removed = fixture.Tombstones.ClearAllOrphans();
+
+        Assert.Equal(1, removed);
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+    }
+
+    [Fact]
+    public void Recovery_does_not_delete_the_marker_of_an_operation_still_in_flight()
+    {
+        using var fixture = new CoordinationFixture();
+
+        // A logout is underway and has not yet resolved.
+        DisclosureSuppression inFlight = fixture.Tombstones.Suppress(DisclosureMode.SignedOut);
+
+        // Alongside it, a genuine orphan from a process that died.
+        File.WriteAllText(
+            Path.Combine(fixture.Paths.SuppressionDirectory, Guid.NewGuid().ToString("N") + ".suppress"),
+            "1\n2026-07-28T12:00:00.0000000+00:00\n9999\n");
+
+        Assert.Equal(2, fixture.Tombstones.CountSuppressionFiles());
+
+        // The user clicks "clear interrupted operations" while the logout is still running.
+        int removed = fixture.Tombstones.ClearAllOrphans();
+
+        // Only the orphan goes. Deleting the live operation's marker would be the fail-closed
+        // guarantee inverted by the very action meant to restore it: if that logout's commit then
+        // timed out, the old snapshot would still hold the previous account's subjects with
+        // nothing left suppressing them.
+        Assert.Equal(1, removed);
+        Assert.Equal(1, fixture.Tombstones.CountSuppressionFiles());
+        Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
+        Assert.False(inFlight.IsCleared);
+
+        // And the operation can still complete normally afterwards.
+        inFlight.CommitAndClear();
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+    }
+
+    [Fact]
+    public void Recovery_does_not_delete_a_marker_whose_owner_process_is_still_running()
+    {
+        using var fixture = new CoordinationFixture();
+
+        // A genuinely separate live process must own the marker. Using this test's own PID would
+        // instead exercise the "written by this process but no longer active" branch, which
+        // correctly permits deletion — so it would prove the opposite of what is intended here.
+        using var peer = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            ArgumentList = { "-NoProfile", "-NonInteractive", "-Command", "Start-Sleep -Seconds 30" },
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        })!;
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(fixture.Paths.SuppressionDirectory, Guid.NewGuid().ToString("N") + ".suppress"),
+                $"2\n2026-07-28T12:00:00.0000000+00:00\n{peer.Id}\n");
+
+            var other = new DisclosureTombstoneStore(fixture.Paths, fixture.Logger, fixture.Clock);
+
+            int removed = other.ClearAllOrphans();
+
+            // PID liveness is only ever used to DECLINE deletion, never to authorise it, because
+            // it races PID reuse. Declining is the safe direction.
+            Assert.Equal(0, removed);
+            Assert.Equal(DisclosureMode.SignedOut, other.GetEffectiveMode());
+        }
+        finally
+        {
+            peer.Kill(entireProcessTree: true);
+            peer.WaitForExit(5000);
+        }
+    }
+
+    [Fact]
+    public void Recovery_clears_a_marker_this_process_wrote_but_already_resolved()
+    {
+        using var fixture = new CoordinationFixture();
+
+        DisclosureSuppression suppression = fixture.Tombstones.Suppress(DisclosureMode.CountsOnly);
+        Guid operationId = suppression.OperationId;
+
+        // Simulate the file surviving after the operation left the active set — for instance a
+        // delete that failed. It records this live process as owner, so the liveness guard alone
+        // would refuse forever; the active-set check is what correctly allows it.
+        suppression.CommitAndClear();
+        File.WriteAllText(
+            Path.Combine(fixture.Paths.SuppressionDirectory, operationId.ToString("N") + ".suppress"),
+            $"1\n2026-07-28T12:00:00.0000000+00:00\n{Environment.ProcessId}\n");
+
+        Assert.Equal(DisclosureMode.CountsOnly, fixture.Tombstones.GetEffectiveMode());
 
         int removed = fixture.Tombstones.ClearAllOrphans();
 

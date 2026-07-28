@@ -124,6 +124,45 @@ No longer blocking, having been resolved during this work:
 - **Provider source compilation.** A probe build confirmed `Microsoft.WindowsAppSDK` 2.3.1 and
   `WidgetManager.GetDefault().GetWidgetInfos()` compile with the .NET 10 SDK alone.
 
+## Measured: `LocalApplicationData` is NOT redirected for a packaged full-trust app
+
+Running the packaged companion reported its coordination state root as:
+
+```text
+C:\Users\rsmalley\AppData\Local\OutlookWidget
+```
+
+**Outside the package store.** The assumption that
+`Environment.GetFolderPath(LocalApplicationData)` is redirected into the package's own local
+data store when the process is packaged holds for UWP and is **false** for a packaged
+full-trust desktop application on this build. `%LocalAppData%\Packages\<family>\` exists with
+`LocalCache`, `LocalState`, and the rest, and the app was writing beside it rather than inside
+it.
+
+This was a real defect, not untidiness. Section 11 and the troubleshooting guide both state
+that uninstall removes package-local cache and settings. State outside the package store
+survives uninstall, so a DPAPI-protected snapshot containing senders and subjects would have
+been left behind on the machine after the app was removed — a privacy claim the product would
+not have honoured.
+
+Fixed by locating state explicitly rather than relying on redirection:
+`%LocalAppData%\Packages\<PackageFamilyName>\LocalCache\Local\OutlookWidget`. The family name
+is used rather than the full name because the full name carries the version, so state located
+by it would move on every update and orphan the previous version's cache and suppression files.
+`CoordinationPathsTests` asserts the packaged and unpackaged roots differ, which is the
+regression that would otherwise return silently.
+
+## Also verified
+
+- **Upgrade over the previous version.** 0.1.0.0 → 0.1.1.0 installed as an upgrade, keeping the
+  same package family. No elevation was needed for the upgrade, because the certificate was
+  already trusted from the first install — so only the very first install on a machine requires
+  an administrator.
+- **Signature verification after trust.** `signtool verify /pa` reports
+  `Number of files successfully Verified: 1` once the certificate is in
+  `LocalMachine\TrustedPeople`. Before trust it failed with an untrusted-root error, which is
+  the expected sequence rather than a problem.
+
 ## An environmental constraint the OneDrive decision introduced
 
 The repository path contains a comma — `OneDrive - 415 Group, Inc`. The dotnet CLI turns

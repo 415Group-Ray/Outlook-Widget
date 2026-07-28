@@ -140,11 +140,18 @@ if ($Launch) {
     }
 
     if (-not $preferred) {
-        Write-Output 'No launch strategy is available on this machine.'
+        Write-Information 'No launch strategy is available on this machine.' -InformationAction Continue
+        if ($Json) { $results | ConvertTo-Json -Depth 4 }
         exit 1
     }
 
-    Write-Output "Launching New Outlook via: $($preferred.Strategy) -> $($preferred.Target)"
+    # Progress messages go to the information stream, never to the success stream.
+    #
+    # With -Json the success stream must contain only the JSON document, or the evidence
+    # artifact the Json parameter promises cannot be parsed. Writing status lines here and
+    # ConvertTo-Json later into the same stream produced output that was neither readable prose
+    # nor valid JSON.
+    Write-Information "Launching New Outlook via: $($preferred.Strategy) -> $($preferred.Target)" -InformationAction Continue
 
     try {
         if ($preferred.Strategy -eq 'App execution alias') {
@@ -156,10 +163,26 @@ if ($Launch) {
             Start-Process -FilePath "shell:AppsFolder\$($preferred.Target)"
         }
 
-        Write-Output 'Launch command returned without error. Observe and record: whether the window appears, how long it takes, whether it restores a previous view, and what happens when New Outlook is already running, updating, or damaged.'
+        Write-Information 'Launch command returned without error. Observe and record: whether the window appears, how long it takes, whether it restores a previous view, and what happens when New Outlook is already running, updating, or damaged.' -InformationAction Continue
+
+        $results.Add([pscustomobject]@{
+            Strategy = 'Launch attempt'
+            Status   = 'Available'
+            Target   = $preferred.Target
+            Detail   = "Launch command issued via $($preferred.Strategy) and returned without error. Window behaviour must be observed manually."
+        })
     }
     catch {
-        Write-Output "Launch failed: $($_.Exception.GetType().Name)"
+        Write-Information "Launch failed: $($_.Exception.GetType().Name)" -InformationAction Continue
+
+        $results.Add([pscustomobject]@{
+            Strategy = 'Launch attempt'
+            Status   = 'Unavailable'
+            Target   = $preferred.Target
+            Detail   = "Launch failed: $($_.Exception.GetType().Name)."
+        })
+
+        if ($Json) { $results | ConvertTo-Json -Depth 4 }
         exit 1
     }
 }

@@ -37,18 +37,50 @@ public sealed class CoordinationPaths
     }
 
     /// <summary>
-    /// Resolves the production location: the package's per-user local data directory.
+    /// Resolves the state location for the current process.
     /// </summary>
+    /// <param name="packageFamilyName">
+    /// The package family name when running packaged, or <see langword="null"/> when running
+    /// unpackaged. The caller supplies it because determining package identity needs Win32
+    /// interop, and this library stays free of it: the core is surface-agnostic and should not
+    /// know that MSIX exists.
+    /// </param>
+    /// <param name="scope">Distinguishes one logical instance of the coordination state.</param>
     /// <remarks>
-    /// When the process is packaged, <c>LocalApplicationData</c> is redirected into the
-    /// package's own local data store, which is what section 8 requires and what
-    /// uninstall removes. Unpackaged — during unit testing and early Phase 0 work —
-    /// it resolves to the ordinary per-user path, which is correct for that context.
+    /// <para>
+    /// <b>Packaged state must be located explicitly, because it is not redirected for us.</b>
+    /// An earlier version of this method assumed that
+    /// <see cref="Environment.SpecialFolder.LocalApplicationData"/> is redirected into the
+    /// package's own store when the process is packaged. That holds for UWP, and it was
+    /// <em>measured to be false here</em>: the packaged full-trust companion resolved it to the
+    /// ordinary <c>%LocalAppData%\OutlookWidget</c>, outside the package store entirely.
+    /// </para>
+    /// <para>
+    /// That mattered for more than tidiness. Section 11 states that uninstall removes
+    /// package-local cache and settings, and the troubleshooting guide repeats it. State written
+    /// outside the package store survives uninstall, so a DPAPI-protected snapshot containing
+    /// senders and subjects would have been left behind after the app was removed — a privacy
+    /// claim the product would not actually have honoured.
+    /// </para>
+    /// <para>
+    /// <c>LocalCache\Local</c> rather than <c>LocalState</c>: it is the conventional target for
+    /// Win32-style local application data inside a package, so the path stays the same if
+    /// Windows ever does apply that redirection, and it is semantically right for this content —
+    /// a reconstructible, machine-local, DPAPI-bound cache that should neither roam nor migrate.
+    /// </para>
     /// </remarks>
-    public static CoordinationPaths ForCurrentUser() =>
-        new(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "OutlookWidget"));
+    public static CoordinationPaths Resolve(string? packageFamilyName, string scope = "v1")
+    {
+        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+        string root = packageFamilyName is null
+            // Unpackaged: unit tests and early Phase 0 work. Correct for that context, and the
+            // only case where state is not removed by uninstall, because there is no package.
+            ? Path.Combine(localAppData, "OutlookWidget")
+            : Path.Combine(localAppData, "Packages", packageFamilyName, "LocalCache", "Local", "OutlookWidget");
+
+        return new CoordinationPaths(root, scope);
+    }
 
     public string RootDirectory { get; }
 

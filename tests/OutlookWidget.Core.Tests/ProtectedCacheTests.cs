@@ -103,7 +103,56 @@ public sealed class ProtectedCacheTests
         // install — and a generation that did not advance would look like a transient read
         // failure, leaving the peer rendering its prior in-memory copy.
         Assert.Equal(2, read.Generation);
-        Assert.NotEqual(CacheReadStatus.Absent, read.Status);
+        Assert.Null(read.Payload);
+
+        // Assert the exact status, not merely "not Absent".
+        //
+        // This assertion is why the test now catches a bug it previously missed. Clear() writes a
+        // header with no payload, and the read path used to hand that empty remainder to DPAPI,
+        // which rejected it — so a perfectly normal sign-out was reported as Corrupt. The old
+        // assertions (not Absent, null payload) were both satisfied by Corrupt, so a real defect
+        // passed. A cleared cache reported as corrupt means that once the disclosure tombstone
+        // lifts, the delivery sink renders an error or recovery card instead of the signed-out
+        // card the user just asked for.
+        Assert.Equal(CacheReadStatus.Cleared, read.Status);
+    }
+
+    [Fact]
+    public void A_cleared_cache_is_not_reported_as_corrupt_and_logs_no_corruption()
+    {
+        using var fixture = new CoordinationFixture();
+        fixture.SeedState(Payload("account data"));
+
+        using (MutationLock heldLock = fixture.Mutex.Acquire())
+        {
+            fixture.Cache.Clear(heldLock);
+        }
+
+        Assert.Equal(CacheReadStatus.Cleared, fixture.Cache.Read().Status);
+
+        // Nothing about a deliberate sign-out is a discard or a corruption event, and logging it
+        // as one would send someone hunting a cache bug that does not exist.
+        Assert.False(fixture.Logger.Saw(Diagnostics.OperationalEventId.CacheDiscardedInvalid));
+    }
+
+    [Fact]
+    public void A_cleared_cache_survives_a_reread_by_a_separate_cache_instance()
+    {
+        using var fixture = new CoordinationFixture();
+        fixture.SeedState(Payload("account data"));
+
+        using (MutationLock heldLock = fixture.Mutex.Acquire())
+        {
+            fixture.Cache.Clear(heldLock);
+        }
+
+        // A restarted provider constructs its own ProtectedCache and must reach the same
+        // conclusion, because the authoritative state is on disk rather than in memory.
+        var restarted = new ProtectedCache(fixture.Paths, fixture.Logger);
+        CacheReadResult read = restarted.Read();
+
+        Assert.Equal(CacheReadStatus.Cleared, read.Status);
+        Assert.Equal(2, read.Generation);
         Assert.Null(read.Payload);
     }
 

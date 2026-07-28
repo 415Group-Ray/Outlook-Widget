@@ -51,6 +51,13 @@ public sealed class DisclosureTombstoneStore
     private readonly IOperationalLogger _logger;
     private readonly ISystemClock _clock;
 
+    /// <summary>
+    /// Operations this process has suppressed and not yet cleared. Consulted only by
+    /// <see cref="ClearAllOrphans"/>, so that recovery cannot delete a live operation's marker.
+    /// </summary>
+    private readonly HashSet<Guid> _activeOperations = [];
+    private readonly Lock _activeGate = new();
+
     public DisclosureTombstoneStore(
         CoordinationPaths paths,
         IOperationalLogger? logger = null,
@@ -103,6 +110,11 @@ public sealed class DisclosureTombstoneStore
         string tempPath = path + ".writing";
         File.WriteAllText(tempPath, content);
         File.Move(tempPath, path, overwrite: true);
+
+        lock (_activeGate)
+        {
+            _activeOperations.Add(operationId);
+        }
 
         _logger.Record(OperationalEventId.DisclosureSuppressionWritten, OperationalOutcome.Success);
 
@@ -214,8 +226,43 @@ public sealed class DisclosureTombstoneStore
                 return 0;
             }
 
+            // Snapshot the operations this process currently has in flight. Recovery must not
+            // delete a live operation's marker: if that operation's commit then times out, the
+            // old snapshot still holds the previous account's subjects and nothing would be
+            // suppressing them any more — the fail-closed guarantee inverted by the very action
+            // meant to restore it.
+            //
+            // An in-process registry is authoritative here rather than merely convenient. The
+            // companion is single-instance and serialises its own disclosure-changing
+            // operations, and this recovery action is a companion action, so any operation that
+            // could race it is running in this process. PID liveness is used only as a secondary
+            // guard below, never as the primary test, because it races PID reuse.
+            HashSet<Guid> active;
+            lock (_activeGate)
+            {
+                active = [.. _activeOperations];
+            }
+
             foreach (string file in Directory.GetFiles(_paths.SuppressionDirectory, "*" + FileExtension))
             {
+                if (TryGetOperationId(file) is Guid operationId && active.Contains(operationId))
+                {
+                    _logger.Record(
+                        OperationalEventId.DisclosureSuppressionActive,
+                        OperationalOutcome.Skipped);
+                    continue;
+                }
+
+                if (IsOwnerProcessAlive(file))
+                {
+                    // Written by a process that still exists. It is not an orphan, and the user
+                    // asked to clear interrupted operations rather than live ones.
+                    _logger.Record(
+                        OperationalEventId.DisclosureSuppressionActive,
+                        OperationalOutcome.Skipped);
+                    continue;
+                }
+
                 if (TryDeleteFile(file))
                 {
                     removed++;
@@ -245,6 +292,11 @@ public sealed class DisclosureTombstoneStore
     /// </summary>
     internal void DeleteOwn(Guid operationId)
     {
+        lock (_activeGate)
+        {
+            _activeOperations.Remove(operationId);
+        }
+
         string path = FilePathFor(operationId);
 
         if (TryDeleteFile(path))
@@ -311,6 +363,66 @@ public sealed class DisclosureTombstoneStore
                 OperationalEventId.DisclosureSuppressionOrphanDetected,
                 OperationalOutcome.Failed);
             return DisclosureMode.SignedOut;
+        }
+    }
+
+    /// <summary>
+    /// Recovers the operation GUID from a suppression file name.
+    /// </summary>
+    private static Guid? TryGetOperationId(string path) =>
+        Guid.TryParseExact(Path.GetFileNameWithoutExtension(path), "N", out Guid id) ? id : null;
+
+    /// <summary>
+    /// Whether the process that wrote a suppression file still exists.
+    /// </summary>
+    /// <remarks>
+    /// A secondary guard only. PID reuse means a live PID does not prove the <em>same</em>
+    /// process is running, so this is used to decline deletion — never to authorise it. Failing
+    /// to determine liveness counts as alive, which keeps suppression in place: the safe
+    /// direction, consistent with every other uncertainty in this type.
+    /// </remarks>
+    private static bool IsOwnerProcessAlive(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(
+                path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+
+            _ = reader.ReadLine();  // mode
+            _ = reader.ReadLine();  // creation stamp
+            string? processIdText = reader.ReadLine();
+
+            if (!int.TryParse(processIdText, CultureInfo.InvariantCulture, out int processId))
+            {
+                // Unparseable owner. Treat as alive so recovery leaves it alone; a genuinely
+                // orphaned file with a corrupt owner line is cleared by reinstalling or by
+                // clearing the cache, both of which are more deliberate than this action.
+                return true;
+            }
+
+            if (processId == Environment.ProcessId)
+            {
+                // This process wrote it, but it is not in the active set — so the operation
+                // already completed or was abandoned in-process. Safe to clear.
+                return false;
+            }
+
+            using System.Diagnostics.Process owner = System.Diagnostics.Process.GetProcessById(processId);
+            return !owner.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            // GetProcessById throws when no such process exists. That is the orphan case.
+            return false;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return true;
         }
     }
 

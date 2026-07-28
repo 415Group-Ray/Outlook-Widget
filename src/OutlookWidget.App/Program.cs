@@ -51,6 +51,7 @@ internal static partial class Program
         };
 
         string? packageFullName = TryGetCurrentPackageFullName();
+        string? packageFamilyName = TryGetCurrentPackageFamilyName();
 
         if (packageFullName is null)
         {
@@ -63,19 +64,37 @@ internal static partial class Program
         {
             lines.Add("Package identity: present.");
             lines.Add($"Package full name: {packageFullName}");
+            lines.Add($"Package family:    {packageFamilyName}");
         }
 
         lines.Add(string.Empty);
 
-        CoordinationPaths paths = CoordinationPaths.ForCurrentUser();
+        // The family name, not LocalApplicationData, is what places packaged state. Measurement
+        // on this machine showed LocalApplicationData is NOT redirected for a packaged full-trust
+        // desktop app, so state located that way would survive uninstall — contradicting the
+        // product's own privacy claim. CoordinationPaths.Resolve places it explicitly instead.
+        CoordinationPaths paths = CoordinationPaths.Resolve(packageFamilyName);
         lines.Add("Coordination state root:");
         lines.Add(paths.RootDirectory);
         lines.Add(string.Empty);
-        lines.Add(
-            packageFullName is null
-                ? "Expect this to be the ordinary per-user path while unpackaged."
-                : "Confirm this resolves inside the package's own local data store. The "
-                  + "coordination design depends on that redirection, and uninstall removing it.");
+
+        if (packageFamilyName is null)
+        {
+            lines.Add("Unpackaged, so this is the ordinary per-user path. Uninstall does not "
+                      + "apply, because there is no package.");
+        }
+        else
+        {
+            bool insidePackageStore = paths.RootDirectory.Contains(
+                Path.Combine("Packages", packageFamilyName),
+                StringComparison.OrdinalIgnoreCase);
+
+            lines.Add(insidePackageStore
+                ? "Inside the package store, so uninstall removes it. This is what section 11 "
+                  + "promises about cached mailbox data."
+                : "WARNING: outside the package store. Cached mailbox data would survive "
+                  + "uninstall, contradicting the stated privacy behaviour.");
+        }
 
         lines.Add(string.Empty);
         lines.Add($"Bounds in force: mutex wait {CoordinationBounds.MutexWait.TotalSeconds:0}s, "
@@ -144,4 +163,54 @@ internal static partial class Program
     private static unsafe partial int GetCurrentPackageFullName(
         uint* packageFullNameLength,
         char* packageFullName);
+
+    /// <summary>
+    /// Returns the current package family name, or <see langword="null"/> when unpackaged.
+    /// </summary>
+    /// <remarks>
+    /// The family name rather than the full name, because it is the stable part: the full name
+    /// carries the version and architecture and changes with every build, while the family name
+    /// is name plus publisher hash and is what names the per-package data store. State located by
+    /// full name would move on every update and orphan the previous version's cache.
+    /// </remarks>
+    private static string? TryGetCurrentPackageFamilyName()
+    {
+        const int ErrorInsufficientBuffer = 122;
+        const int AppModelErrorNoPackage = 15700;
+
+        uint length = 0;
+        int result;
+
+        unsafe
+        {
+            result = GetCurrentPackageFamilyName(&length, null);
+        }
+
+        if (result == AppModelErrorNoPackage)
+        {
+            return null;
+        }
+
+        if (result != ErrorInsufficientBuffer)
+        {
+            return null;
+        }
+
+        char[] buffer = new char[length];
+
+        unsafe
+        {
+            fixed (char* pointer = buffer)
+            {
+                result = GetCurrentPackageFamilyName(&length, pointer);
+            }
+        }
+
+        return result == 0 ? new string(buffer, 0, (int)length - 1) : null;
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetCurrentPackageFamilyName")]
+    private static unsafe partial int GetCurrentPackageFamilyName(
+        uint* packageFamilyNameLength,
+        char* packageFamilyName);
 }
