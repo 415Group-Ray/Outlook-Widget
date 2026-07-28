@@ -8,11 +8,20 @@ This is a single-user Windows 11 Outlook inbox widget for one Microsoft 365 tena
 approved v1 direction is a packaged Win32 Windows Widgets provider plus a small companion
 application, with a tray/popover surface only if the native Phase 0 gates fail.
 
-The repository is in early implementation. Phase 0 is approved and signed-package gate 1 has
-passed, but several platform gates still require proof on the target device. The
-cross-process coordination core is implemented and tested; the current companion is a
-packaging probe, not the finished WinUI experience, and there is not yet a working Widgets
-Board provider.
+The repository is in early implementation. Phase 0 is approved and **every native-surface and
+packaging gate has passed on the reference machine** — the widget is discoverable, pinnable, renders
+at all three sizes, survives a reboot with its instance restored, survives a package upgrade while
+pinned, launches New Outlook and the companion, and its provider exits when unpinned. The
+tray/popover fallback is therefore not being built.
+
+Note one permanent operational consequence: **the provider holds the package open while a widget is
+pinned**, so upgrades require `Add-AppxPackage -ForceApplicationShutdown`. Do not advise unpinning
+instead; that loses the pin for no reason.
+
+The cross-process coordination core is implemented and tested. The widget provider has **no
+authentication and no Microsoft Graph access**, so it renders a placeholder card describing
+coordination state rather than mail. The current companion is a packaging probe, not the finished
+WinUI experience. Remaining Phase 0 gates (8, 9, 10, 12) all wait on the Entra app registration.
 
 ## Sources of truth
 
@@ -32,11 +41,16 @@ identify the mismatch and update every affected source as part of the approved c
 ## Repository map
 
 - `src/OutlookWidget.Core` — surface-independent caching, coordination, refresh, delivery,
-  and diagnostics today; later core slices add authentication, Graph access, and models.
+  launching, and diagnostics today; later core slices add authentication, Graph access, and
+  models.
+- `src/OutlookWidget.Packaging` — MSIX package-identity interop only, shared by the two
+  executables so the core stays free of any knowledge that MSIX exists. Do not grow it into a
+  general utility assembly.
 - `src/OutlookWidget.App` — packaged companion application; currently a Phase 0 probe.
-- `src/OutlookWidget.Provider` — planned path for the packaged COM Windows Widgets provider;
-  it does not exist yet.
-- `src/OutlookWidget.Package` — MSIX identity, assets, and registration manifest.
+- `src/OutlookWidget.Provider` — the packaged COM Windows Widgets provider: lifecycle, the six
+  callbacks, the instance registry, and the single `UpdateWidget` call site. No authentication and
+  no Graph access yet.
+- `src/OutlookWidget.Package` — MSIX identity, assets, COM server and widget registration.
 - `tests/OutlookWidget.Core.Tests` — unit, source-level, and genuine cross-process tests.
 - `scripts` — prerequisites, signing, packaging, installation, asset, and Outlook-launch
   probes.
@@ -46,14 +60,20 @@ identify the mismatch and update every affected source as part of the approved c
 ## Commands
 
 ```powershell
+dotnet build
 dotnet test
 pwsh -File scripts/Test-PackagePrerequisites.ps1
 pwsh -File scripts/Build-Package.ps1
 graphify update .
 ```
 
-- Run focused tests while iterating and the full `dotnet test` before claiming a code change
-  complete.
+- Run focused tests while iterating, and both `dotnet build` and the full `dotnet test` before
+  claiming a code change complete.
+- **`dotnet test` does not compile `OutlookWidget.Provider`.** The test project deliberately does
+  not reference it — doing so would force the test project onto the provider's
+  Windows-SDK-versioned target framework — so provider compile errors pass a green test run. This
+  has already happened once. `dotnet build` on the solution is the check that catches it, and it is
+  not optional.
 - Changes to packaging, signing, the manifest, assets, package identity, or certificate
   handling also require the relevant prerequisite and package-build checks.
 - Record device-, tenant-, Widgets-host-, WAM-, New Outlook-, and installed-package results in
@@ -85,6 +105,10 @@ coverage when changing nearby behavior.
    the Widgets host. Do not claim a stronger guarantee without measured platform evidence.
 10. Cache and coordination state remain scoped to the current Windows user and stable package
     identity. Sensitive cache content remains protected with DPAPI.
+11. The provider's COM class ID appears in exactly three places and they must agree:
+    `Program.ProviderClassId`, the manifest's `com:Class Id`, and the widget extension's
+    `CreateInstance ClassId`. A mismatch installs cleanly and then fails activation with nothing
+    surfaced in the Widgets Board. `Build-Package.ps1` and `PackageManifestTests` both check it.
 
 Do not weaken, delete, skip, or rewrite a safety test merely to make a change pass. Prefer the
 smallest coherent fix that preserves existing contracts, and avoid broad refactors while

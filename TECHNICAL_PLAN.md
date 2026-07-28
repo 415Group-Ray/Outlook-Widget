@@ -4,7 +4,7 @@ Status: **Approved for Phase 0** — single-user v1, New Outlook only. Coordinat
 
 Planning date: **2026-07-27**
 
-Implementation status: **Not started**
+Implementation status: **Phase 0 in progress; the native surface and packaging are proven.** Gates 1, 2, 3, 4, 5 (as superseded below), 6, and the native half of 7 have all passed on the reference machine, including cold activation, reboot survival, instance recovery, upgrade with a widget pinned, and clean provider exit on unpin. The section 18 fallback branch is therefore **not** taken. The coordination subsystem (Phase 1 slice 1) and the Windows Widgets provider are implemented, packaged, installed, and observed working in the Widgets Board. **Every remaining Phase 0 gate — 8, 9, 10, and 12 — waits on the Entra app registration, and nothing else does.** `docs/phase0-evidence.md` is authoritative for what has actually been measured.
 
 This plan describes a lightweight Windows 11 Outlook inbox widget for a single Microsoft 365 tenant. It incorporates the decisions approved during planning:
 
@@ -190,7 +190,7 @@ flowchart LR
 - On construction, calls `WidgetManager.GetDefault().GetWidgetInfos()` and rebuilds the in-memory instance map from each `WidgetContext` and `CustomState` before processing callbacks.
 - Checks the disclosure tombstone on construction, on `Activate`, on the suppress-details event, and before every render. A present, unreadable, or ambiguous tombstone forces counts-only or the signed-out card regardless of snapshot contents.
 - Is the **sole caller of `UpdateWidget`**. It owns one serialized delivery worker with a coalescing depth-one pending marker; each pass re-reads committed snapshot, generation, and tombstone rather than accepting a payload from whoever requested delivery. No two deliveries are ever in flight, and the final rendered content always reflects the newest committed state.
-- Supports multiple pinned instances at different sizes; size and active state are never global.
+- Supports multiple pinned instances at different sizes; size and active state are never global. Phase 0 measured that the Widgets Board itself permits only one instance per widget definition, so this is currently unobservable through two simultaneous instances — but it remains a requirement rather than dead code, because the host constraint is the host's and may change, and per-instance keying costs nothing.
 - Returns cached content immediately, then refreshes asynchronously when required.
 - Handles refresh, Open Outlook, open-message, and open-settings actions.
 - Builds its broker-enabled MSAL client with `WithParentActivityOrWindow(() => IntPtr.Zero)` and calls only `AcquireTokenSilent`; Phase 0 must verify this construction on the pinned MSAL/Broker versions.
@@ -209,6 +209,7 @@ flowchart LR
 - `MailboxSnapshotService`: combines Graph responses into one immutable display snapshot.
 - `RefreshCoordinator`: synchronous package-user named mutex for commits, an expiring lease record for cross-process single-flight, overall deadline, debounce, backoff, cancellation, and change notification. No named primitive is held across an `await`.
 - `ProtectedCache`: DPAPI-protected snapshot and selected MSAL home-account/tenant identifiers, with a generation counter and atomic replacement.
+- `StateChangeListener`: creates the two named notification events and turns either signal into a callback. Required rather than optional: the signalling side opens the events by name and treats absence as "no listener", so without something creating them every cross-process signal is a silent no-op.
 - `OutlookLauncher`: Phase 0-verified New Outlook launch strategy. No Classic Outlook path.
 - `OperationalLogger`: event name, status/category, duration, and record count only; its API has no fields for mailbox or identity metadata.
 - Shared rendering models that contain only approved metadata.
@@ -640,7 +641,12 @@ src/
     Program.cs
     WidgetProvider.cs
     ProviderFactory.cs
+    WidgetDeliverySink.cs
+    WidgetInstanceRegistry.cs
+    CompanionLauncher.cs
     Cards/
+  OutlookWidget.Packaging/
+    PackageIdentity.cs
   OutlookWidget.Core/
     Authentication/
     Graph/
@@ -663,6 +669,8 @@ scripts/
   Install-DevelopmentPackage.ps1
   Test-OutlookLaunch.ps1
 ```
+
+`OutlookWidget.Packaging` was added during Phase 0 and is not a surface. It holds only the MSIX package-identity interop, because both executables need the package family name and the core must not acquire it: `CoordinationPaths.Resolve` takes that name as a parameter precisely so the core stays surface-agnostic and free of any knowledge that MSIX exists. Duplicating the interop in the companion and the provider would honour that rule and create a worse problem. See the Phase 0 evidence report for the alternatives considered.
 
 Keep the Phase 0 spike in the same solution and evolve it into production code only after its evidence is reviewed; do not create a disposable second architecture that obscures what was tested.
 
@@ -743,6 +751,7 @@ The three options are not mutually exclusive in cost. Matching the future Subjec
   - Prefer framework-dependent Windows App SDK for smaller packages when the runtime dependency installs reliably.
   - Use self-contained .NET only if runtime variability causes install failures worth the size increase.
 - Test upgrade over the previous version.
+- **An upgrade fails while the provider is running, and a pinned widget is what makes it run.** Phase 0 measured HRESULT `0x80073D02` — "resources it modifies are currently in use" — when replacing the package with a widget pinned and the provider process alive. Windows will not replace a package whose processes are running, and the error names the package rather than the process, so nothing in it points at the provider. Install with `Add-AppxPackage -ForceApplicationShutdown`, which deployment sequences against its own package lock rather than racing a manual `Stop-Process`. This is a permanent property of the architecture, not a transient bug: any surface that keeps a process alive while content is displayed has the same constraint, including the tray/popover fallback. The install runbook must carry it, and the v1 update instructions must not tell a user to unpin first — that loses the pin for no reason.
 - MSIX does not install a lower version over a higher one. The v1 rollback runbook is remove the current package, then install the prior signed package. Document that this loses widget pins and package-local cache/settings and requires re-pinning and reconfiguring.
 - Rollback depends on the retained package still being installable, which depends on the timestamping decision above. Verify during Phase 4 that a retained prior package actually installs, rather than assuming it will.
 
@@ -791,7 +800,7 @@ Preconditions: the OneDrive-backed clone is fully available locally; volatile ou
 2. The widget is discoverable in the Widgets Board and can be pinned.
 3. Provider cold activation succeeds after reboot and package update.
 4. On process start, `GetWidgetInfos()` restores all pinned IDs, definitions, `CustomState`, and per-instance sizes; deleting the final instance exits cleanly and a later host activation restores service.
-5. Two pinned instances at different sizes render and update independently.
+5. ~~Two pinned instances at different sizes render and update independently.~~ **Superseded during Phase 0.** The Widgets Board was measured to allow only one pinned instance per widget definition on build 26200: the picker entry is greyed out and marked as added once the widget is pinned, despite `AllowMultiple="true"` in the installed manifest. The replacement gate is that **one instance resized through the widget's more-options menu renders correctly at small, medium, and large**, which exercises `OnWidgetContextChanged`, per-instance size tracking, and the card's `$host.widgetSize` conditions. The per-instance design requirement in section 3 is unchanged and unrelaxed — it is simply no longer observable through two simultaneous instances. See `docs/phase0-evidence.md` for the measurement and for why a second widget definition was not added to restore coverage.
 6. Widget action launches the companion.
 7. The Open Outlook action launches New Outlook without a versioned executable path.
 8. Companion WAM sign-in supports MFA/Conditional Access with a real HWND, and self-consent to `Mail.ReadBasic` succeeds without an administrator step. If it does not, the failure is recorded as an approval-required authorization state, not as a Graph error.

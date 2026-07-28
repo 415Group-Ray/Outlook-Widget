@@ -1,10 +1,17 @@
 # Phase 0 evidence report
 
-Status: **in progress.** Device and toolchain preflight is complete and **gate 1 passes** —
-a signed MSIX installs on the author's Entra-managed PC and the certificate can be trusted
-there. The remaining native gates need the widget provider registration, which is
-deliberately not yet in the manifest. Nothing below is a projection — each row records what
-was actually observed, and unproven items say so rather than being marked pass.
+Status: **in progress.** **Every native-surface gate now passes.** Gates 1, 2, 3, 4, 5 (as
+superseded), 6, and the native half of 7 were all observed on the reference machine: the widget is
+discoverable, pinnable, renders at all three sizes, survives a reboot with its instance restored,
+launches New Outlook and the companion from its actions, and its provider process exits when the
+widget is unpinned. The section 18 tray/popover fallback branch is **not** taken.
+
+Gate 5 was superseded after the Board was measured to allow only one instance per widget definition.
+Two rendering defects were found by the resize test and fixed in 0.2.1.0.
+
+**What remains is entirely downstream of the Entra app registration** — gates 8, 9, 10, and 12.
+There is no outstanding native-surface or packaging question. Nothing below is a projection; each row
+records what was actually observed, and unproven items say so rather than being marked pass.
 
 Reference machine: the author's own Entra-managed PC. Recorded 2026-07-28.
 
@@ -57,20 +64,116 @@ permission.
 
 | Gate | Status | Evidence |
 |---|---|---|
-| 2 — discoverable and pinnable in the Widgets Board | **Not started** | No longer blocked on tooling. The gate 1 manifest deliberately omits the widget provider registration, so there is nothing to discover yet. Needs the `com:Extension` COM server and the `uap3:AppExtension` widget registration |
-| 3 — provider cold activation after reboot and package update | **Not started** | Needs the provider and its COM registration |
-| 4 — `GetWidgetInfos()` restores all instances; final-instance exit | **Not started** | Needs the provider |
-| 5 — two instances at different sizes render independently | **Not started** | Needs the provider |
-| 6 — widget action launches the companion | **Not started** | Needs the provider |
-| 9 — provider silent-only acquisition with a zero parent handle | **Not started** | Needs the registration and the broker skeleton |
-| 11 — cached-first refresh and cross-process invalidation | **Partly established, in isolation** | The cross-process coordination subsystem is implemented and passing 88 automated tests, including genuine multi-process contention. That is not this gate: the gate requires the behaviour across real Board activation and provider recycle, which needs an installed package |
+| 2 — discoverable and pinnable in the Widgets Board | **PASS** | Observed on the reference machine. **Outlook Inbox** appeared in the Add Widgets picker and pinned successfully, and the pinned card rendered the provider's own content — headline "No cached state yet", the detail line, and all three action buttons. This is the gate that decides the architecture: the native surface works, so the section 18 tray/popover fallback branch is not taken |
+| 3 — provider cold activation after reboot and package update | **PASS** | All three cases observed. **Cold start:** `CoCreateInstance` on CLSID `254395D8-5EAC-4A2D-9971-90C99BFFD192` from an ordinary PowerShell session succeeded with no provider running, proving the `com:ExeServer` registration, framework resolution, `CoRegisterClassObject`, and the class factory. **Board activation:** a rendered card cannot happen without it. **Reboot:** the widget rendered again after a restart. **Package update:** 0.2.1.0 → 0.2.2.0 was installed with the widget pinned, and the widget still rendered afterwards; the companion launched from the widget reported package full name `415Group.OutlookInboxWidget_0.2.2.0_x64__dgbvqhastx60y`, confirming the upgraded package is the one serving the widget rather than a stale process |
+| 4 — `GetWidgetInfos()` restores all instances; final-instance exit | **PASS** | Both halves observed. The widget rendered again after a reboot, which requires `RecoverEnabledInstances` to have rebuilt the instance map from `GetWidgetInfos()` before the class object was registered — the Board does not replay `CreateWidget` for an already-pinned widget, so a provider that started empty would have rendered nothing. And **the provider process exited when the widget was unpinned**, confirming that `DeleteWidget` signalled on the transition to empty and `Main` revoked its registration and returned |
+| 5 — two instances at different sizes render independently | **Superseded; replacement PASSES** | **A second instance could not be pinned.** After pinning, the picker entry was greyed out and marked as added. The cause is not the manifest: the installed definition carries `AllowMultiple="true"` and declares all three sizes. The replacement gate — one instance rendering correctly at small, medium, and large — **passes**, with two rendering defects found and fixed along the way. See the gate 5 section below |
+| 6 — widget action launches the companion | **PASS** | Clicking **Open companion** on the pinned widget launched the companion, which displayed package identity `415Group.OutlookInboxWidget_0.2.0.0_x64__dgbvqhastx60y` and its coordination root inside the package store. Note that the companion did **not** report a launch argument, which is the correct outcome and is explained below: the documented shell-activation candidate succeeded, and that path carries no arguments |
+| 9 — provider silent-only acquisition with a zero parent handle | **Not started** | Needs the Entra registration and the broker skeleton. A source-level test now asserts the provider contains no `AcquireTokenInteractive`, which is the enforcement rather than the gate |
+| 11 — cached-first refresh and cross-process invalidation | **Partly established; the signalling path is now real** | The coordination subsystem passes 135 automated tests including genuine multi-process contention. Separately, and new: **the named events now exist.** Both `OutlookWidget-StateChanged-v1` and `OutlookWidget-SuppressDetails-v1` were confirmed present while the installed provider ran. Until `StateChangeListener` was written nothing created them, so `StateCommitCoordinator` and `DisclosureTombstoneStore` were opening a non-existent event and swallowing the failure — every cross-process signal in the product was a silent no-op. The gate still requires the behaviour across real Board activation and provider recycle |
+
+### Gate 5 — the Widgets Board allows only one instance of a widget definition
+
+**Measured:** after **Outlook Inbox** was pinned, it remained listed in the Add Widgets picker but
+was **greyed out and marked as added**, so a second instance could not be pinned.
+
+That specific symptom is what makes the cause clear. The Board found the widget, recognised it as
+already pinned, and deliberately disabled the entry. A manifest problem, a failed activation, or a
+crashed provider would present differently — the widget would still be offered, or clicking would
+error, or the picker entry would be missing entirely. The installed manifest carries
+`AllowMultiple="true"`, so the package is asking for what the schema documents and the host is
+declining it.
+
+Labelled as **locally measured behaviour on build 26200**, not as a documented platform
+limitation. `AllowMultiple` is documented as defaulting to true with "set to false if only one
+instance of this widget is supported", which describes what the *provider* permits and says nothing
+about what the *host* implements. The authoritative Microsoft support page for Widgets does not
+address multiple instances either way. So the honest position is that the host does not honour
+`AllowMultiple` on this build, and why is unresolved.
+
+**Consequences, in order of importance.**
+
+1. **Gate 5 as written cannot pass on this host, and that is not a product defect.** It asked for
+   two pinned instances at different sizes. One instance is the maximum available.
+2. **The design requirement behind it stands unchanged.** Section 3 requires size and active state
+   to be per instance and never global, and `WidgetInstanceRegistry` keys everything by widget ID.
+   That code is not more complex for being per-instance, and it is what would be needed if the host
+   ever honours `AllowMultiple`. It is kept.
+3. **What is still testable is the size path on one instance.** Resizing through the widget's
+   more-options menu to Small, Medium, and Large drives `OnWidgetContextChanged`, the registry's
+   per-instance size update, and the card's three `$when` conditions on `$host.widgetSize`. That
+   exercises everything gate 5 covered except the two-instance part.
+4. **A second widget *definition* would restore genuine multi-instance coverage,** because two
+   different definitions can each be pinned. It is deliberately not added: it would exist only to
+   satisfy a test, section 1 treats counts-only as a *state* of one widget rather than a separate
+   widget, and a definition shipped for test scaffolding would then have to be supported or removed
+   later. Multi-instance correctness stays covered by unit tests over the registry and is recorded
+   here as unproven against a real host.
+
+Gate 5 is therefore **superseded** rather than failed. Its replacement is the resize check in the
+revised gate list, and section 17 has been updated so the gate list and this report do not
+disagree.
+
+**The replacement gate passes.** One instance was resized to Small, Medium, and Large, and all
+three rendered distinctly and correctly: Small omitted the detail paragraph, Medium showed it, and
+Large added the diagnostic. `OnWidgetContextChanged` therefore fires on resize, the registry records
+the new size per instance, and the card's three `$host.widgetSize` conditions all evaluate. The
+large-size diagnostic confirmed `Size = Large` and `active`, so `Activate` had also fired.
+
+### Two rendering defects the resize test found, both fixed in 0.2.1.0 and re-verified
+
+Neither was visible at the medium size the widget pins at by default, which is why resizing was
+worth doing rather than assuming. Both fixes were confirmed on 0.2.1.0 at all three sizes:
+
+- **Small** renders the headline and a single **Open companion** button, on one row, unclipped.
+- **Medium** renders the headline, the detail paragraph, and both action rows.
+- **Large** additionally renders the diagnostic as **three distinct lines** —
+  `InboxWidget · Large · active`, then `generation 0 · mode Full · read Absent · payload none`,
+  then `widget 7c0a7db5-…` — rather than one run-together paragraph.
+
+The widget ID also changed between the two rounds of observation, from `d7c0709a-…` to
+`7c0a7db5-…`, because the widget was unpinned and re-pinned. Worth noting rather than glossing:
+widget IDs are per pinned instance and are not reused across an unpin, which is why the registry
+keys on them and why nothing durable may be located by them.
+
+That small carries no **Refresh** while the cache is absent is deliberate, not an oversight of the
+one-row constraint. With nothing cached and no account, refresh has no useful outcome, so the one
+available row goes to the action that can actually change the state. Once a snapshot exists, small
+shows **Open Outlook** and **Refresh** on that single row, because the companion action drops away.
+
+1. **Three action buttons clipped the card at the small size.** Small showed *Open Outlook* and
+   *Refresh* on one row and *Open companion* cut in half at the bottom edge. The small widget frame
+   is tall enough for one row of actions; the host neither scrolls a widget nor reports that content
+   overflowed, so nothing surfaces the problem except looking at it. Fixed by suppressing the mail
+   actions at the small size when the companion action is present, so the small card never exceeds
+   one row. The decision is made in C# rather than in a compound `$when`, because the data document
+   is built per instance and already knows the size.
+2. **Newlines in the diagnostic were dropped.** The three-line diagnostic was built as one string
+   with `\n` separators and rendered as a single wrapped paragraph, reading
+   "… · active generation 0 · mode Full · read Absent · payload none widget d7c0709a…" — where
+   "active" and "generation" appear to be one field. An Adaptive Card `TextBlock` gives no guarantee
+   that a lone newline survives. Fixed by binding three separate `TextBlock`s with explicit spacing,
+   which needs no such guarantee.
+
+### The companion launch argument does not appear on the normal path
+
+`CompanionLauncher` passes `--from-widget` so the probe can report that a widget action started it.
+It did not appear, and that is correct rather than a bug: the first candidate is shell activation of
+`<family>!App`, which is the documented way to start a packaged application and **carries no
+arguments**. The argument only reaches the companion on the fallback path that starts the sibling
+executable directly.
+
+So the marker is not a usable discriminator for gate 6 — the companion window appearing at all in
+response to a button click is the evidence. The argument is kept because it still distinguishes the
+fallback path when that path runs, but the expectation that it would show was wrong and is corrected
+here rather than left to mislead the next reader.
 
 ### Gate 7 — Outlook launch, which spans both groups
 
 | Half | Status | Evidence |
 |---|---|---|
 | Universal — does bare `olk.exe` resolve and launch | **Resolution proven, launch not yet exercised** | `olk.exe` resolves to `%LocalAppData%\Microsoft\WindowsApps\olk.exe`. Package activation also resolves, as `Microsoft.OutlookForWindows_8wekyb3d8bbwe!Microsoft.OutlookforWindows`. Run `scripts/Test-OutlookLaunch.ps1 -Launch` to exercise the launch itself |
-| Native — can a Board action launch it | **Blocked** | Needs an installed provider |
+| Native — can a Board action launch it | **PASS** | Clicking **Open Outlook** on the pinned widget launched New Outlook. `OutlookLauncher` tries the `olk.exe` app execution alias first and shell activation of the application user model ID second; which candidate won was not instrumented, so only the outcome is recorded. No versioned `WindowsApps` path is used by either |
 
 Both launch strategies resolve, so `OutlookLauncher` has two candidates and need not
 hard-code the versioned `WindowsApps` path — which section 9 forbids and which this machine
@@ -108,14 +211,27 @@ script fails if any key file appears under the repository root.
 
 ## What is still blocking, and what unblocks it
 
-1. **Entra app registration** — single-tenant, public client, delegated `Mail.ReadBasic` only,
-   no secret. Gates 8, 9, 10, and 12 all wait on it. Settings are in
-   [app-registration.md](app-registration.md).
-2. **Widget provider registration** — the `com:Extension` COM server plus the
-   `uap3:AppExtension` widget registration, and the provider itself. Gates 2 through 6 wait on
-   it. This is code and manifest work, not a tooling or policy dependency.
+**The Entra app registration, and nothing else.** Single-tenant, public client, delegated
+`Mail.ReadBasic` only, no secret. Gates 8, 9, 10, and 12 all wait on it. Settings are in
+[app-registration.md](app-registration.md).
+
+It cannot be avoided by prompting the user. Consent *is* already a user prompt — self-consent to
+`Mail.ReadBasic` at first sign-in, no administrator step — but the registration is the application's
+identity and is what issues the client ID, and no token request can be made without one. Entra does
+not implement OpenID Connect Dynamic Client Registration, so there is no bootstrap path: creating a
+registration through Graph would itself require a token. It is a one-time task, not a per-user one.
+
+No longer blocking:
+
+- **Every native-surface and packaging observation.** Discoverability, pinning, rendering at all
+  three sizes, reboot survival, instance recovery, both launch actions, final-instance process exit,
+  and upgrade with a widget pinned have all been observed on the reference machine.
 
 No longer blocking, having been resolved during this work:
+
+- **Widget provider registration.** The `com:Extension` COM server and the `uap3:AppExtension`
+  widget registration are both in the manifest and both survive installation. The provider
+  exists, is COM-activatable, and holds the only `UpdateWidget` call site in the product.
 
 - **Windows SDK.** Installed as 10.0.26100; `makeappx.exe` and `signtool.exe` both resolve.
   Packaging is done directly with these tools rather than through a Visual Studio packaging
@@ -169,6 +285,156 @@ regression that would otherwise return silently.
   `Number of files successfully Verified: 1` once the certificate is in
   `LocalMachine\TrustedPeople`. Before trust it failed with an untrusted-root error, which is
   the expected sequence rather than a problem.
+- **Second upgrade, now carrying the provider.** 0.1.1.0 → 0.2.0.0 installed as an upgrade from a
+  non-elevated session, as `415Group.OutlookInboxWidget_0.2.0.0_x64__dgbvqhastx60y`. Adding a COM
+  server registration, a widget extension, and a framework dependency did not require elevation,
+  a fresh certificate decision, or a new package identity.
+- **The Windows App SDK framework dependency resolves.** The installed package reports its
+  dependency satisfied by `Microsoft.WindowsAppRuntime.2` **2.3.1.0 x64** — the framework package
+  already present on this machine, matching the pinned SDK. The manifest values were taken from
+  the SDK package's own `WindowsAppSDK-VersionInfo.xml` and `AppXReference.props` rather than
+  guessed. This matters because the provider's own output carries only the managed projection
+  assemblies; the native `Microsoft.Windows.Widgets.dll` comes from this framework package, and
+  omitting the dependency would have produced a package that installs and a provider that fails
+  to activate on a missing DLL.
+- **The provider composes its coordination stack inside the installed package.** After
+  activation, `%LocalAppData%\Packages\415Group.OutlookInboxWidget_dgbvqhastx60y\LocalCache\Local\OutlookWidget`
+  existed and contained the `suppression-v1` directory. This is the packaged path, not the
+  redirected one, so the uninstall-scoped storage fix holds for the provider as well as the
+  companion.
+
+## Measured: nothing had ever created the cross-process notification events
+
+`StateCommitCoordinator` signals a committed change by calling
+`EventWaitHandle.OpenExisting(StateChangedEventName)`, and `DisclosureTombstoneStore` does the
+same for the suppress-details event. Both catch `WaitHandleCannotBeOpenedException` and treat it
+as "no listener is running", which is correct — state on disk is authoritative and the event is
+only an accelerant.
+
+**No code in the product created either event.** Every cross-process signal was therefore
+opening a non-existent kernel object and taking the swallow path, one hundred percent of the
+time. The behaviour was correct by construction and had never once been delivered, and no unit
+test could have noticed: the signal is deliberately best-effort, so a test asserting that a
+missed signal costs nothing passes whether or not signalling works at all.
+
+`StateChangeListener` is the missing listener. It creates both events, waits on either, resets
+before invoking its callback rather than after, and in the provider that callback is
+`DeliveryWorker.RequestDelivery`. Confirmed on the installed package: both
+`OutlookWidget-StateChanged-v1` and `OutlookWidget-SuppressDetails-v1` were openable by name
+from a separate process while the provider ran, and absent once it exited.
+
+The reset-then-notify ordering is load-bearing and looks like a lost-wakeup bug at first glance.
+It is not, because the callback re-reads state from disk rather than acting on anything the
+signal carried: a signal arriving between the reset and the notification either reaches a pass
+that has not yet read state, or causes one more pass afterwards.
+
+## Measured: a pinned widget blocks its own package update
+
+Replacing the installed package while a widget was pinned failed with HRESULT **`0x80073D02`** —
+"the package could not be installed because resources it modifies are currently in use", elaborated
+as "Unable to install because the following apps need to be closed
+`415Group.OutlookInboxWidget_0.2.1.0_x64__dgbvqhastx60y`".
+
+The cause is the provider. It runs for as long as a widget is pinned, and Windows will not replace a
+package whose processes are running. **The error names the package, not the process**, so nothing in
+it points at the provider or at the pinned widget that caused the provider to start — and none of
+the four causes the install script previously listed (certificate trust, sideload policy, publisher
+mismatch, missing dependency) is right. That misdirection is the expensive part, not the failure.
+
+Resolved with `Add-AppxPackage -ForceApplicationShutdown`, now exposed as a switch on
+`Install-DevelopmentPackage.ps1`. Preferred over stopping the process by hand because deployment
+sequences the shutdown against its own package lock rather than racing it. The script now also
+reports a running provider *before* attempting the install, and special-cases `0x80073D02` in its
+failure output with the exact remedy.
+
+Terminating the provider mid-update is safe by design rather than by luck, and this is a genuine
+validation of the coordination invariants rather than a hopeful assertion: no named primitive is
+held across an `await`, refresh single-flight is an expiring lease record rather than a held lock
+whose owner must survive, and a killed disclosure operation leaves its fail-closed tombstone on
+disk. A force-kill is exactly the abandoned-holder case the design was built for.
+
+**This is permanent, not a bug to fix.** Any surface that keeps a process alive while content is
+displayed has the same constraint, including the tray/popover fallback. Section 15 and
+`docs/troubleshooting.md` now carry it, and the v1 update instructions must not tell a user to unpin
+first — that loses the pin for no reason.
+
+### What each install actually established
+
+Three separate observations, kept separate because they prove different things:
+
+| Install | Provider running | Result |
+|---|---|---|
+| 0.2.1.0 → 0.2.1.0, same version | Yes | **Failed** with `0x80073D02`. This is the finding |
+| 0.2.1.0 → 0.2.1.0 with `-ForceApplicationShutdown` | Yes | Succeeded; deployment terminated the provider |
+| 0.2.1.0 → **0.2.2.0**, a real version upgrade | No — already exited | Succeeded with the widget still pinned |
+
+The version upgrade is the one gate 3 names, and one limitation of it is worth stating: the provider
+had already exited from the previous force-shutdown and the Board had not re-activated it, so the
+in-use path was not re-exercised *on the version upgrade itself*. The blocking case and its remedy
+were established by the two same-version installs instead.
+
+**The upgrade was then confirmed end to end.** The pinned widget still rendered afterwards, and the
+companion launched from it reported package full name
+`415Group.OutlookInboxWidget_0.2.2.0_x64__dgbvqhastx60y` — so the upgraded package is genuinely the
+one serving the widget, rather than a stale provider still running from the previous version. That
+last check matters: a rendered card alone would not have distinguished the two, because the Widgets
+host retains the last card it was given.
+
+## Observed characteristic: provider lifetime is demand-driven, not pin-driven
+
+Immediately after the force-shutdown, with the widget still pinned, `Get-Process
+OutlookWidget.Provider` returned **nothing** — and the widget remained pinned and the Board still
+displayed its last delivered card.
+
+So the provider is not kept alive merely because a widget exists. The Widgets host starts it when it
+wants content and the host retains the last card it was given, which is why an absent provider is
+invisible until something needs an update. Two consequences worth stating: a stopped provider is not
+a symptom in itself, and the Board's displayed content is not evidence that the provider is running.
+
+## Observed characteristic: a provider activated with no widgets never exits
+
+The provider blocks until `DeleteWidget` removes the last enabled instance. Activated directly
+by `CoCreateInstance` with nothing pinned, it therefore waits forever, and the process had to be
+stopped by hand. `LockServer` is a deliberate no-op, so COM client reference counts do not
+influence lifetime either.
+
+This is not obviously wrong — the documented sample behaves identically, and the Widgets Board
+should not activate a provider it has no widgets for — but it is an unbounded process lifetime
+reached by a path that exists. It is recorded rather than fixed: adding an idle timeout would
+introduce a second lifetime rule that could disagree with the first, and a provider that exited
+on its own schedule while the Board was mid-pin would be a worse failure than a lingering
+process. Section 19 fault injection is the right place to decide, with a measurement rather than
+a guess.
+
+## Two defects found by the manifest checks, worth recording
+
+Both were in the new validation rather than the product, and both would have made the checks
+silently vacuous rather than wrong — the failure mode that makes a test worse than no test.
+
+1. **`Properties/Logo` is an element, not an attribute.** The build script collected referenced
+   paths by scanning attributes, so `//@Logo` matched nothing and the store logo was the one
+   manifest image reference never validated. The count it printed was the clue: seven references
+   where eight were expected.
+2. **XPath treats an unprefixed name as "no namespace".** The manifest declares the foundation
+   namespace as its *default*, so unprefixed elements — including the widget registration
+   elements inside `uap3:Properties` — are in that namespace. `//CreateInstance` matched nothing,
+   and the script reported a missing activation class ID on a manifest that had one. The
+   equivalent LINQ-to-XML test compared `Name.LocalName` and was unaffected, which is why the
+   test passed while the script failed.
+
+## Observed cost: the Windows App SDK metapackage is broad
+
+The provider's published output is roughly 42 MB, almost none of it needed. `Microsoft.WindowsAppSDK`
+is a metapackage, and referencing it brings WinUI (7 MB), the full Windows SDK projection
+(25 MB), ONNX Runtime, WebView2, and the AI projections into a process that uses only
+`Microsoft.Windows.Widgets`.
+
+`Microsoft.WindowsAppSDK.Widgets` is a separate package and referencing it alone would likely cut
+most of that. It is deliberately **not** done here: section 13 pins the metapackage, the Phase 0
+probe build validated against it, and changing the dependency strategy while the native gates are
+still unproven would put a new variable into the middle of the evidence. Disk size is also not
+startup cost — .NET loads only the assemblies it uses — so the case for changing it is tidiness,
+which is a Phase 2 conversation.
 
 ## An environmental constraint the OneDrive decision introduced
 
@@ -191,8 +457,51 @@ substantial unblocked work: it is pure .NET, depends on no Graph call, no MSIX, 
 Entra registration, and it is the slice the plan singles out as needing to be established
 test-first rather than discovered later.
 
-This is a real deviation and it carries one risk worth naming: slice 1's estimate assumed the
-Phase 0 provider lifecycle and broker skeleton would be retained and evolved in place. That
-skeleton does not exist yet, so the delivery worker's `IWidgetDeliverySink` currently has no
-production implementation and the coordination layer has never run inside a real provider
-process. Nothing in slice 1 depends on it for correctness, but the integration is unproven.
+This was a real deviation, and it carried one risk that has now been retired. Slice 1's estimate
+assumed the Phase 0 provider lifecycle and broker skeleton would be retained and evolved in
+place, and that skeleton did not exist — so `IWidgetDeliverySink` had no production
+implementation and the coordination layer had never run inside a real provider process.
+
+**Both are now resolved.** `WidgetDeliverySink` is the production implementation and the single
+`UpdateWidget` call site, and the coordination stack has been composed and observed running inside
+the installed provider. The integration that was unproven is proven; what remains unproven is the
+Widgets Board's behaviour toward it, which is a different thing and is recorded as such above.
+
+The broker skeleton still does not exist, and gate 9 remains not started. That half of the
+assumption is unchanged.
+
+## A second deviation: one project the plan's folder structure does not list
+
+Section 12 lists four projects under `src/`. There are now five: `OutlookWidget.Packaging` holds
+the `GetCurrentPackageFamilyName` and `GetCurrentPackageFullName` interop, moved out of the
+companion.
+
+The reason is a constraint the plan already imposes rather than a new preference.
+`CoordinationPaths.Resolve` takes the package family name as a parameter specifically so the core
+stays surface-agnostic and free of any knowledge that MSIX exists, and that decision is documented
+in the type itself. The provider needs the same value the companion needs. The alternatives were
+two copies of a two-call Win32 buffer protocol whose error codes are easy to get subtly wrong, or
+putting MSIX interop into the core and contradicting a documented decision. A third option existed
+for the provider alone — `Package.Current.Id.FamilyName`, one line, available because the provider
+has a Windows-SDK-versioned target framework — but the companion does not have that framework, so
+taking it would have left the two executables answering the same question by two mechanisms.
+
+The plan's section 12 has been updated to list it.
+
+## Reproducing the provider evidence
+
+```powershell
+pwsh -File scripts/Build-Package.ps1
+pwsh -File scripts/Install-DevelopmentPackage.ps1 -SkipCertificateTrust
+```
+
+Then, to repeat the cold COM activation without the Widgets Board:
+
+```powershell
+$clsid = [Guid]"254395D8-5EAC-4A2D-9971-90C99BFFD192"
+[Activator]::CreateInstance([Type]::GetTypeFromCLSID($clsid, $false))
+Get-Process -Name OutlookWidget.Provider
+```
+
+Stop the process afterwards. Per the observation above, it will not exit on its own with no
+widgets pinned.

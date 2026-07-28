@@ -33,6 +33,27 @@ Distinguish four causes before changing anything:
   which loses widget pins and package-local cache and settings.
 - **Publisher mismatch.** The manifest `Publisher` must exactly match the signing certificate
   Subject.
+- **HRESULT `0x80073D02`, "the package could not be installed because resources it modifies are
+  currently in use."** This is the most likely install failure once a widget is pinned, and it is
+  not a packaging, certificate, or policy problem.
+
+  The widget provider runs for as long as a widget is pinned, and Windows will not replace a
+  package whose processes are running. The error names the *package*, not the process, so nothing
+  in the message points at the provider or at the pinned widget that caused it to start.
+
+  Install with `-ForceApplicationShutdown`:
+
+  ```powershell
+  pwsh -File scripts/Install-DevelopmentPackage.ps1 -SkipCertificateTrust -ForceApplicationShutdown
+  ```
+
+  Terminating the provider mid-update is safe by design rather than by luck: no named primitive is
+  held across an `await`, refresh single-flight is an expiring lease record rather than a held lock,
+  and a killed disclosure operation leaves its fail-closed tombstone in place. The Widgets host
+  re-activates the provider on demand afterwards, and the widget keeps its pin.
+
+  Unpinning the widget first also works, but it loses the pin — so it is the worse option, and a
+  poor one if the point was to test an upgrade with a widget in place.
 
 ## Sign-in problems
 
