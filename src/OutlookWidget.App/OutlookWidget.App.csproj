@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Deliberately NOT a WinUI 3 project yet.
+
+      Phase 0's gate 1 asks one question: does a signed MSIX install on this Entra-managed PC,
+      and can the certificate be trusted there? That question is about signing, packaging, and
+      device policy. Bringing WinUI in now would add a framework dependency, a runtime
+      requirement, and an XAML toolchain to the very first thing being tested, so a failure
+      would be ambiguous between "sideloading is blocked" and "the app does not start".
+
+      Phase 2 owns the companion experience and converts this into the real WinUI 3 app. Until
+      then this is the smallest thing that can be packaged, launched, and observed.
+    -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>OutlookWidget.App</RootNamespace>
+    <AssemblyName>OutlookWidget.App</AssemblyName>
+
+    <!-- Trimming and single-file are packaging concerns and stay off while identity is settled. -->
+    <PublishSingleFile>false</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+
+    <!--
+      Required by LibraryImport, which generates pointer-based marshalling code. The two P/Invokes
+      here take a Win32 string buffer, and expressing that with raw pointers keeps the signatures
+      fully blittable so no runtime marshalling is involved. The alternative, classic DllImport,
+      would avoid unsafe code but the analyzers flag it as the legacy path, and with warnings as
+      errors that trade is worse rather than safer.
+
+      Confined to this project. OutlookWidget.Core has no unsafe code and must not acquire any.
+    -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OutlookWidget.Core\OutlookWidget.Core.csproj" />
+  </ItemGroup>
+
+</Project>

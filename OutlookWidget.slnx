@@ -1,5 +1,8 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/OutlookWidget.App/OutlookWidget.App.csproj">
+      <Platform Project="x64" />
+    </Project>
     <Project Path="src/OutlookWidget.Core/OutlookWidget.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">

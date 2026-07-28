@@ -1,9 +1,10 @@
 # Phase 0 evidence report
 
-Status: **in progress.** Device and toolchain preflight is complete. Every gate that
-requires a signed MSIX is **blocked** on missing packaging tooling, and one is blocked on
-elevation. Nothing below is a projection — each row records what was actually observed, and
-unproven items say so rather than being marked pass.
+Status: **in progress.** Device and toolchain preflight is complete and **gate 1 passes** —
+a signed MSIX installs on the author's Entra-managed PC and the certificate can be trusted
+there. The remaining native gates need the widget provider registration, which is
+deliberately not yet in the manifest. Nothing below is a projection — each row records what
+was actually observed, and unproven items say so rather than being marked pass.
 
 Reference machine: the author's own Entra-managed PC. Recorded 2026-07-28.
 
@@ -25,11 +26,11 @@ pwsh -File scripts/Test-PackagePrerequisites.ps1
 | Windows App Runtime | `Microsoft.WindowsAppRuntime.2` **2.3.1.0** — matches the pinned Windows App SDK 2.3.1 |
 | New Outlook | `Microsoft.OutlookForWindows` **1.2026.713.100**, family `Microsoft.OutlookForWindows_8wekyb3d8bbwe` |
 | .NET SDK | 10.0.302 (installed during this session; the machine previously had runtimes only) |
-| Visual Studio | **Not installed.** No `vswhere.exe` present |
-| Windows SDK packaging tools | **Not installed.** No `makeappx.exe` under `Windows Kits\10\bin` |
-| Developer Mode | Off (`AllowDevelopmentWithoutDevLicense` absent) |
-| Elevation | Not available in the session that ran the preflight |
-| `LocalMachine\TrustedPeople` | Readable, 0 certificates |
+| Visual Studio | **Not installed**, and not needed. Packaging is done directly with the Windows SDK tools |
+| Windows SDK | **10.0.26100** (installed during this session). `makeappx.exe` and `signtool.exe` both resolve under `Windows Kits\10\bin\10.0.26100.0\x64` |
+| Developer Mode | Off (`AllowDevelopmentWithoutDevLicense` absent). A properly signed, trusted MSIX installed without it, confirming it is not required for this workflow |
+| Elevation | Available. Used once, for the certificate import |
+| `LocalMachine\TrustedPeople` | Writable. The development certificate imported successfully — see gate 1 |
 | Repository location | OneDrive-backed, per the revised section 12. Root pinned **Always keep on this device** (`P` set, `U` cleared) |
 | Private key material in tree | None |
 
@@ -44,7 +45,7 @@ Gates are grouped per section 17, because the group determines what a failure me
 
 | Gate | Status | Evidence |
 |---|---|---|
-| 1 — signed MSIX installs; certificate can be trusted | **Blocked** | Requires `makeappx.exe`/`signtool.exe` to produce and sign the package, and elevation to place the public certificate in `LocalMachine\TrustedPeople`. Neither is available yet. The store is readable and empty; whether device policy permits *adding* a certificate is proven only by attempting it elevated |
+| 1 — signed MSIX installs; certificate can be trusted | **PASS** | Managed-device policy **does** permit trusting a certificate in `LocalMachine\TrustedPeople` on this PC, and sideload installation succeeded. Installed as `415Group.OutlookInboxWidget_0.1.0.0_x64__dgbvqhastx60y`, family `415Group.OutlookInboxWidget_dgbvqhastx60y`, signed by `CN="415 Group, Inc."`. `signtool verify /pa` succeeds once the certificate is trusted, and the RFC 3161 timestamp verifies against DigiCert. Developer Mode was **off** throughout, so it is not required for this workflow |
 | 8 — WAM sign-in with MFA/CA, self-consent to `Mail.ReadBasic` | **Not started** | Needs the Entra registration and the companion app |
 | 10 — `Mail.ReadBasic` returns exactly the approved properties | **Not started** | Needs the registration and a token |
 
@@ -56,11 +57,11 @@ permission.
 
 | Gate | Status | Evidence |
 |---|---|---|
-| 2 — discoverable and pinnable in the Widgets Board | **Blocked** | Needs an installed package |
-| 3 — provider cold activation after reboot and package update | **Blocked** | Needs an installed package |
-| 4 — `GetWidgetInfos()` restores all instances; final-instance exit | **Blocked** | Needs an installed package |
-| 5 — two instances at different sizes render independently | **Blocked** | Needs an installed package |
-| 6 — widget action launches the companion | **Blocked** | Needs an installed package |
+| 2 — discoverable and pinnable in the Widgets Board | **Not started** | No longer blocked on tooling. The gate 1 manifest deliberately omits the widget provider registration, so there is nothing to discover yet. Needs the `com:Extension` COM server and the `uap3:AppExtension` widget registration |
+| 3 — provider cold activation after reboot and package update | **Not started** | Needs the provider and its COM registration |
+| 4 — `GetWidgetInfos()` restores all instances; final-instance exit | **Not started** | Needs the provider |
+| 5 — two instances at different sizes render independently | **Not started** | Needs the provider |
+| 6 — widget action launches the companion | **Not started** | Needs the provider |
 | 9 — provider silent-only acquisition with a zero parent handle | **Not started** | Needs the registration and the broker skeleton |
 | 11 — cached-first refresh and cross-process invalidation | **Partly established, in isolation** | The cross-process coordination subsystem is implemented and passing 88 automated tests, including genuine multi-process contention. That is not this gate: the gate requires the behaviour across real Board activation and provider recycle, which needs an installed package |
 
@@ -80,35 +81,61 @@ on every Outlook update.
 
 **Not started.** Optional; gates only the Focused unread setting.
 
-## Signing decisions
+## Signing decisions, as recorded
 
-**Not yet recorded, and required before the first install.** Section 15 asks for the
-certificate Subject, its validity period and key-retention location, the manifest
-`Publisher`, the stated continuity position, and the timestamping decision. None of these
-can be filled in until a certificate exists, and the certificate cannot be created usefully
-until the packaging toolchain is installed.
+All of section 15's required decisions are now made, and made before the first install.
 
-The plan's recommended posture is to accept remove-and-reinstall as the stated v1 position
-while keeping the MSIX persistent-identity option alive for free — which costs only a
-long-lived development certificate whose private key is retained outside the repository and
-outside OneDrive.
+| Decision | Value |
+|---|---|
+| Certificate Subject | `CN="415 Group, Inc."` |
+| Manifest `Publisher` | `CN="415 Group, Inc."` — byte-identical to the Subject |
+| Thumbprint | `F39705644AC44B95EA8E9245A9F7642C732F1B46` |
+| Validity | 2026-07-28 to **2036-07-28** (10 years) |
+| Key retention | `Cert:\CurrentUser\My`. The private key was **never exported**; no `.pfx` exists anywhere |
+| Public certificate | `%LocalAppData%\OutlookWidget\signing\OutlookWidget-Development.cer`, outside the repository and outside OneDrive |
+| Continuity position | **Accept the break.** Expanding beyond one user may mean remove-and-reinstall. The persistent-identity option stays available for free through the long validity and retained key |
+| Timestamping | **Timestamped** via `http://timestamp.digicert.com`. Verified: `Tue Jul 28 11:00:08 2026`, DigiCert Trusted G4 TimeStamping RSA4096 SHA256 2025 CA1. Retained rollback packages therefore have **no** shelf life tied to certificate expiry |
 
-## What is blocking, and what unblocks it
+**The Subject required quoting, and this is worth knowing.** `CN=415 Group, Inc.` was
+requested; Windows normalized it to `CN="415 Group, Inc."` because a comma separates elements
+in an X.500 name, so a value containing one must be quoted. The manifest carries the quotes
+XML-escaped. A manifest reading `CN=415 Group, Inc.` would look correct and would produce a
+*different package identity* than the certificate signs. `Build-Package.ps1` compares the two
+and refuses to build on a mismatch, because this failure is otherwise silent.
 
-1. **Windows SDK** — provides `makeappx.exe` and `signtool.exe`. Without them no MSIX can be
-   produced or signed, so every packaging and Widgets-Board gate is unreachable.
-2. **Elevation, once** — to place the public signing certificate in
-   `LocalMachine\TrustedPeople`. Whether managed-device policy permits this is itself gate 1
-   evidence and cannot be assumed either way.
-3. **Entra app registration** — single-tenant, public client, delegated `Mail.ReadBasic`
-   only, no secret. Gates 8, 9, 10, and 12 all wait on it.
+The `.gitignore` excludes `*.pfx`, `*.p12`, `*.snk`, `*.key`, and `*.cer`, and the preflight
+script fails if any key file appears under the repository root.
 
-Notably **not** blocking: provider source code. A probe build confirmed that
-`Microsoft.WindowsAppSDK` 2.3.1 and the widget provider API
-(`Microsoft.Windows.Widgets.Providers.WidgetManager.GetDefault().GetWidgetInfos()`) compile
-with the .NET 10 SDK alone, with no Visual Studio installed. The provider lifecycle skeleton
-can therefore be written and compiled now; only installing and activating it is gated on the
-packaging toolchain.
+## What is still blocking, and what unblocks it
+
+1. **Entra app registration** — single-tenant, public client, delegated `Mail.ReadBasic` only,
+   no secret. Gates 8, 9, 10, and 12 all wait on it. Settings are in
+   [app-registration.md](app-registration.md).
+2. **Widget provider registration** — the `com:Extension` COM server plus the
+   `uap3:AppExtension` widget registration, and the provider itself. Gates 2 through 6 wait on
+   it. This is code and manifest work, not a tooling or policy dependency.
+
+No longer blocking, having been resolved during this work:
+
+- **Windows SDK.** Installed as 10.0.26100; `makeappx.exe` and `signtool.exe` both resolve.
+  Packaging is done directly with these tools rather than through a Visual Studio packaging
+  project, so no VS installation is needed at all.
+- **Elevation and certificate trust.** Proven to work on this managed device.
+- **Provider source compilation.** A probe build confirmed `Microsoft.WindowsAppSDK` 2.3.1 and
+  `WidgetManager.GetDefault().GetWidgetInfos()` compile with the .NET 10 SDK alone.
+
+## An environmental constraint the OneDrive decision introduced
+
+The repository path contains a comma — `OneDrive - 415 Group, Inc`. The dotnet CLI turns
+`--output` into an MSBuild `PublishDir` property, and **MSBuild splits property values on
+commas**, so publishing directly into a layout under this path fails with `MSB1006: Property
+is not valid` and a truncated path as the bogus switch.
+
+`Build-Package.ps1` therefore publishes to a comma-free staging directory outside the
+repository and copies the result into the layout. That also keeps publish intermediates out of
+OneDrive's sync scope, which section 12 asks for. This is a permanent consequence of keeping
+the clone in this location, not a transient bug, and any future build step that passes a
+repository path to MSBuild as a property value will hit it again.
 
 ## Deviation from the roadmap, recorded deliberately
 
