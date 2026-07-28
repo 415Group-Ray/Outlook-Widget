@@ -3,8 +3,9 @@
 A glanceable Windows 11 widget showing Microsoft 365 Inbox counts and the newest few email
 messages, without opening Outlook.
 
-**Status: early implementation.** The cross-process coordination core is built and tested.
-There is no installable package yet, and no widget appears on a Widgets Board yet. See
+**Status: early implementation.** The cross-process coordination core is built and tested,
+and an installable signed MSIX exists as the Phase 0 packaging probe. It is not the finished
+companion experience, and no widget appears on a Widgets Board yet. See
 [docs/phase0-evidence.md](docs/phase0-evidence.md) for exactly what has and has not been
 proven, and [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
 

@@ -296,9 +296,17 @@ public sealed class RefreshCoordinator
                 _logger.Record(OperationalEventId.RefreshDeadlineExceeded, OperationalOutcome.Timeout);
                 return Result(RefreshOutcome.DeadlineExceeded, DeliveryRequestOutcome.NotRequested, 0, startTicks);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 return Result(RefreshOutcome.Cancelled, DeliveryRequestOutcome.NotRequested, 0, startTicks);
+            }
+            catch (OperationCanceledException)
+            {
+                // A nested Graph/HTTP timeout cancels its own token while neither the caller nor
+                // the overall refresh deadline is cancelled. It is a fetch failure, not evidence
+                // that the caller asked to stop.
+                _logger.Record(OperationalEventId.GraphRequestFailed, OperationalOutcome.Timeout);
+                return Result(RefreshOutcome.FetchFailed, DeliveryRequestOutcome.NotRequested, 0, startTicks);
             }
             // HttpRequestException is the ordinary case, not an exotic one: connection failures,
             // DNS failures, and unsuccessful responses all surface as it. Omitting it let a

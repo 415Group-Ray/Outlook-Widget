@@ -228,7 +228,7 @@ public sealed class DeliveryWorkerTests
         using var worker = new DeliveryWorker(fixture.Cache, fixture.Tombstones, host, fixture.Logger);
 
         fixture.SeedState(Payload("first"));
-        host.ThrowOnNextDeliveries();
+        host.ThrowOnNextDelivery();
 
         worker.RequestDelivery();
         Assert.True(WaitFor(
@@ -241,6 +241,28 @@ public sealed class DeliveryWorkerTests
         worker.RequestDelivery();
 
         Assert.True(WaitFor(() => worker.CompletedPasses > passesBefore, TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
+    public void A_host_cancellation_is_recorded_and_does_not_stop_later_passes()
+    {
+        using var fixture = new CoordinationFixture();
+        using var host = new FakeWidgetHost();
+        using var worker = new DeliveryWorker(fixture.Cache, fixture.Tombstones, host, fixture.Logger);
+
+        fixture.SeedState(Payload("state"));
+        host.CancelNextDelivery();
+
+        worker.RequestDelivery();
+        Assert.True(WaitFor(
+            () => fixture.Logger.Saw(Diagnostics.OperationalEventId.DeliveryFailed),
+            TimeSpan.FromSeconds(5)));
+
+        long passesBefore = worker.CompletedPasses;
+        worker.RequestDelivery();
+
+        Assert.True(WaitFor(() => worker.CompletedPasses > passesBefore, TimeSpan.FromSeconds(5)));
+        Assert.True(fixture.Logger.Saw(Diagnostics.OperationalEventId.DeliveryCompleted));
     }
 
     [Fact]

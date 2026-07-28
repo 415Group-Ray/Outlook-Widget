@@ -78,7 +78,13 @@ public sealed class DisclosureTombstoneStore
     /// A handle that deletes only this operation's own file, and only when the caller
     /// explicitly commits it after a successful state commit.
     /// </returns>
-    public DisclosureSuppression Suppress(DisclosureMode mode)
+    public DisclosureSuppression Suppress(DisclosureMode mode) =>
+        Suppress(mode, Guid.NewGuid());
+
+    internal DisclosureSuppression Suppress(
+        DisclosureMode mode,
+        Guid operationId,
+        Action? afterMarkerPublished = null)
     {
         if (mode == DisclosureMode.Full)
         {
@@ -90,9 +96,10 @@ public sealed class DisclosureTombstoneStore
                 "pre-emptively revealing more.");
         }
 
+        ArgumentOutOfRangeException.ThrowIfEqual(operationId, Guid.Empty);
+
         _paths.EnsureCreated();
 
-        var operationId = Guid.NewGuid();
         string path = FilePathFor(operationId);
 
         // Content records the mode and a creation stamp. The stamp is diagnostic only —
@@ -108,12 +115,27 @@ public sealed class DisclosureTombstoneStore
         // suppress more strongly than intended, and correctness should not depend on
         // the failure path.
         string tempPath = path + ".writing";
-        File.WriteAllText(tempPath, content);
-        File.Move(tempPath, path, overwrite: true);
 
+        // Registration and publication are one in-process transaction with respect to orphan
+        // recovery. Register first, then expose the marker while holding the same gate that
+        // ClearAllOrphans uses to snapshot active operations. If publication fails, roll the
+        // registration back before recovery can observe it.
         lock (_activeGate)
         {
             _activeOperations.Add(operationId);
+
+            try
+            {
+                File.WriteAllText(tempPath, content);
+                File.Move(tempPath, path, overwrite: true);
+                afterMarkerPublished?.Invoke();
+            }
+            catch
+            {
+                _activeOperations.Remove(operationId);
+                TryDeleteFile(tempPath);
+                throw;
+            }
         }
 
         _logger.Record(OperationalEventId.DisclosureSuppressionWritten, OperationalOutcome.Success);

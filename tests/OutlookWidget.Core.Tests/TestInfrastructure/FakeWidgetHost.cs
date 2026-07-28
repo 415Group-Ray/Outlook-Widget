@@ -21,7 +21,8 @@ internal sealed class FakeWidgetHost : IWidgetDeliverySink, IDisposable
 
     private int _concurrentCalls;
     private int _maxConcurrentCalls;
-    private bool _throwOnDeliver;
+    private int _throwOnDeliver;
+    private int _cancelOnDeliver;
 
     /// <summary>Every state handed to the host, in order.</summary>
     public IReadOnlyList<DeliveryState> Delivered
@@ -59,7 +60,9 @@ internal sealed class FakeWidgetHost : IWidgetDeliverySink, IDisposable
         }
     }
 
-    public void ThrowOnNextDeliveries() => Volatile.Write(ref _throwOnDeliver, true);
+    public void ThrowOnNextDelivery() => Interlocked.Exchange(ref _throwOnDeliver, 1);
+
+    public void CancelNextDelivery() => Interlocked.Exchange(ref _cancelOnDeliver, 1);
 
     /// <summary>Makes the next call block until <see cref="Release"/>.</summary>
     public void Stall()
@@ -102,7 +105,12 @@ internal sealed class FakeWidgetHost : IWidgetDeliverySink, IDisposable
                 _delivered.Add(state);
             }
 
-            if (Volatile.Read(ref _throwOnDeliver))
+            if (Interlocked.Exchange(ref _cancelOnDeliver, 0) == 1)
+            {
+                throw new OperationCanceledException("Simulated Widgets host cancellation.");
+            }
+
+            if (Interlocked.Exchange(ref _throwOnDeliver, 0) == 1)
             {
                 throw new InvalidOperationException("Simulated Widgets host failure.");
             }

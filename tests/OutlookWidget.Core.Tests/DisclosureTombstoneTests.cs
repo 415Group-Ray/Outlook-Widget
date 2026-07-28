@@ -182,6 +182,71 @@ public sealed class DisclosureTombstoneTests
     }
 
     [Fact]
+    public async Task Recovery_cannot_delete_a_marker_during_its_publication_window()
+    {
+        using var fixture = new CoordinationFixture();
+        using var published = new ManualResetEventSlim(initialState: false);
+        using var releasePublisher = new ManualResetEventSlim(initialState: false);
+        Guid operationId = Guid.NewGuid();
+
+        Task<DisclosureSuppression> publishing = Task.Run(() =>
+            fixture.Tombstones.Suppress(
+                DisclosureMode.SignedOut,
+                operationId,
+                afterMarkerPublished: () =>
+                {
+                    published.Set();
+                    releasePublisher.Wait();
+                }));
+
+        Assert.True(published.Wait(TimeSpan.FromSeconds(5)));
+
+        // Recovery starts after the marker is visible but before Suppress returns. It must wait
+        // for the publication transaction, then observe the operation in the active registry.
+        Task<int> recovery = Task.Run(fixture.Tombstones.ClearAllOrphans);
+        await Task.Delay(100);
+        Assert.False(recovery.IsCompleted);
+
+        releasePublisher.Set();
+        DisclosureSuppression suppression = await publishing;
+
+        Assert.Equal(0, await recovery);
+        Assert.Equal(1, fixture.Tombstones.CountSuppressionFiles());
+        Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
+
+        suppression.CommitAndClear();
+    }
+
+    [Fact]
+    public void Publication_failure_rolls_back_the_active_registration()
+    {
+        using var fixture = new CoordinationFixture();
+        Guid operationId = Guid.NewGuid();
+        string markerPath = Path.Combine(
+            fixture.Paths.SuppressionDirectory,
+            operationId.ToString("N") + ".suppress");
+        string tempPath = markerPath + ".writing";
+
+        // A directory at the temporary-file path forces publication to fail after registration.
+        Directory.CreateDirectory(tempPath);
+
+        Exception? failure = Record.Exception(() =>
+            fixture.Tombstones.Suppress(DisclosureMode.CountsOnly, operationId));
+
+        Assert.True(failure is IOException or UnauthorizedAccessException);
+
+        Directory.Delete(tempPath);
+        File.WriteAllText(
+            markerPath,
+            $"1\n2026-07-28T12:00:00.0000000+00:00\n{Environment.ProcessId}\n");
+
+        // If rollback left the operation registered, recovery would preserve this synthetic
+        // same-process orphan forever.
+        Assert.Equal(1, fixture.Tombstones.ClearAllOrphans());
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+    }
+
+    [Fact]
     public void Recovery_does_not_delete_a_marker_whose_owner_process_is_still_running()
     {
         using var fixture = new CoordinationFixture();

@@ -251,6 +251,29 @@ public sealed class RefreshCoordinatorTests
     }
 
     [Fact]
+    public async Task A_nested_fetch_timeout_is_a_fetch_failure_not_caller_cancellation()
+    {
+        using var fixture = new CoordinationFixture();
+        fixture.SeedState(Payload("prior"));
+
+        RefreshCoordinator coordinator = Build(fixture, new CountingDeliveryRequester());
+        var timedOut = new StubFetcher(_ =>
+            throw new TaskCanceledException("The nested Graph request timed out."));
+
+        RefreshResult result = await coordinator.RefreshAsync(
+            timedOut,
+            RefreshTrigger.Activation);
+
+        Assert.Equal(RefreshOutcome.FetchFailed, result.Outcome);
+        Assert.Equal(DeliveryRequestOutcome.NotRequested, result.Delivery);
+        Assert.Equal("prior", Encoding.UTF8.GetString(fixture.Cache.Read().Payload!));
+        Assert.False(coordinator.IsRefreshInProgress());
+        Assert.True(fixture.Logger.Saw(
+            Diagnostics.OperationalEventId.GraphRequestFailed,
+            Diagnostics.OperationalOutcome.Timeout));
+    }
+
+    [Fact]
     public async Task A_fetch_that_outlives_the_async_deadline_commits_nothing_and_clears_the_lease()
     {
         using var fixture = new CoordinationFixture();

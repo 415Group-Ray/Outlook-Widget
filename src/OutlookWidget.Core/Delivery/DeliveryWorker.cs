@@ -226,11 +226,12 @@ public sealed class DeliveryWorker : IDisposable
             Interlocked.Increment(ref _completedPasses);
             _logger.Record(OperationalEventId.DeliveryCompleted, OperationalOutcome.Success);
         }
-        catch (Exception e) when (e is not OperationCanceledException)
+        catch (Exception)
         {
             // A wedged or failing Widgets host is a host-level failure the provider cannot
-            // fix. It must not corrupt refresh accounting, leave a lease outstanding, or
-            // block the next activation — so it is recorded and the loop continues.
+            // fix. Deliver receives no worker cancellation token, so an
+            // OperationCanceledException from the sink is also a host failure rather than a
+            // shutdown signal. No sink exception may stop the sole serialized delivery path.
             Interlocked.Increment(ref _completedPasses);
             _logger.Record(OperationalEventId.DeliveryFailed, OperationalOutcome.Failed);
         }

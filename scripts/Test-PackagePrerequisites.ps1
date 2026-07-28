@@ -330,13 +330,24 @@ $makeAppx = if (Test-Path -LiteralPath $sdkBinRoot) {
 }
 else { $null }
 
-if ($makeAppx) {
+$signTool = if (Test-Path -LiteralPath $sdkBinRoot) {
+    Get-ChildItem -LiteralPath $sdkBinRoot -Filter 'signtool.exe' -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.DirectoryName -match '\\x64$' } | Sort-Object FullName -Descending | Select-Object -First 1
+}
+else { $null }
+
+if ($makeAppx -and $signTool) {
     Add-Result -Name 'Windows SDK packaging tools' -Outcome 'Pass' -Category 'Tooling' `
-        -Detail "makeappx.exe found at $($makeAppx.FullName)."
+        -Detail "makeappx.exe found at $($makeAppx.FullName); signtool.exe found at $($signTool.FullName)."
 }
 else {
+    $missingTools = @(
+        if (-not $makeAppx) { 'makeappx.exe' }
+        if (-not $signTool) { 'signtool.exe' }
+    )
+
     Add-Result -Name 'Windows SDK packaging tools' -Outcome 'Fail' -Category 'Tooling' `
-        -Detail 'makeappx.exe was not found under Windows Kits\10\bin. An MSIX cannot be produced or signed on this machine until the Windows SDK is installed.'
+        -Detail "$($missingTools -join ' and ') not found under Windows Kits\10\bin. A signed MSIX cannot be produced on this machine until the Windows SDK packaging tools are installed."
 }
 
 # ---------------------------------------------------------------------------
