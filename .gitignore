@@ -1,0 +1,56 @@
+# Build output. These may still sync through OneDrive, which section 12 accepts
+# unless Phase 0 produces evidence of recurring contention. What matters here is
+# that they never enter Git.
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# MSIX packaging output
+AppPackages/
+BundleArtifacts/
+*.appx
+*.msix
+*.msixbundle
+*.appxbundle
+*.appxupload
+*.msixupload
+*.cer
+
+# Signing key material must never be in the repository or in OneDrive. These
+# patterns are a backstop, not the control: the private key belongs in
+# CurrentUser\My or a dedicated non-synced path, and Test-PackagePrerequisites.ps1
+# fails the preflight if any key file appears under the repository root.
+*.pfx
+*.p12
+*.snk
+*.key
+
+# Test and coverage output
+TestResults/
+[Cc]overage/
+*.coverage
+*.coveragexml
+*.trx
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+!nuget.config
+
+# Local configuration that is machine-specific rather than shared
+appsettings.Local.json
+*.local.props
+
+# OS and editor noise
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.idea/
+*.swp

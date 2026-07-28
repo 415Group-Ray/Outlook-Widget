@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Windows-only because of DPAPI, named kernel objects, and Win32 file-replace
+      semantics, but deliberately *not* a Windows App SDK target. Section 0 keeps
+      the core surface-agnostic so the tray/popover fallback and any future surface
+      reuse the same auth, Graph, cache, and display models. A WindowsAppSDK
+      reference here would couple the core to the widget surface and forfeit that.
+    -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <RootNamespace>OutlookWidget.Core</RootNamespace>
+    <AssemblyName>OutlookWidget.Core</AssemblyName>
+    <UseWindowsForms>false</UseWindowsForms>
+    <UseWPF>false</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+    <PackageReference Include="Microsoft.Identity.Client" />
+    <PackageReference Include="Microsoft.Identity.Client.Broker" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OutlookWidget.Core.Tests" />
+    <InternalsVisibleTo Include="OutlookWidget.IntegrationTests" />
+  </ItemGroup>
+
+</Project>
