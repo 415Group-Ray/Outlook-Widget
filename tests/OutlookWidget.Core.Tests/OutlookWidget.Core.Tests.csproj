@@ -27,6 +27,24 @@
                       Value="$(MSBuildThisFileDirectory)..\..\src\OutlookWidget.Core" />
     <AssemblyMetadata Include="SourceRootDirectory"
                       Value="$(MSBuildThisFileDirectory)..\.." />
+
+    <!--
+      The provider and the package manifest are read as source rather than referenced.
+
+      A ProjectReference is not possible without also moving this project to the provider's
+      Windows-SDK-versioned target framework, which would pull the Windows App SDK projections
+      into the test host for every existing test. The invariants that matter most here — one
+      UpdateWidget call site, no interactive authentication reachable from the provider, and three
+      copies of one CLSID agreeing — are edit-time properties of the source and the manifest, so
+      reading them is not a weaker check than referencing would be. Behavioural provider tests
+      arrive with the framework change when there is provider behaviour worth exercising.
+    -->
+    <AssemblyMetadata Include="ProviderSourceDirectory"
+                      Value="$(MSBuildThisFileDirectory)..\..\src\OutlookWidget.Provider" />
+    <AssemblyMetadata Include="PackageManifestPath"
+                      Value="$(MSBuildThisFileDirectory)..\..\src\OutlookWidget.Package\Package.appxmanifest" />
+    <AssemblyMetadata Include="PackageAssetsDirectory"
+                      Value="$(MSBuildThisFileDirectory)..\..\src\OutlookWidget.Package\Assets" />
   </ItemGroup>
 
 </Project>
