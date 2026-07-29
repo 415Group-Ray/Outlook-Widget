@@ -452,6 +452,40 @@ public sealed class CoordinationStaticAnalysisTests
     }
 
     [Fact]
+    public void The_provider_re_probes_authentication_when_state_changes()
+    {
+        // The provider probes once per process and lives until its last widget is unpinned, so without
+        // a re-probe on the state-changed signal the ordinary flow never converges: a widget rendering
+        // "sign in required" launches the companion, the user signs in, and the provider keeps its
+        // original result with a valid token sitting in the broker. The only escapes were unpinning the
+        // widget or killing the process, and unpinning discards the pin that the force-shutdown upgrade
+        // path exists to preserve.
+        //
+        // Checked by source because asserting it dynamically would mean launching the COM server and
+        // driving a real broker.
+        string composition = string.Empty;
+
+        foreach (string file in RepositorySources.ProviderSourceFiles())
+        {
+            string code = StripCommentsAndStrings(File.ReadAllText(file));
+
+            if (code.Contains("new StateChangeListener", StringComparison.Ordinal))
+            {
+                composition = code;
+                break;
+            }
+        }
+
+        Assert.False(
+            string.IsNullOrEmpty(composition),
+            "No provider file constructs a StateChangeListener. Either cross-process notification was "
+                + "removed from the provider, or the composition moved and this expectation must move "
+                + "with it.");
+
+        Assert.Contains("RequestProbe", composition, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_logging_api_exposes_no_field_capable_of_carrying_mailbox_or_identity_metadata()
     {
         MethodInfo record = typeof(IOperationalLogger).GetMethod(nameof(IOperationalLogger.Record))!;

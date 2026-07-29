@@ -175,9 +175,23 @@ internal static class SkeletonCard
 
         bool disclosureReduced = state.Mode != DisclosureMode.Full;
 
+        // Anything other than a token — but not the pending case, which is not yet a problem and
+        // resolves itself within moments of provider start.
+        bool authNeedsAttention =
+            SilentAuthStatus is not null and not TokenAcquisitionStatus.Acquired;
+
         // The companion is the only way out of a suppressed or unusable state, so it is offered
         // whenever the card cannot show real content.
-        bool needsCompanion = disclosureReduced || state.ReadStatus != CacheReadStatus.Success;
+        //
+        // The authentication clause is not redundant with the two before it, and omitting it was a
+        // bug. The expected steady state once mail exists is a successful cache read in Full mode
+        // with an expired or missing token: the detail line then says "Sign in required: open the
+        // companion" while both other clauses are false, so the card asked for an action it did not
+        // offer. That is the one state where the button is the only thing that can resolve what the
+        // card is complaining about.
+        bool needsCompanion = disclosureReduced
+                              || state.ReadStatus != CacheReadStatus.Success
+                              || authNeedsAttention;
 
         // Mail actions are withheld whenever disclosure is reduced: offering Refresh and Open
         // Outlook on a signed-out card would invite an action whose only possible outcome is

@@ -9,30 +9,47 @@ approved v1 direction is a packaged Win32 Windows Widgets provider plus a small 
 application, with a tray/popover surface only if the native Phase 0 gates fail.
 
 The repository is in early implementation. Phase 0 is approved and **every native-surface gate except
-gates 9 and 11 has passed on the reference machine** — the widget is discoverable, pinnable, renders
-at all three sizes, survives a reboot with its instance restored, survives a package upgrade while
-pinned, launches New Outlook and the companion, and its provider exits when unpinned. Gate 4 is fully
-verified, `CustomState` round trip included.
+gate 11 has passed on the reference machine** — the widget is discoverable, pinnable, renders at all
+three sizes, survives a reboot with its instance restored, survives a package upgrade while pinned,
+launches New Outlook and the companion, and its provider exits when unpinned. Gate 4 is fully verified,
+`CustomState` round trip included. **Gate 9 passes**: the provider acquired a token silently with a zero
+parent handle, observed as `silent auth Acquired` on the pinned card.
 
-**Do not describe the native group as complete.** Gates 9 and 11 are both native-surface gates and
-both wait on authentication. Gate 11 could not decide the surface question, because the fallback
-consumes the same coordination core. **Gate 9 could** — a provider that cannot acquire a token
-silently with a zero parent handle would render sign-in-required forever, whereas a tray/popover UI
-process could authenticate interactively. So the fallback proof is not being built, but that rests on
-gate 9 not failing, which is an expectation rather than a measurement. Do not let it harden into
-"every gate passed".
+**The surface decision is settled on evidence.** Gate 9 was the one gate that could have reopened it,
+and it passed, so the tray/popover fallback branch is closed. Do not build it. **Gate 11 remains open**
+— cached-first refresh and cross-process invalidation across real Board activation and provider recycle
+— but it is not a surface-choice gate, because the fallback consumes the same coordination core and it
+would be equally unproven there. Still do not say the native group is complete; say "every
+native-surface gate **except 11**".
+
+**Gate 8 is split, and this matters for any future deployment.** Brokered WAM sign-in passes. **Self-consent
+does not** on the reference tenant: "Let Microsoft manage your consent settings" permits user consent to
+mail permissions only for a fixed list of six Microsoft-chosen mail clients, so an administrator granted
+consent for this registration. That grant was a local unblock and **not** a change to the intended flow
+— self-consent remains the designed path and `ApprovalRequired` remains a first-class outcome. Do not
+reduce gate 8 to "PASS", and do not make admin consent a documented prerequisite.
 
 Note one permanent operational consequence: **the provider holds the package open while a widget is
 pinned**, so upgrades require `Add-AppxPackage -ForceApplicationShutdown`. Do not advise unpinning
-instead; that loses the pin for no reason.
+instead; that loses the pin for no reason. A second, related trap: `Build-Package.ps1` never increments
+`Identity/Version`, so rebuilding without a manual bump is refused with `0x80073CFB` — bump the manifest
+rather than uninstalling, which would lose the pin.
 
-The cross-process coordination core is implemented and tested. The widget provider has **no
-authentication and no Microsoft Graph access**, so it renders a placeholder card describing
-coordination state rather than mail. The current companion is a packaging probe, not the finished
-WinUI experience. The Entra app registration is **created** and its identifiers ship in the package,
-so the remaining Phase 0 gates (8, 9, 10, 11, 12) wait on the authentication code rather than on any
-portal task. Gate 8 comes first: the provider can only acquire silently against a token the broker
-already holds.
+The cross-process coordination core is implemented and tested, and **authentication now exists**: the
+companion signs in interactively through WAM and the provider acquires silently. There is still **no
+Microsoft Graph access**, so the provider renders a placeholder card describing coordination and
+authentication state rather than mail. The current companion is a packaging and authentication probe with
+a minimal Win32 window, not the finished WinUI experience. The remaining Phase 0 gates are **10 and 12**
+(both need `GraphMailClient`) and **11** (needs a real refresh).
+
+Two authentication invariants that are easy to break and were each already broken once:
+
+- **Interactive authentication lives in `OutlookWidget.App`, not the core** — a deviation from the plan's
+  section 12, made so the provider cannot link the interactive API at all. Three source-level tests hold
+  it.
+- **Classification is phase-aware.** A consent failure means "go interactive" when silent and "an
+  administrator must approve" when interactive. Getting this wrong once made the product refuse to prompt
+  a user who could have self-consented.
 
 ## Sources of truth
 

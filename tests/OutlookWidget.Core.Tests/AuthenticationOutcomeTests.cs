@@ -153,6 +153,32 @@ public sealed class AuthenticationOutcomeTests
             AuthenticationFailures.Classify(exception, AuthenticationPhase.Interactive));
     }
 
+    [Theory]
+    [InlineData("AADSTS90094: Admin consent is required.")]
+    [InlineData("AADSTS65001: The user or administrator has not consented.")]
+    public void The_same_consent_failure_during_silent_acquisition_still_offers_interaction(
+        string message)
+    {
+        // Regression test for a bug with a nasty shape. This branch was not phase-aware, so a silent
+        // acquisition surfacing a consent code as an MsalServiceException — rather than as the typed
+        // MsalUiRequiredException the branch above handles — returned ApprovalRequired. That status
+        // reports IsResolvedBySigningIn == false, so InteractiveAuthService returned early and never
+        // opened the prompt at all.
+        //
+        // On a tenant where the user could self-consent, the product would therefore have declared an
+        // administrator necessary without ever asking them. The failure is silent, looks like correct
+        // fail-closed behaviour, and only appears on tenants where the flow should have worked.
+        var exception = new MsalServiceException("invalid_grant", message);
+
+        TokenAcquisitionStatus status =
+            AuthenticationFailures.Classify(exception, AuthenticationPhase.Silent);
+
+        Assert.Equal(TokenAcquisitionStatus.InteractionRequired, status);
+
+        // The property that actually gates the escalation, asserted directly rather than inferred.
+        Assert.True(TokenAcquisitionResult.Unavailable(status).IsResolvedBySigningIn);
+    }
+
     [Fact]
     public void A_declined_consent_prompt_is_cancellation_rather_than_approval_required()
     {

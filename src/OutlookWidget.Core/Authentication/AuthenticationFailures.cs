@@ -154,9 +154,17 @@ public static class AuthenticationFailures
             return TokenAcquisitionStatus.Cancelled;
         }
 
+        // Phase-aware for the same reason the typed branch above is, and missing it here was a bug
+        // with a nasty shape: a silent acquisition that surfaced AADSTS65001 as an MsalServiceException
+        // rather than an MsalUiRequiredException returned ApprovalRequired, whose
+        // IsResolvedBySigningIn is false, so InteractiveAuthService returned early and never opened the
+        // prompt. On a tenant where the user *could* self-consent, the product would have refused to
+        // let them — declaring an administrator necessary without ever asking.
         if (consentBlocked)
         {
-            return TokenAcquisitionStatus.ApprovalRequired;
+            return phase == AuthenticationPhase.Interactive
+                ? TokenAcquisitionStatus.ApprovalRequired
+                : TokenAcquisitionStatus.InteractionRequired;
         }
 
         if (code.Equals(AuthenticationCanceled, StringComparison.OrdinalIgnoreCase))

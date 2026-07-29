@@ -87,7 +87,19 @@ internal static class Program
         var service = new InteractiveAuthService(_client);
         TokenAcquisitionResult result = await service.SignInAsync().ConfigureAwait(false);
 
-        return Describe(result, paths, service.LastFailure);
+        // Tell the provider, if one is running. Section 3's division of labour is that the companion
+        // commits state and signals while the provider delivers; this is the signal half.
+        //
+        // Without it the ordinary flow does not converge. A pinned widget rendering "sign in required"
+        // launches this app, the user signs in — and the provider is still the same process holding its
+        // original result, because it lives until the last widget is unpinned. The card would ask for a
+        // sign-in that had already happened.
+        //
+        // Only on success: a failed attempt changed nothing, and a signal that carries no change is how
+        // listeners learn to distrust signals.
+        bool providerNotified = result.IsAcquired && StateChangeSignal.Raise(paths);
+
+        return Describe(result, paths, service.LastFailure, providerNotified);
     }
 
     /// <summary>
@@ -101,7 +113,8 @@ internal static class Program
     private static string Describe(
         TokenAcquisitionResult result,
         CoordinationPaths paths,
-        string? failureDetail)
+        string? failureDetail,
+        bool providerNotified)
     {
         var lines = new List<string>
         {
@@ -135,9 +148,16 @@ internal static class Program
                           + "know which happened.");
                 lines.Add(string.Empty);
                 lines.Add("The broker now holds a token for this registration, and the shared cache "
-                          + "below holds the account metadata the provider needs to find it. Gate 9 "
-                          + "is now measurable: pin the widget and read the large card's config line.");
+                          + "below holds the account metadata the provider needs to find it.");
                 lines.Add(paths.TokenCacheFilePath);
+                lines.Add(string.Empty);
+
+                lines.Add(providerNotified
+                    ? "A running provider was notified and will re-acquire, so a pinned widget "
+                      + "converges without being unpinned."
+                    : "No provider is listening, which is normal when this app was opened from Start "
+                      + "rather than from the widget. A provider probes on its own start, so nothing "
+                      + "is lost.");
                 break;
 
             case TokenAcquisitionStatus.ApprovalRequired:

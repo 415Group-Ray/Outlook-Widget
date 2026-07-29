@@ -1,5 +1,4 @@
-using System.Runtime.InteropServices;
-using Microsoft.Identity.Client;
+﻿using System.Runtime.InteropServices;
 using Microsoft.Windows.Widgets.Providers;
 using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
@@ -120,10 +119,31 @@ internal static partial class Program
 
         using var delivery = new DeliveryWorker(cache, tombstones, sink, logger);
 
+        // Declared before the listener so the listener's callback can reach it, and disposed after it
+        // for the same reason in reverse: the probe must outlive the thing that can ask for one.
+        using var authProbe = new SilentAuthProbe(configuration, paths, delivery, logger);
+
         // The cross-process half of gate 11: the companion commits state and signals, and this is
         // what turns that signal into a delivery pass. Until this listener existed nothing created
         // the named events at all, so every signal the companion sent was discarded.
-        using var listener = new StateChangeListener(paths, delivery.RequestDelivery, logger);
+        //
+        // The signal now also re-probes authentication, which is what makes the ordinary sign-in flow
+        // converge. A pinned widget rendering "sign in required" launches the companion; the user signs
+        // in; the companion signals; this re-probes and delivers. Without it the provider — still the
+        // same process, since it lives until the last widget is unpinned — would hold its original
+        // result forever with a valid token sitting in the broker.
+        //
+        // Ordering: the probe is requested first and returns immediately, then delivery is requested.
+        // The probe asks for its own pass on completion, so the immediate one renders whatever changed
+        // in committed state without waiting on a token acquisition that may reach the network.
+        using var listener = new StateChangeListener(
+            paths,
+            () =>
+            {
+                authProbe.RequestProbe();
+                delivery.RequestDelivery();
+            },
+            logger);
 
         using var lastWidgetDeleted = new ManualResetEventSlim(initialState: false);
 
@@ -156,11 +176,6 @@ internal static partial class Program
         // process that no longer exists, and the exit code is the only place that is visible.
         int revoke = 0;
 
-        // Bounds the silent-authentication probe below. Cancelled before revoke, so a broker call that
-        // never returns cannot keep this process alive after its last widget was removed.
-        using var authProbeCancellation = new CancellationTokenSource();
-        Task authProbe = Task.CompletedTask;
-
         try
         {
             int registration = CoRegisterClassObject(
@@ -189,18 +204,13 @@ internal static partial class Program
                     delivery.RequestDelivery();
                 }
 
-                // Started AFTER the class object is registered, and deliberately not awaited.
+                // Requested AFTER the class object is registered, and deliberately not awaited.
                 //
                 // Building the MSAL client opens the shared token cache and a silent acquisition can
                 // reach the network to refresh a token, so doing either before CoRegisterClassObject
                 // would add that latency to every cold activation — against the nonfunctional
                 // activation targets — for a result no callback needs in order to render.
-                authProbe = ProbeSilentAuthenticationAsync(
-                    configuration,
-                    paths,
-                    delivery,
-                    logger,
-                    authProbeCancellation.Token);
+                authProbe.RequestProbe();
 
                 // Blocks until DeleteWidget removes the last enabled instance. No timeout: a
                 // provider that exited on its own schedule would stop updating widgets that are
@@ -209,15 +219,9 @@ internal static partial class Program
             }
             finally
             {
-                // Cancelled and drained before the delivery worker is disposed, so the probe cannot
-                // request a pass against a disposed worker. Bounded, per invariant 2: the async
-                // deadline is the same ceiling every other cross-process wait uses, and a probe still
-                // running after it is abandoned rather than allowed to hold the process open.
-                authProbeCancellation.Cancel();
-                authProbe.Wait(CoordinationBounds.AsyncDeadline);
-
                 // Revoked before the using-declared stack unwinds, so no callback can arrive
-                // against a disposed delivery worker or listener.
+                // against a disposed delivery worker or listener. The probe is drained by its own
+                // bounded Dispose as that stack unwinds, which runs before the delivery worker's.
                 revoke = CoRevokeClassObject(cookie);
             }
         }
@@ -227,77 +231,6 @@ internal static partial class Program
         }
 
         return revoke;
-    }
-
-    /// <summary>
-    /// Attempts one silent token acquisition and publishes the classified outcome to the card.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <b>This is the whole of gate 9, and it is silent-only by construction.</b>
-    /// <see cref="BrokerClient.NoParentWindow"/> is what makes the zero handle explicit and searchable:
-    /// this process owns no window and runs no message loop, so there is nothing else it could
-    /// truthfully pass. The service it builds exposes only silent acquisition, so no code path from
-    /// here can open a browser or a dialog — and a source-level test fails the build if the interactive
-    /// API ever appears in this project.
-    /// </para>
-    /// <para>
-    /// <b>It never throws.</b> Every failure becomes a status on the card. This runs unobserved in a
-    /// background COM server; an escaping exception would take down a provider the user did not start
-    /// and leave the host showing stale content with nothing to explain it.
-    /// </para>
-    /// </remarks>
-    private static async Task ProbeSilentAuthenticationAsync(
-        AuthenticationConfigurationResult configuration,
-        CoordinationPaths paths,
-        DeliveryWorker delivery,
-        IOperationalLogger logger,
-        CancellationToken cancellationToken)
-    {
-        TokenAcquisitionStatus status;
-
-        try
-        {
-            if (!configuration.IsLoaded)
-            {
-                status = TokenAcquisitionStatus.NoConfiguration;
-            }
-            else
-            {
-                IPublicClientApplication client = await BrokerClient
-                    .CreateAsync(configuration.Options!, paths, BrokerClient.NoParentWindow)
-                    .ConfigureAwait(false);
-
-                var silent = new SilentAuthService(client, logger);
-
-                status = (await silent.AcquireAsync(cancellationToken).ConfigureAwait(false)).Status;
-            }
-        }
-        catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
-        {
-            // Includes failures from building the client itself — a corrupt token cache, or a broker
-            // whose native runtime will not initialise — which happen before there is any acquisition
-            // to classify. The classifier handles what it recognises and everything else lands as a
-            // generic failure, which is the correct card either way.
-            status = AuthenticationFailures.Classify(e, AuthenticationPhase.Silent);
-        }
-
-        SkeletonCard.SilentAuthStatus = status;
-
-        // The card changed, so ask for a pass. Guarded because the last widget may have been unpinned
-        // while this was in flight, in which case the worker is being torn down and there is nothing
-        // left to deliver to.
-        try
-        {
-            if (!cancellationToken.IsCancellationRequested)
-            {
-                delivery.RequestDelivery();
-            }
-        }
-        catch (ObjectDisposedException)
-        {
-            // The provider is shutting down. Nothing to report and nowhere to report it.
-        }
     }
 
     [LibraryImport("ole32.dll")]

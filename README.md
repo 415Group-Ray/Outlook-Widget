@@ -7,7 +7,7 @@ messages, without opening Outlook.
 coordination core is built and tested, and a signed MSIX registers a COM widget provider that appears
 in the Widgets Board, pins, renders at small, medium, and large, survives both a reboot and a package
 upgrade with its instance restored, launches New Outlook and the companion from its actions, and exits
-when unpinned. **Every native-surface Phase 0 gate except gates 9 and 11 has passed on the reference
+when unpinned. **Every native-surface Phase 0 gate except gate 11 has passed on the reference
 machine**, so the tray/popover fallback is not being built.
 
 **Sign-in works, and gate 8 split.** The companion has a real window and acquires a delegated
@@ -17,13 +17,15 @@ only for a fixed list of Microsoft-chosen mail clients, so an administrator had 
 this registration. The gate asks two questions and they got different answers, so it is neither a pass
 nor a fail. See [docs/phase0-evidence.md](docs/phase0-evidence.md).
 
-**Gate 9** — silent-only token acquisition from the provider with a zero parent handle — is
-**implemented and not yet measured**. The provider reports its classified outcome on the card, which is
-the readout; a pinned widget has not yet been read. **Gate 11** — cached-first refresh and
-cross-process invalidation across a real host — cannot be observed until there is something to refresh.
-Gate 11 could not decide between the native surface and the fallback, because both consume the same
-coordination core; gate 9 could, because a provider that cannot get a token silently would show
-sign-in-required forever while a tray app could authenticate in its own UI process.
+**Gate 9 passes.** The provider acquired a token silently with a zero parent handle — observed on the
+pinned card as `silent auth Acquired`, in a different process from the one that signed in. That was the
+last gate that could have sent this design to a tray/popover surface, so **that branch is now closed on
+evidence rather than on expectation.** It also proves the shared token cache works cross-process: the
+companion wrote the account metadata and the provider found it.
+
+**Gate 11** — cached-first refresh and cross-process invalidation across a real host — remains open and
+cannot be observed until there is something to refresh. It is not a surface-choice gate; both surfaces
+consume the same coordination core, so it would be equally unproven either way.
 
 There is still no Microsoft Graph access, so the provider draws a placeholder card describing
 coordination and authentication state — **nothing here shows real mail.** That is the next slice. See
