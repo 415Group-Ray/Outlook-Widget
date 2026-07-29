@@ -253,83 +253,6 @@
       "norm_label": "install-developmentpackage.ps1"
     },
     {
-      "label": "New-Assets.ps1",
-      "file_type": "code",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "scripts_new_assets",
-      "community": 16,
-      "community_name": "New-Assets.ps1",
-      "norm_label": "new-assets.ps1"
-    },
-    {
-      "label": "New-RoundedPath()",
-      "file_type": "code",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L104",
-      "_origin": "ast",
-      "id": "scripts_new_assets_new_roundedpath",
-      "community": 16,
-      "community_name": "New-Assets.ps1",
-      "norm_label": "new-roundedpath()"
-    },
-    {
-      "label": "New-Canvas()",
-      "file_type": "code",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L133",
-      "_origin": "ast",
-      "id": "scripts_new_assets_new_canvas",
-      "community": 16,
-      "community_name": "New-Assets.ps1",
-      "norm_label": "new-canvas()"
-    },
-    {
-      "label": "Add-EnvelopeGlyph()",
-      "file_type": "code",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L147",
-      "_origin": "ast",
-      "id": "scripts_new_assets_add_envelopeglyph",
-      "community": 16,
-      "community_name": "New-Assets.ps1",
-      "norm_label": "add-envelopeglyph()"
-    },
-    {
-      "label": "New-IconTile()",
-      "file_type": "code",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L214",
-      "_origin": "ast",
-      "id": "scripts_new_assets_new_icontile",
-      "community": 16,
-      "community_name": "New-Assets.ps1",
-      "norm_label": "new-icontile()"
-    },
-    {
-      "label": "New-WidgetScreenshot()",
-      "file_type": "code",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L255",
-      "_origin": "ast",
-      "id": "scripts_new_assets_new_widgetscreenshot",
-      "community": 16,
-      "community_name": "New-Assets.ps1",
-      "norm_label": "new-widgetscreenshot()"
-    },
-    {
-      "label": "Save-Asset()",
-      "file_type": "code",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L371",
-      "_origin": "ast",
-      "id": "scripts_new_assets_save_asset",
-      "community": 16,
-      "community_name": "New-Assets.ps1",
-      "norm_label": "save-asset()"
-    },
-    {
       "label": "New-DevelopmentCertificate.ps1",
       "file_type": "code",
       "source_file": "scripts/New-DevelopmentCertificate.ps1",
@@ -361,6 +284,83 @@
       "community": 23,
       "community_name": "New-DevelopmentCertificate.ps1",
       "norm_label": "test-ismanagedcertificate()"
+    },
+    {
+      "label": "New-PlaceholderAssets.ps1",
+      "file_type": "code",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "scripts_new_placeholderassets",
+      "community": 16,
+      "community_name": "New-PlaceholderAssets.ps1",
+      "norm_label": "new-placeholderassets.ps1"
+    },
+    {
+      "label": "New-RoundedPath()",
+      "file_type": "code",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L95",
+      "_origin": "ast",
+      "id": "scripts_new_placeholderassets_new_roundedpath",
+      "community": 16,
+      "community_name": "New-PlaceholderAssets.ps1",
+      "norm_label": "new-roundedpath()"
+    },
+    {
+      "label": "New-Canvas()",
+      "file_type": "code",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L124",
+      "_origin": "ast",
+      "id": "scripts_new_placeholderassets_new_canvas",
+      "community": 16,
+      "community_name": "New-PlaceholderAssets.ps1",
+      "norm_label": "new-canvas()"
+    },
+    {
+      "label": "Add-EnvelopeGlyph()",
+      "file_type": "code",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L138",
+      "_origin": "ast",
+      "id": "scripts_new_placeholderassets_add_envelopeglyph",
+      "community": 16,
+      "community_name": "New-PlaceholderAssets.ps1",
+      "norm_label": "add-envelopeglyph()"
+    },
+    {
+      "label": "New-IconTile()",
+      "file_type": "code",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L205",
+      "_origin": "ast",
+      "id": "scripts_new_placeholderassets_new_icontile",
+      "community": 16,
+      "community_name": "New-PlaceholderAssets.ps1",
+      "norm_label": "new-icontile()"
+    },
+    {
+      "label": "New-WidgetScreenshot()",
+      "file_type": "code",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L246",
+      "_origin": "ast",
+      "id": "scripts_new_placeholderassets_new_widgetscreenshot",
+      "community": 16,
+      "community_name": "New-PlaceholderAssets.ps1",
+      "norm_label": "new-widgetscreenshot()"
+    },
+    {
+      "label": "Save-Asset()",
+      "file_type": "code",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L362",
+      "_origin": "ast",
+      "id": "scripts_new_placeholderassets_save_asset",
+      "community": 16,
+      "community_name": "New-PlaceholderAssets.ps1",
+      "norm_label": "save-asset()"
     },
     {
       "label": "Test-OutlookLaunch.ps1",
@@ -11999,149 +11999,6 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L147",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets",
-      "target": "scripts_new_assets_add_envelopeglyph",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L133",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets",
-      "target": "scripts_new_assets_new_canvas",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L214",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets",
-      "target": "scripts_new_assets_new_icontile",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L104",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets",
-      "target": "scripts_new_assets_new_roundedpath",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L255",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets",
-      "target": "scripts_new_assets_new_widgetscreenshot",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L371",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets",
-      "target": "scripts_new_assets_save_asset",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L167",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets_add_envelopeglyph",
-      "target": "scripts_new_assets_new_roundedpath",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L234",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets_new_icontile",
-      "target": "scripts_new_assets_new_roundedpath",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L278",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets_new_widgetscreenshot",
-      "target": "scripts_new_assets_new_roundedpath",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L224",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets_new_icontile",
-      "target": "scripts_new_assets_new_canvas",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L270",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets_new_widgetscreenshot",
-      "target": "scripts_new_assets_new_canvas",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L249",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets_new_icontile",
-      "target": "scripts_new_assets_add_envelopeglyph",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L302",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets_new_widgetscreenshot",
-      "target": "scripts_new_assets_new_icontile",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
       "source_file": "scripts/New-DevelopmentCertificate.ps1",
       "source_location": "L92",
       "weight": 1.0,
@@ -12159,6 +12016,149 @@
       "_origin": "ast",
       "source": "scripts_new_developmentcertificate",
       "target": "scripts_new_developmentcertificate_test_ismanagedcertificate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L138",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets",
+      "target": "scripts_new_placeholderassets_add_envelopeglyph",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L124",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets",
+      "target": "scripts_new_placeholderassets_new_canvas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L205",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets",
+      "target": "scripts_new_placeholderassets_new_icontile",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L95",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets",
+      "target": "scripts_new_placeholderassets_new_roundedpath",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L246",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets",
+      "target": "scripts_new_placeholderassets_new_widgetscreenshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L362",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets",
+      "target": "scripts_new_placeholderassets_save_asset",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L158",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets_add_envelopeglyph",
+      "target": "scripts_new_placeholderassets_new_roundedpath",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L225",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets_new_icontile",
+      "target": "scripts_new_placeholderassets_new_roundedpath",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L269",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets_new_widgetscreenshot",
+      "target": "scripts_new_placeholderassets_new_roundedpath",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L215",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets_new_icontile",
+      "target": "scripts_new_placeholderassets_new_canvas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L261",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets_new_widgetscreenshot",
+      "target": "scripts_new_placeholderassets_new_canvas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L240",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets_new_icontile",
+      "target": "scripts_new_placeholderassets_add_envelopeglyph",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-PlaceholderAssets.ps1",
+      "source_location": "L293",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_placeholderassets_new_widgetscreenshot",
+      "target": "scripts_new_placeholderassets_new_icontile",
       "confidence_score": 1.0
     },
     {
@@ -32871,5 +32871,5 @@
       "source_file": "docs/phase0-evidence.md"
     }
   ],
-  "built_at_commit": "037a89632a3bd9cb8517315148d524f915f81642"
+  "built_at_commit": "87b625378c7c82208343851ffb05798d37ff6d3d"
 }

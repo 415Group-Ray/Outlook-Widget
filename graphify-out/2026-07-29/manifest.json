@@ -10,8 +10,8 @@
     "semantic_hash": ""
   },
   "scripts/Build-Package.ps1": {
-    "mtime": 1785328429.2230098,
-    "ast_hash": "4b2c8a47cf3ffdde54fbdc10965f8b4b",
+    "mtime": 1785272642.8414354,
+    "ast_hash": "58f7a754d94f7bb957c005a1e11bc7f4",
     "semantic_hash": ""
   },
   "scripts/Install-DevelopmentPackage.ps1": {
@@ -22,6 +22,11 @@
   "scripts/New-DevelopmentCertificate.ps1": {
     "mtime": 1785259882.6270337,
     "ast_hash": "c20908dcd89dc9d4cbd509f0e1476d79",
+    "semantic_hash": ""
+  },
+  "scripts/New-PlaceholderAssets.ps1": {
+    "mtime": 1785272570.3988783,
+    "ast_hash": "de25b079bcd27e949a6d8e78692d53ba",
     "semantic_hash": ""
   },
   "scripts/Test-OutlookLaunch.ps1": {
@@ -205,13 +210,13 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785328460.5253594,
-    "ast_hash": "38876e0d36689eac74f537016d5e63c3",
+    "mtime": 1785269253.5349767,
+    "ast_hash": "91f039a7731086e3a8983af761dfb101",
     "semantic_hash": ""
   },
   "TECHNICAL_PLAN.md": {
-    "mtime": 1785328453.752771,
-    "ast_hash": "9a0b5c6cee07285d9968cf8968f62758",
+    "mtime": 1785269253.536632,
+    "ast_hash": "677ba603aae37711376cfe78aa8b6212",
     "semantic_hash": ""
   },
   "docs/app-registration.md": {
@@ -220,8 +225,8 @@
     "semantic_hash": ""
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1785328445.6101146,
-    "ast_hash": "024730c0989f62b7c3bd132160873edb",
+    "mtime": 1785272766.6074357,
+    "ast_hash": "d56956ad58b911d1a2467bf3245b2fc1",
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
@@ -330,8 +335,8 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs": {
-    "mtime": 1785328435.4302814,
-    "ast_hash": "694a2bb4c817ea42c19372a9046dc206",
+    "mtime": 1785272666.8041656,
+    "ast_hash": "547b342762a699d4562e49fce241ae90",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/ProviderCardTests.cs": {
@@ -492,11 +497,6 @@
   "src/OutlookWidget.Package/Assets/WidgetScreenshotLight.png": {
     "mtime": 1785272578.8261728,
     "ast_hash": "921423232539c6f9f6318f6ee4b1ae9e",
-    "semantic_hash": ""
-  },
-  "scripts/New-Assets.ps1": {
-    "mtime": 1785328423.7773044,
-    "ast_hash": "26df8320589b72ec1b9584cd70f865fb",
     "semantic_hash": ""
   }
 }

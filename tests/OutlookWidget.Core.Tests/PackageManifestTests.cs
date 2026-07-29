@@ -318,7 +318,7 @@ public sealed class PackageManifestTests
             missing.Count == 0,
             "The manifest references images that are not in the package assets: "
                 + string.Join(", ", missing)
-                + ". Run scripts/New-PlaceholderAssets.ps1.");
+                + ". Run scripts/New-Assets.ps1.");
     }
 
     [Fact]

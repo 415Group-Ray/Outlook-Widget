@@ -363,7 +363,7 @@ foreach ($reference in ($referencedPaths | Sort-Object -Unique)) {
         throw @"
 The manifest references '$reference' but it is not in the layout: $resolved
 
-If it is an image, run scripts/New-PlaceholderAssets.ps1. If it is an executable, check the
+If it is an image, run scripts/New-Assets.ps1. If it is an executable, check the
 Executable attribute against the subdirectory names Publish-IntoLayout creates.
 "@
     }

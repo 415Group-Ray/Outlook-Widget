@@ -8,10 +8,19 @@
     and scale Windows looks for, plus the widget picker screenshot at the exact size the Widgets
     Board documentation requires.
 
-    These are still placeholders in the sense that they are not 415 Group branding. They are no
-    longer placeholders in the sense of being visibly unfinished: the previous version of this
-    script emitted flat single-colour squares, which rendered as "no icon" on the taskbar and
-    stretched into an empty blue rectangle in the widget picker.
+    THESE ARE THE v1 ASSETS, NOT PLACEHOLDERS
+
+    Reviewed and accepted on 2026-07-28, with an explicit decision that 415 Group branding is not
+    wanted. The generated look is the shipping look, and this script is the source of truth for it:
+    the PNGs are build output that happens to be committed, so change the drawing code rather than
+    editing an image. This file was named New-PlaceholderAssets.ps1 while the output was flat
+    single-colour squares; keeping that name now would misdescribe what it produces.
+
+    The widget screenshot is worth one further note. It illustrates the approved medium card -
+    unread count plus the newest messages - which the provider does not render yet, because
+    authentication and Graph arrive in Phase 1 slice 2. Having been accepted, it is now the design
+    reference the medium card is expected to match, not merely a preview image. Sample senders and
+    subjects are fictional and no mailbox data was involved in producing it.
 
     WHY THIS NOW USES GDI+, HAVING PREVIOUSLY ARGUED AGAINST AN IMAGING LIBRARY
 
@@ -45,11 +54,11 @@
     Where to write the assets. Defaults to the package project's Assets folder.
 
 .PARAMETER Force
-    Overwrite existing files. Without this, existing assets are left alone so real artwork is
-    never silently replaced.
+    Overwrite existing files. Without this, existing assets are left alone, so a run started by
+    habit cannot quietly replace assets that have been reviewed.
 
 .EXAMPLE
-    pwsh -File scripts/New-PlaceholderAssets.ps1 -Force
+    pwsh -File scripts/New-Assets.ps1 -Force
 #>
 [CmdletBinding()]
 param(
@@ -416,5 +425,5 @@ Save-Asset -Name 'WidgetScreenshotLight.png' -Bitmap (New-WidgetScreenshot -Them
 Write-Output "Wrote $written asset(s), kept $kept existing."
 Write-Output "Assets in $OutputDirectory"
 Write-Output ''
-Write-Output 'Not 415 Group branding. Phase 2 owns final artwork; these are drawn to look finished'
-Write-Output 'rather than to look like placeholders, so the picker and taskbar are presentable now.'
+Write-Output 'These are the accepted v1 assets. 415 Group branding was considered and declined, so'
+Write-Output 'this script is the source of truth for the look: change the drawing code, not the PNGs.'

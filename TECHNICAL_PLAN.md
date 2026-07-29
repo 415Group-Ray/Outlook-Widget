@@ -941,6 +941,7 @@ Phase 1's estimate assumes the accepted Phase 0 provider lifecycle and broker sk
 - Companion onboarding/settings/diagnostics.
 - Adaptive Card 1.5 templates and data binding.
 - Small, medium, large, counts-only, signed-out, loading, stale, and error states.
+- **No artwork pass.** Icon and widget picker assets were reviewed and accepted during Phase 0, with 415 Group branding considered and declined; `scripts/New-Assets.ps1` generates them and is the source of truth for the look. The accepted picker screenshot depicts the medium card's approved layout, so it is the design reference the medium template is expected to match rather than something to be replaced.
 - Refresh and launch actions.
 - Accessibility and theme verification.
 

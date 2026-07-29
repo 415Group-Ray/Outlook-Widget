@@ -539,8 +539,20 @@ blue square on the taskbar's blue plate reads as a missing icon. The replacement
 self-contained rounded tiles with their own gradient, so they render correctly whether or not
 Windows draws a plate behind them.
 
-Both remain placeholders in the sense of not being 415 Group branding. Phase 2 still owns final
-artwork.
+### Decision: the generated assets are the v1 artwork
+
+Reviewed and accepted on 2026-07-28, with 415 Group branding **considered and declined**. This
+closes an item the plan had deferred rather than leaving it open: Phase 2 no longer owes an artwork
+pass, and `scripts/New-Assets.ps1` — renamed from `New-PlaceholderAssets.ps1`, which now
+misdescribed its output — is the source of truth for the look. The committed PNGs are build output
+that happens to be tracked, so the drawing code changes, not the images.
+
+One consequence worth stating, because it turns a preview into an obligation. The accepted picker
+screenshot depicts the approved medium card — unread count plus the newest messages — which the
+provider **does not render yet**. Having been accepted as shipping artwork, it is now the design
+reference the medium card is expected to match when Phase 2 builds it, not merely an illustration.
+Until then the package advertises a card more finished than the one it draws, which is normal for a
+store preview and worth knowing rather than discovering.
 
 ## Observed characteristic: provider lifetime is demand-driven, not pin-driven
 
