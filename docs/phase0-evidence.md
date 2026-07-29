@@ -268,8 +268,9 @@ troubleshooting guide, which said a rebuild after *a code change* needs a bump:
 
 Two practical consequences:
 
-- The manifest version must be bumped in **any commit that will be packaged**, not only in commits that
-  touch code. Skipping it produces `0x80073CFB` on install.
+- A manual version bump became an obligation on **every commit that will be packaged**, not only on
+  commits that touch code. **That is why the bump is now automated** rather than remembered — see the
+  section below.
 - `Deterministic=true` is doing its job and does not make builds reproducible *across commits*. It makes
   a rebuild of the *same* commit reproducible, which is a different and narrower guarantee than it is
   easy to assume from the property name.
@@ -279,10 +280,40 @@ Two practical consequences:
 were irrelevant; the commit was what changed the binaries, and the docs-only commit before it would have
 done the same.
 
-An unresolved option, recorded rather than acted on because package version is a durable identity
-decision: `Build-Package.ps1` could derive the fourth version component automatically — from git height,
-or a build counter — instead of requiring a manual edit that is easy to forget and whose omission always
-fails at install time rather than at build time.
+## Implemented: the package version is derived, not edited
+
+`Build-Package.ps1` now stamps `Build` and `Revision` at package time. Major and minor stay in the
+manifest as a deliberate decision; the Build and Revision digits there are placeholders and the build does
+**not** modify the tracked file.
+
+- **Build** is the git commit height.
+- **Revision** counts builds within one commit, from `AppPackages\.package-version.json`.
+
+**Both parts are needed and neither alone works.** Commit height does not change when rebuilding a dirty
+tree, which is the normal development loop. A bare counter would not be meaningful across clones.
+Together they increase in the order builds actually happen.
+
+Measured while implementing it:
+
+| Build | Derived version |
+|---|---|
+| First, at commit height 15 | `0.3.15.0` |
+| Rebuild, same commit | `0.3.15.1` |
+| Rebuild, same commit | `0.3.15.2` — **this build failed** |
+| Rebuild, same commit | `0.3.15.3`, installed over 0.3.11.0 |
+
+The failed build is worth recording twice over. First, it confirms the intended trade: revision state is
+written *before* packing, so a failure burns a number rather than letting two builds share one. Second,
+**its cause is unknown** — the output was filtered to the version line at the time and the error text is
+gone. Three of four builds in that sequence succeeded, and the repository is OneDrive-backed with a
+documented sharing-violation risk, which makes transient contention the obvious suspect and an
+unverified one. If packaging failures recur, this is the first thing to reproduce properly.
+
+The tracked manifest is left alone deliberately: the version stops appearing in every diff, and the
+packaged value stays derived rather than remembered. The layout manifest is stamped by a substitution
+scoped to the `Identity` element, and the script then asserts both that the stamp landed and that the
+framework dependency's `MinVersion` did not move — the two failure modes a careless regex would produce,
+one of which a test already guards.
 
 ## Measured: silent renewal through the broker survives token expiry
 
@@ -511,13 +542,12 @@ Two operational notes worth keeping, because they apply to any future card read:
   than having failed. It is **no longer once per process** — the provider re-probes on the state-changed
   signal, which is what makes a sign-in from a pinned widget converge without unpinning.
 
-**Reinstalling requires a manifest version bump every time.** `Build-Package.ps1` reads
-`Identity/Version` and does not increment it, so rebuilding after a code change without bumping produces
-a package with the same identity and different contents, which Windows refuses with HRESULT
-`0x80073CFB`. Hit going from 0.3.3.0 to 0.3.4.0; recorded in the troubleshooting guide along with why it
-is neither an elevation problem nor the running-process case `-ForceApplicationShutdown` exists for.
-Elevation is not needed for upgrades — the certificate is already trusted, so `-SkipCertificateTrust`
-applies — but a pinned widget holds the package open, so `-ForceApplicationShutdown` is.
+**Reinstalling no longer requires a manual version bump.** It did, and forgetting it produced HRESULT
+`0x80073CFB` — hit going from 0.3.3.0 to 0.3.4.0, and recorded in the troubleshooting guide along with why
+it is neither an elevation problem nor the running-process case `-ForceApplicationShutdown` exists for.
+`Build-Package.ps1` now derives the version, so this is history rather than a step. Elevation is not
+needed for upgrades — the certificate is already trusted, so `-SkipCertificateTrust` applies — but a
+pinned widget holds the package open, so `-ForceApplicationShutdown` is.
 
 Gates 10 and 12 still need `GraphMailClient`, so they follow gate 8 as before.
 
@@ -764,7 +794,7 @@ Three separate observations, kept separate because they prove different things:
 | 0.2.1.0 → **0.2.2.0**, a real version upgrade | No — already exited | Succeeded with the widget still pinned |
 | 0.2.2.0 → **0.2.3.0**, a real version upgrade | **Yes** | Succeeded with `-ForceApplicationShutdown`; the script's pre-install notice fired correctly, the pin survived, and the widget still renders afterwards |
 | 0.3.3.0 → 0.3.3.0, same version, **different contents** | Yes | **Failed** with `0x80073CFB`, and failed identically elevated. A rebuilt payload under an unchanged version is refused outright. This is a *different* failure from the first row and has a different fix — bump the manifest version, do not uninstall. See the troubleshooting guide |
-| 0.3.3.0 through **0.3.11.0**, nine consecutive version upgrades | **Yes** each time | All succeeded with `-SkipCertificateTrust -ForceApplicationShutdown` from a **non-elevated** session, confirming the certificate stays trusted across upgrades and that elevation is a first-install requirement only. The widget pin survived every one |
+| 0.3.3.0 through 0.3.11.0, then **0.3.15.3** (first auto-derived version), ten upgrades | **Yes** each time | All succeeded with `-SkipCertificateTrust -ForceApplicationShutdown` from a **non-elevated** session, confirming the certificate stays trusted across upgrades and that elevation is a first-install requirement only. The widget pin survived every one. The version jump from 0.3.11.0 to 0.3.15.3 is the switch to git-height derivation, not a skipped release |
 
 The 0.2.1.0 → 0.2.2.0 upgrade had one limitation worth stating: the provider had already exited from
 the previous force-shutdown and the Board had not re-activated it, so the in-use path was not

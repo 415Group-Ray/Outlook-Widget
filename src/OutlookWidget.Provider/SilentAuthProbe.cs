@@ -209,7 +209,17 @@ internal sealed class SilentAuthProbe : IDisposable
 
             var silent = new SilentAuthService(_client, _logger);
 
-            return (await silent.AcquireAsync(_shutdown.Token).ConfigureAwait(false)).Status;
+            TokenAcquisitionStatus status =
+                (await silent.AcquireAsync(_shutdown.Token).ConfigureAwait(false)).Status;
+
+            // Silent acquisition cannot distinguish "sign in" from "an administrator must approve": its
+            // classifier maps consent failures to InteractionRequired on purpose, because self-consent
+            // may still be available and this process cannot find out. Only the companion learns the
+            // difference, by being refused interactively, and it records it for exactly this read.
+            //
+            // Refine rather than replace: an acquired token is never overridden, which is what keeps a
+            // stale record harmless.
+            return AuthorizationStateStore.Refine(status, _paths);
         }
         catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
         {

@@ -35,10 +35,23 @@
     different package identity than the certificate signs, which is the mismatch Build-Package.ps1
     exists to catch.
   -->
+  <!--
+    Version: major and minor are the deliberate part and belong here. Build and Revision are STAMPED AT
+    PACKAGE TIME by Build-Package.ps1 and the values below are placeholders — the packaged manifest
+    carries the derived version and this file is deliberately not modified by the build.
+
+    Editing Build or Revision here achieves nothing. Raising major or minor is a real decision.
+
+    The reason it is derived: any commit changes every assembly in the package, because the .NET SDK
+    embeds the git commit SHA in each assembly's informational version. So a documentation-only commit
+    produces a different payload, and a manual bump became a per-commit obligation whose omission always
+    surfaced as HRESULT 0x80073CFB at install time — an error naming the package rather than the
+    forgotten edit. Measured; see docs/phase0-evidence.md.
+  -->
   <Identity
     Name="415Group.OutlookInboxWidget"
     Publisher="CN=&quot;415 Group, Inc.&quot;"
-    Version="0.3.12.0"
+    Version="0.3.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>

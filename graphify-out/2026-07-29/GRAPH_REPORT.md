@@ -1,7 +1,7 @@
 # Graph Report - Outlook Widget  (2026-07-29)
 
 ## Corpus Check
-- 80 files · ~111,908 words
+- 80 files · ~112,864 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3baac1e3`
+- Built from commit: `88226f48`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

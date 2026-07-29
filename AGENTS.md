@@ -31,11 +31,19 @@ reduce gate 8 to "PASS", and do not make admin consent a documented prerequisite
 
 Note one permanent operational consequence: **the provider holds the package open while a widget is
 pinned**, so upgrades require `Add-AppxPackage -ForceApplicationShutdown`. Do not advise unpinning
-instead; that loses the pin for no reason. A second, related trap: `Build-Package.ps1` never increments
-`Identity/Version`, so rebuilding without a manual bump is refused with `0x80073CFB` — bump the manifest
-rather than uninstalling, which would lose the pin. **Bump it in any commit that will be packaged, not
-only in commits touching code:** the SDK embeds the git commit SHA in every assembly, so a docs-only
-commit changes every binary in the package. Measured; see the evidence report.
+instead; that loses the pin for no reason.
+
+**The package version is derived, not edited.** `Build-Package.ps1` stamps Build and Revision at package
+time — Build from git commit height, Revision from a per-commit build counter beside the package output —
+and it does **not** modify the tracked manifest. Major and minor in `Package.appxmanifest` remain a
+deliberate decision; the Build and Revision digits there are placeholders and editing them achieves
+nothing.
+
+This replaced a manual bump that had become a per-commit obligation, because **any commit changes every
+assembly in the package**: the .NET SDK embeds the git commit SHA in each assembly's informational
+version, so even a docs-only commit produces a different payload under the same version and the install
+fails with `0x80073CFB`. If you do hit that code, the fix is still never to uninstall — that loses the
+pin. Measured; see the evidence report.
 
 The cross-process coordination core is implemented and tested, and **authentication now exists**: the
 companion signs in interactively through WAM and the provider acquires silently. There is still **no

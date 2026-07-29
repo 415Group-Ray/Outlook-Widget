@@ -41,14 +41,18 @@ Add delegated `Mail.ReadBasic`. Nothing else.
 
 ## Consent
 
-**Measured on the reference tenant: self-consent was refused and an administrator had to grant
-consent.** Expect to need an administrator step, and read the paragraph after the table before
-concluding otherwise.
+**Self-consent is the intended path. Try it first.** Sign in and see what happens before arranging
+anything with an administrator — and in particular **do not grant admin consent up front**, because that
+pre-approves the permission, the self-consent path never runs, and you lose the ability to tell whether
+it would have worked.
 
-Microsoft does not mark delegated `Mail.ReadBasic` as requiring admin consent, and that is what an
-earlier version of this section relied on when it said no administrator step was on the critical path.
-The permission's own default is not what decides it — **the tenant's user-consent policy is.** On the
-415 Group tenant that policy is "Let Microsoft manage your consent settings" with mail-client consent
+Involve an administrator only once a sign-in actually returns `ApprovalRequired`.
+
+**On the reference tenant it did.** Microsoft does not mark delegated `Mail.ReadBasic` as requiring admin
+consent, and that is what an earlier version of this section relied on when it said no administrator step
+was on the critical path. The permission's own default is not what decides it — **the tenant's
+user-consent policy is** — and that is the part worth knowing in advance, rather than a prediction about
+your tenant. On the 415 Group tenant that policy is "Let Microsoft manage your consent settings" with mail-client consent
 enabled, which permits user consent to mail permissions only for a fixed list of six Microsoft-chosen
 mail clients (Apple Mail, Spark, eM Client, Android-Samsung, Android-Mail, Thunderbird). Microsoft owns
 that list and it cannot be added to, so a registration of your own can never self-consent while that

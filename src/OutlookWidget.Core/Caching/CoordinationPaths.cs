@@ -136,6 +136,17 @@ public sealed class CoordinationPaths
     /// </remarks>
     public string TokenCacheFilePath => Path.Combine(TokenCacheDirectory, TokenCacheFileName);
 
+    /// <summary>
+    /// The terminal interactive authorization outcome, written by the companion for the provider.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the snapshot and not DPAPI-protected, because it holds one enum member and a
+    /// timestamp rather than anything about a mailbox. See <c>AuthorizationStateStore</c> for why the
+    /// provider cannot derive this state for itself.
+    /// </remarks>
+    public string AuthorizationStateFilePath =>
+        Path.Combine(RootDirectory, $"authorization-{_scope}.json");
+
     /// <summary>Guards synchronous local state commits. Bounded waits only.</summary>
     public string MutationMutexName => $"OutlookWidget-Mutation-{_scope}";
 

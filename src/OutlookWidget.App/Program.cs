@@ -87,17 +87,36 @@ internal static class Program
         var service = new InteractiveAuthService(_client);
         TokenAcquisitionResult result = await service.SignInAsync().ConfigureAwait(false);
 
-        // Tell the provider, if one is running. Section 3's division of labour is that the companion
-        // commits state and signals while the provider delivers; this is the signal half.
+        // Record a terminal authorization outcome before signalling, so a provider woken by the signal
+        // finds the record already written rather than racing it.
         //
-        // Without it the ordinary flow does not converge. A pinned widget rendering "sign in required"
-        // launches this app, the user signs in — and the provider is still the same process holding its
-        // original result, because it lives until the last widget is unpinned. The card would ask for a
-        // sign-in that had already happened.
+        // ApprovalRequired is the one state the provider cannot reach on its own: its classifier is
+        // phase-aware and maps consent failures during *silent* acquisition to InteractionRequired,
+        // deliberately, because self-consent may still be available. Only this process learns the
+        // difference, so only this process can publish it. Without that, the knowledge died here and a
+        // pinned card kept telling the user to sign in when signing in could never work.
+        if (result.IsAcquired)
+        {
+            AuthorizationStateStore.Clear(paths);
+        }
+        else if (result.Status == TokenAcquisitionStatus.ApprovalRequired)
+        {
+            AuthorizationStateStore.Write(paths, result.Status, DateTimeOffset.UtcNow);
+        }
+
+        // Section 3's division of labour is that the companion commits state and signals while the
+        // provider delivers; this is the signal half. Without it the ordinary flow does not converge: a
+        // pinned widget rendering "sign in required" launches this app, the user signs in, and the
+        // provider is still the same process holding its original result because it lives until the last
+        // widget is unpinned.
         //
-        // Only on success: a failed attempt changed nothing, and a signal that carries no change is how
-        // listeners learn to distrust signals.
-        bool providerNotified = result.IsAcquired && StateChangeSignal.Raise(paths);
+        // Signalled for both outcomes that changed something a provider would render differently. A
+        // cancelled or transient failure is deliberately excluded — nothing changed, and a signal that
+        // carries no change is how listeners learn to distrust signals.
+        bool published = result.IsAcquired
+                         || result.Status == TokenAcquisitionStatus.ApprovalRequired;
+
+        bool providerNotified = published && StateChangeSignal.Raise(paths);
 
         return Describe(result, paths, service.LastFailure, providerNotified);
     }

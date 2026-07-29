@@ -165,10 +165,116 @@ if (-not $SkipSigning) {
 [xml]$manifest = Get-Content -LiteralPath $manifestPath -Raw
 $manifestPublisher = $manifest.Package.Identity.Publisher
 $identityName = $manifest.Package.Identity.Name
-$identityVersion = $manifest.Package.Identity.Version
+$baseVersion = $manifest.Package.Identity.Version
+
+<#
+.SYNOPSIS
+    Derives the package version, stamping Build and Revision automatically.
+
+.DESCRIPTION
+    Major and minor come from the manifest and stay a deliberate decision. Build and Revision are
+    derived, because a manual edit is the wrong mechanism for a value that must change on every build:
+    forgetting it always fails at install time with HRESULT 0x80073CFB rather than at build time, and
+    the failure names the package rather than the omission.
+
+    Build is the git commit height. Revision counts builds within one commit, from state kept beside the
+    package output.
+
+    Both parts are needed and neither is sufficient. Commit height alone does not change when rebuilding
+    a dirty tree, which is the normal development loop. A counter alone would not be meaningful across
+    clones. Together they are monotonic in the order builds actually happen.
+
+    This exists because it was measured that ANY commit changes EVERY assembly in the package: the .NET
+    SDK embeds the git commit SHA in each assembly's informational version, so a documentation-only
+    commit produces a different payload under the same version. That made a manual bump a per-commit
+    obligation, which is exactly the kind of obligation to remove rather than to remember.
+#>
+function Resolve-PackageVersion {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string] $BaseVersion,
+        [Parameter(Mandatory)] [string] $StateDirectory
+    )
+
+    $parts = $BaseVersion.Split('.')
+
+    if ($parts.Count -ne 4) {
+        throw "The manifest version '$BaseVersion' is not four-part. MSIX requires Major.Minor.Build.Revision."
+    }
+
+    $major = [int]$parts[0]
+    $minor = [int]$parts[1]
+
+    # Commit height. A shallow clone or a missing git would make this meaningless rather than merely
+    # wrong, so it is a hard failure with a named cause instead of a silent fallback to zero.
+    $height = & git rev-list --count HEAD 2>$null
+
+    if ($LASTEXITCODE -ne 0 -or -not ($height -match '^\d+$')) {
+        throw 'Cannot determine the git commit height, so the package version cannot be derived. Build from a full clone.'
+    }
+
+    $build = [int]$height
+
+    $statePath = Join-Path $StateDirectory '.package-version.json'
+    $revision = 0
+
+    if (Test-Path -LiteralPath $statePath) {
+        try {
+            $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+
+            if ($state.build -eq $build) {
+                $revision = [int]$state.revision + 1
+            }
+        }
+        catch {
+            # Unreadable state means one skipped revision, not a wrong version: the guard below still
+            # rejects anything that would not increase.
+            Write-Warning "Ignoring unreadable version state at $statePath."
+        }
+    }
+
+    if ($build -gt 65535 -or $revision -gt 65535) {
+        throw "Derived version component out of range (build $build, revision $revision). MSIX allows 0-65535."
+    }
+
+    $resolved = "$major.$minor.$build.$revision"
+
+    # Refuse to go backwards. MSIX will not install a lower version over a higher one, and discovering
+    # that at install time costs a remove-and-reinstall, which loses widget pins.
+    if (Test-Path -LiteralPath $statePath) {
+        try {
+            $previous = (Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json).version
+
+            if ($previous -and [version]$resolved -le [version]$previous) {
+                throw "Derived version $resolved does not exceed the previous $previous. Commit, or delete $statePath if the history was rewritten."
+            }
+        }
+        catch [System.Management.Automation.RuntimeException] {
+            throw
+        }
+        catch {
+            # A malformed previous version is not worth failing the build over.
+        }
+    }
+
+    New-Item -ItemType Directory -Force -Path $StateDirectory | Out-Null
+
+    # Written before packing rather than after. A failed build then burns a revision, which costs
+    # nothing, whereas writing afterwards would let two builds share a number if the first failed late.
+    [ordered]@{
+        version  = $resolved
+        build    = $build
+        revision = $revision
+    } | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding utf8
+
+    return $resolved
+}
+
+$identityVersion = Resolve-PackageVersion -BaseVersion $baseVersion -StateDirectory $outputRoot
 
 Write-Output ''
 Write-Output "Package identity: $identityName / $manifestPublisher / $identityVersion"
+Write-Output "  Version: $identityVersion (base $baseVersion; build.revision derived from git height and build count)"
 
 if (-not $SkipSigning) {
     # Match tolerantly across quoting differences, for the same reason
@@ -424,7 +530,38 @@ Write-Output 'Authentication configuration staged beside both executables and va
 # Assemble the rest of the layout
 # ---------------------------------------------------------------------------
 
-Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $layoutPath 'AppxManifest.xml') -Force
+# The layout manifest carries the derived version; the tracked manifest is not modified. Keeping the
+# committed file stable means the version is not a line that shows up in every diff, and the packaged
+# value stays derived rather than remembered.
+#
+# A scoped text substitution rather than loading and re-saving the XML: the manifest has comments,
+# several namespaces, and three other Version attributes (the target device family and the framework
+# dependency both use MinVersion). Re-serialising would rewrite formatting for no benefit, and a
+# regex that is not scoped to the Identity element would silently retarget the framework dependency.
+$layoutManifestPath = Join-Path $layoutPath 'AppxManifest.xml'
+$manifestText = Get-Content -LiteralPath $manifestPath -Raw
+
+$stampedText = [regex]::Replace(
+    $manifestText,
+    '(?s)(<Identity\b[^>]*?Version=")([^"]*)(")',
+    { param($m) $m.Groups[1].Value + $identityVersion + $m.Groups[3].Value },
+    1)
+
+Set-Content -LiteralPath $layoutManifestPath -Value $stampedText -Encoding utf8 -NoNewline
+
+# Assert the stamp landed. A substitution that silently matched nothing would pack the base version,
+# and the install would then fail with 0x80073CFB naming the package rather than the cause.
+[xml]$stampedManifest = Get-Content -LiteralPath $layoutManifestPath -Raw
+
+if ($stampedManifest.Package.Identity.Version -ne $identityVersion) {
+    throw "Failed to stamp the layout manifest: expected $identityVersion, found $($stampedManifest.Package.Identity.Version)."
+}
+
+# And that nothing else moved: the framework dependency's MinVersion is checked by a test and must
+# still match the pinned runtime.
+if ($stampedManifest.Package.Dependencies.PackageDependency.MinVersion -ne '2.3.1.0') {
+    throw 'Stamping the version altered the framework dependency MinVersion. The substitution is not correctly scoped.'
+}
 Copy-Item -LiteralPath $assetsPath -Destination (Join-Path $layoutPath 'Assets') -Recurse -Force
 
 # The widget AppExtension declares PublicFolder="Public", which names a folder the widget host may

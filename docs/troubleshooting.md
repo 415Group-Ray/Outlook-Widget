@@ -59,16 +59,29 @@ Distinguish four causes before changing anything:
   package was blocked."** The full text is more useful than the code: *the provided package has the
   same identity as an already-installed package but the contents are different.*
 
-  This is the routine consequence of rebuilding without bumping the manifest version.
-  `Build-Package.ps1` reads `Identity/Version` from `Package.appxmanifest` and never increments it, so
-  every build between two manual bumps produces a package that Windows sees as the same version with a
-  different payload, and refuses.
+  **This should no longer happen, and if it does the version derivation is what to look at.**
+  `Build-Package.ps1` now stamps Build and Revision automatically — Build from git commit height,
+  Revision from a per-commit build counter in `AppPackages\.package-version.json` — so every build
+  produces a higher version than the last.
 
-  **It is not limited to code changes, which is measured rather than assumed.** The .NET SDK embeds the
-  git commit SHA in every assembly's informational version by default, so *any* commit changes *every*
-  assembly in the package — a documentation-only or comment-only commit included. Comparing the 0.3.10.0
-  and 0.3.11.0 packages showed even `OutlookWidget.Core.dll` differing, though its source was untouched
-  between them. Bump the version in any commit that will be packaged.
+  Causes worth checking if you see this code anyway:
+
+  - **The state file was deleted while the commit height stayed the same.** Revision restarts at 0 and
+    can collide with a package already installed from the same commit. Build again: the counter now
+    advances past it.
+  - **History was rewritten,** so commit height went down. The script refuses this with a named error
+    rather than producing a downgrade, and the message says to delete the state file.
+  - **A stale package was installed out of order,** for instance by passing an explicit older `.msix`.
+
+  The fix is never to uninstall to force it through: uninstalling loses widget pins and package-local
+  cache and settings, which is a real cost for a problem another build solves.
+
+  Background on why this is automated at all, because it is not obvious: **any commit changes every
+  assembly in the package.** The .NET SDK embeds the git commit SHA in each assembly's informational
+  version by default, so a documentation-only or comment-only commit produces a different payload.
+  Comparing the 0.3.10.0 and 0.3.11.0 packages showed even `OutlookWidget.Core.dll` differing though its
+  source was untouched. That made a manual bump a per-commit obligation whose omission always surfaced
+  here, at install time, in an error naming the package rather than the forgotten edit.
 
   `Deterministic=true` does not prevent this and is not meant to: it makes a rebuild of the *same*
   commit reproducible, not builds across commits.
