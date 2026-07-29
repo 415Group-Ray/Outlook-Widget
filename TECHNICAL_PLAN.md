@@ -10,7 +10,7 @@ Implementation status: **Phase 0 in progress; the native surface and packaging a
 
 Gate 11 does not affect the fallback decision, because both surfaces consume the same coordination core. **Gate 9 did**, and it passed: a provider that could not acquire a token silently with a zero parent handle would have rendered sign-in-required forever, since interactive authentication belongs only to the companion, whereas a tray/popover UI process could have authenticated itself. It acquired one. **The fallback proof is not being built, and that now rests on evidence rather than on expectation** — the hedge that used to close this paragraph is gone because the measurement replaced it.
 
-**Every remaining Phase 0 gate depends on the authentication code**, and nothing depends on a portal task: the Entra app registration is **created** and its identifiers ship in the package. Gates 8, 9, 10, 11, and 12 need `InteractiveAuthService`, `SilentAuthService`, `GraphMailClient`, and the snapshot model — Phase 1 slice 2. Gate 8 comes first, because the provider can only acquire silently against a token the broker already holds. `docs/phase0-evidence.md` is authoritative for what has actually been measured.
+**Authentication is built and measured; every remaining Phase 0 gate depends on Microsoft Graph.** The Entra registration is created, `BrokerClient`, `SilentAuthService` and the companion's `InteractiveAuthService` exist, gate 8 is split and gate 9 passes. What is left — gates **10, 11, and 12** — needs `GraphMailClient` and the snapshot model: 10 and 12 read mail, and 11 needs a real refresh to invalidate, so it follows them. `docs/phase0-evidence.md` is authoritative for what has actually been measured.
 
 This plan describes a lightweight Windows 11 Outlook inbox widget for a single Microsoft 365 tenant. It incorporates the decisions approved during planning:
 
@@ -959,7 +959,7 @@ Phase 1's estimate assumes the accepted Phase 0 provider lifecycle and broker sk
 **Slice 2 — the rest of the core**, on top of a coordination layer that already passes its tests.
 
 - Final models and interfaces.
-- WAM authentication/account lifecycle, including logout and account switch end to end.
+- WAM authentication/account lifecycle, including logout and account switch end to end. **Partly done.** Acquisition is complete both ways — interactive in the companion, silent in the provider, with a shared token cache and failure classification — and gates 8 and 9 measured it. **Logout and account switch are not built**, and they are the half that carries the disclosure-tombstone choreography, so they are the harder half rather than the leftover.
 - Direct Graph REST client.
 - Snapshot validation.
 - DPAPI cache version-discard recovery; no migration machinery.

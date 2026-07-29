@@ -38,7 +38,7 @@
   <Identity
     Name="415Group.OutlookInboxWidget"
     Publisher="CN=&quot;415 Group, Inc.&quot;"
-    Version="0.3.10.0"
+    Version="0.3.11.0"
     ProcessorArchitecture="x64" />
 
   <Properties>

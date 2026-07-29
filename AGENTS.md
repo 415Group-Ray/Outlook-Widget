@@ -69,15 +69,20 @@ identify the mismatch and update every affected source as part of the approved c
 ## Repository map
 
 - `src/OutlookWidget.Core` — surface-independent caching, coordination, refresh, delivery,
-  launching, and diagnostics today; later core slices add authentication, Graph access, and
-  models.
+  launching, diagnostics, and **authentication** (`BrokerClient`, `SilentAuthService`,
+  `AuthenticationFailures`, the shared token cache). Graph access and the snapshot models are what
+  later slices add. Interactive authentication is deliberately **not** here; see below.
 - `src/OutlookWidget.Packaging` — MSIX package-identity interop only, shared by the two
   executables so the core stays free of any knowledge that MSIX exists. Do not grow it into a
   general utility assembly.
-- `src/OutlookWidget.App` — packaged companion application; currently a Phase 0 probe.
+- `src/OutlookWidget.App` — packaged companion application; a Phase 0 probe with a minimal Win32
+  window, and the home of `InteractiveAuthService` — **the single `AcquireTokenInteractive` call site
+  in the product.** It is here rather than in the core so the provider cannot link the interactive API
+  at all; see the deviation note above.
 - `src/OutlookWidget.Provider` — the packaged COM Windows Widgets provider: lifecycle, the six
-  callbacks, the instance registry, and the single `UpdateWidget` call site. No authentication and
-  no Graph access yet.
+  callbacks, the instance registry, the single `UpdateWidget` call site, and `SilentAuthProbe`, which
+  acquires silently with a zero parent handle and re-probes on the state-changed signal. **Silent-only
+  and no Graph access**; it must never gain an interactive path.
 - `src/OutlookWidget.Package` — MSIX identity, assets, COM server and widget registration.
 - `tests/OutlookWidget.Core.Tests` — unit, source-level, and genuine cross-process tests.
 - `scripts` — prerequisites, signing, packaging, installation, asset, and Outlook-launch
