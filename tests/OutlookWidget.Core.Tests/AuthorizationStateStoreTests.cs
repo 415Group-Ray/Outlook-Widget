@@ -1,4 +1,4 @@
-using OutlookWidget.Core.Authentication;
+﻿using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Tests.TestInfrastructure;
 
 namespace OutlookWidget.Core.Tests;
@@ -16,19 +16,31 @@ public sealed class AuthorizationStateStoreTests
 {
     private static readonly DateTimeOffset When = DateTimeOffset.UnixEpoch.AddYears(56);
 
+    /// <summary>The registration under test.</summary>
+    private static readonly AuthenticationOptions Registration =
+        AuthenticationOptions.TryCreate(
+            Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Guid.Parse("22222222-2222-2222-2222-222222222222"))!;
+
+    /// <summary>A different one, for the repointed-configuration case.</summary>
+    private static readonly AuthenticationOptions OtherRegistration =
+        AuthenticationOptions.TryCreate(
+            Guid.Parse("33333333-3333-3333-3333-333333333333"),
+            Guid.Parse("44444444-4444-4444-4444-444444444444"))!;
+
     [Fact]
     public void A_recorded_outcome_round_trips()
     {
         using var fixture = new CoordinationFixture();
 
-        Assert.Null(AuthorizationStateStore.TryRead(fixture.Paths));
+        Assert.Null(AuthorizationStateStore.TryRead(fixture.Paths, Registration));
 
         AuthorizationStateStore.Write(
-            fixture.Paths, TokenAcquisitionStatus.ApprovalRequired, When);
+            fixture.Paths, Registration, TokenAcquisitionStatus.ApprovalRequired, When);
 
         Assert.Equal(
             TokenAcquisitionStatus.ApprovalRequired,
-            AuthorizationStateStore.TryRead(fixture.Paths));
+            AuthorizationStateStore.TryRead(fixture.Paths, Registration));
     }
 
     [Fact]
@@ -41,10 +53,10 @@ public sealed class AuthorizationStateStoreTests
         AuthorizationStateStore.Clear(fixture.Paths);
 
         AuthorizationStateStore.Write(
-            fixture.Paths, TokenAcquisitionStatus.ApprovalRequired, When);
+            fixture.Paths, Registration, TokenAcquisitionStatus.ApprovalRequired, When);
         AuthorizationStateStore.Clear(fixture.Paths);
 
-        Assert.Null(AuthorizationStateStore.TryRead(fixture.Paths));
+        Assert.Null(AuthorizationStateStore.TryRead(fixture.Paths, Registration));
     }
 
     [Theory]
@@ -61,7 +73,7 @@ public sealed class AuthorizationStateStoreTests
         using var fixture = new CoordinationFixture();
 
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => AuthorizationStateStore.Write(fixture.Paths, status, When));
+            () => AuthorizationStateStore.Write(fixture.Paths, Registration, status, When));
     }
 
     [Fact]
@@ -72,12 +84,12 @@ public sealed class AuthorizationStateStoreTests
         using var fixture = new CoordinationFixture();
 
         AuthorizationStateStore.Write(
-            fixture.Paths, TokenAcquisitionStatus.ApprovalRequired, When);
+            fixture.Paths, Registration, TokenAcquisitionStatus.ApprovalRequired, When);
 
         Assert.Equal(
             TokenAcquisitionStatus.ApprovalRequired,
             AuthorizationStateStore.Refine(
-                TokenAcquisitionStatus.InteractionRequired, fixture.Paths));
+                TokenAcquisitionStatus.InteractionRequired, fixture.Paths, Registration));
     }
 
     [Fact]
@@ -89,11 +101,12 @@ public sealed class AuthorizationStateStoreTests
         using var fixture = new CoordinationFixture();
 
         AuthorizationStateStore.Write(
-            fixture.Paths, TokenAcquisitionStatus.ApprovalRequired, When);
+            fixture.Paths, Registration, TokenAcquisitionStatus.ApprovalRequired, When);
 
         Assert.Equal(
             TokenAcquisitionStatus.Acquired,
-            AuthorizationStateStore.Refine(TokenAcquisitionStatus.Acquired, fixture.Paths));
+            AuthorizationStateStore.Refine(
+                TokenAcquisitionStatus.Acquired, fixture.Paths, Registration));
     }
 
     [Theory]
@@ -107,9 +120,11 @@ public sealed class AuthorizationStateStoreTests
         using var fixture = new CoordinationFixture();
 
         AuthorizationStateStore.Write(
-            fixture.Paths, TokenAcquisitionStatus.ApprovalRequired, When);
+            fixture.Paths, Registration, TokenAcquisitionStatus.ApprovalRequired, When);
 
-        Assert.Equal(silent, AuthorizationStateStore.Refine(silent, fixture.Paths));
+        Assert.Equal(
+            silent,
+            AuthorizationStateStore.Refine(silent, fixture.Paths, Registration));
     }
 
     [Fact]
@@ -123,12 +138,56 @@ public sealed class AuthorizationStateStoreTests
 
         File.WriteAllText(fixture.Paths.AuthorizationStateFilePath, "{ not json at all");
 
-        Assert.Null(AuthorizationStateStore.TryRead(fixture.Paths));
+        Assert.Null(AuthorizationStateStore.TryRead(fixture.Paths, Registration));
 
         Assert.Equal(
             TokenAcquisitionStatus.InteractionRequired,
             AuthorizationStateStore.Refine(
-                TokenAcquisitionStatus.InteractionRequired, fixture.Paths));
+                TokenAcquisitionStatus.InteractionRequired, fixture.Paths, Registration));
+    }
+
+    [Fact]
+    public void A_record_from_another_registration_is_ignored()
+    {
+        // Consent is granted to a specific application in a specific tenant, so a record that outlives
+        // its subject is not evidence about the new one.
+        //
+        // This is reachable in practice: coordination state lives under package identity, which does not
+        // change when authentication.json is repointed at another client or tenant. Without the identity
+        // check the old refusal would be applied to the new registration, telling the user an
+        // administrator is required before self-consent had ever been attempted for it — the same harm as
+        // claiming approval-required on an ambiguous signal, reached by a different route.
+        using var fixture = new CoordinationFixture();
+
+        AuthorizationStateStore.Write(
+            fixture.Paths, Registration, TokenAcquisitionStatus.ApprovalRequired, When);
+
+        Assert.Null(AuthorizationStateStore.TryRead(fixture.Paths, OtherRegistration));
+
+        Assert.Equal(
+            TokenAcquisitionStatus.InteractionRequired,
+            AuthorizationStateStore.Refine(
+                TokenAcquisitionStatus.InteractionRequired, fixture.Paths, OtherRegistration));
+
+        // And the original registration still sees it: the record is scoped, not invalidated.
+        Assert.Equal(
+            TokenAcquisitionStatus.ApprovalRequired,
+            AuthorizationStateStore.TryRead(fixture.Paths, Registration));
+    }
+
+    [Fact]
+    public void A_record_predating_the_identity_fields_is_ignored()
+    {
+        // Such a record deserializes with default (empty) GUIDs, which match no real registration. That
+        // is the correct outcome rather than a compatibility gap: a record that cannot be attributed to a
+        // registration cannot support a claim about one.
+        using var fixture = new CoordinationFixture();
+
+        File.WriteAllText(
+            fixture.Paths.AuthorizationStateFilePath,
+            """{ "status": "ApprovalRequired", "recordedAtUtc": "2026-07-29T00:00:00+00:00" }""");
+
+        Assert.Null(AuthorizationStateStore.TryRead(fixture.Paths, Registration));
     }
 
     [Fact]
@@ -141,7 +200,7 @@ public sealed class AuthorizationStateStoreTests
             fixture.Paths.AuthorizationStateFilePath,
             """{ "status": "Acquired", "recordedAtUtc": "2026-07-29T00:00:00+00:00" }""");
 
-        Assert.Null(AuthorizationStateStore.TryRead(fixture.Paths));
+        Assert.Null(AuthorizationStateStore.TryRead(fixture.Paths, Registration));
     }
 
     [Fact]

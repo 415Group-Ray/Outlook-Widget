@@ -13,6 +13,11 @@
 # MSIX packaging output
 AppPackages/
 BundleArtifacts/
+
+# The derived package-version counter. Local build state, not a shared decision: it records how many
+# times THIS machine has packaged the current commit. Committing it would produce merge conflicts on a
+# value nobody reads and would not help another clone, which consults the installed package instead.
+.package-version.json
 *.appx
 *.msix
 *.msixbundle

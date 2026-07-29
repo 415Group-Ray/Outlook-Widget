@@ -193,7 +193,8 @@ function Resolve-PackageVersion {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string] $BaseVersion,
-        [Parameter(Mandatory)] [string] $StateDirectory
+        [Parameter(Mandatory)] [string] $StateDirectory,
+        [Parameter(Mandatory)] [string] $IdentityName
     )
 
     $parts = $BaseVersion.Split('.')
@@ -265,6 +266,36 @@ Fix it with:  git fetch --unshallow
         }
     }
 
+    # Also consult the INSTALLED package, because the state file is not the authority on what must be
+    # exceeded — the installed version is.
+    #
+    # The file is deliberately outside source control and can be absent for reasons that have nothing to
+    # do with history: a fresh clone at the same commit, or simply cleaning the package output. Revision
+    # then restarts at 0 and collides with, or falls below, a package already installed from that same
+    # commit — a rebuild of which is likely to differ anyway, through uncommitted source or a different
+    # authentication.json. The shallow-clone check does not help here, because the clone is complete and
+    # the height is correct.
+    #
+    # Asking the machine what is installed makes the counter clone-independent for the case that actually
+    # matters. It only ever raises the revision, so building for a different machine is unaffected.
+    try {
+        $installed = Get-AppxPackage -Name $IdentityName -ErrorAction Stop |
+            Sort-Object -Property { [version]$_.Version } -Descending |
+            Select-Object -First 1
+
+        if ($installed) {
+            $installedVersion = [version]$installed.Version
+
+            if ($installedVersion.Build -eq $build -and $installedVersion.Revision -ge $revision) {
+                $revision = $installedVersion.Revision + 1
+            }
+        }
+    }
+    catch {
+        # Nothing installed, or the cmdlet is unavailable. The state file remains the only input, which
+        # is correct rather than degraded: there is no installed package to exceed.
+    }
+
     if ($build -gt 65535 -or $revision -gt 65535) {
         throw "Derived version component out of range (build $build, revision $revision). MSIX allows 0-65535."
     }
@@ -302,7 +333,14 @@ Fix it with:  git fetch --unshallow
     return $resolved
 }
 
-$identityVersion = Resolve-PackageVersion -BaseVersion $baseVersion -StateDirectory $outputRoot
+# State lives beside the project rather than in AppPackages, which is build output and gets cleaned.
+# Losing the counter is not catastrophic — the installed-package check above covers the case that
+# matters — but there is no reason to store it in the one directory whose whole purpose is to be
+# deletable.
+$identityVersion = Resolve-PackageVersion `
+    -BaseVersion $baseVersion `
+    -StateDirectory $packageProject `
+    -IdentityName $identityName
 
 Write-Output ''
 Write-Output "Package identity: $identityName / $manifestPublisher / $identityVersion"

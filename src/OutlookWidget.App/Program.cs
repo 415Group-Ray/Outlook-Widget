@@ -101,7 +101,8 @@ internal static class Program
         }
         else if (result.Status == TokenAcquisitionStatus.ApprovalRequired)
         {
-            AuthorizationStateStore.Write(paths, result.Status, DateTimeOffset.UtcNow);
+            AuthorizationStateStore.Write(
+                paths, configuration.Options!, result.Status, DateTimeOffset.UtcNow);
         }
 
         // Section 3's division of labour is that the companion commits state and signals while the
@@ -126,8 +127,8 @@ internal static class Program
     /// </summary>
     /// <remarks>
     /// The token itself is never shown, and neither is the account. What is shown is the status, the
-    /// expiry, and — on success — the fact that the broker now holds a token the provider can attempt
-    /// to acquire silently, which is the precondition gate 9 was waiting on.
+    /// expiry, and — on success — the fact that the broker now holds a token the provider can acquire
+    /// silently, which gate 9 confirmed it does.
     /// </remarks>
     private static string Describe(
         TokenAcquisitionResult result,
@@ -195,8 +196,8 @@ internal static class Program
 
             case TokenAcquisitionStatus.BrokerUnavailable:
                 lines.Add("The Windows authentication broker could not be used. Signing in again will "
-                          + "not help. This is the outcome that would make gate 9 unprovable, because "
-                          + "the provider has no path that does not go through the broker.");
+                          + "not help, and the provider cannot work around it: it has no path that does "
+                          + "not go through the broker.");
                 break;
 
             case TokenAcquisitionStatus.Cancelled:

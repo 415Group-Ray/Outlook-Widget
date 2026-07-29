@@ -327,6 +327,23 @@ guarantee.** The clipped Sign in button, the sentence claiming a successful acqu
 self-consent, and this all share one shape — prose describing protection that the code did not
 implement, in a form no test would contradict.
 
+**The counter alone was not durable enough, which a second review round caught.** It lived in
+`AppPackages` — build output, deletable by design — and it is git-ignored, so it is also absent in a
+fresh clone. Either way the revision restarts at 0 at an unchanged commit height and collides with a
+package already installed from that same commit, which a rebuild is likely to differ from anyway through
+uncommitted source or a different `authentication.json`. The shallow-clone check does not help: the clone
+is complete and the height is correct.
+
+Two changes, because the file was the wrong authority:
+
+- It moved beside the project rather than into the output directory whose purpose is to be deleted.
+- **The build now also asks the machine what is installed.** That is the version which actually has to be
+  exceeded, and unlike a file it cannot be lost by cleaning or cloning. It only ever raises the revision,
+  so building for a different machine is unaffected.
+
+Verified against the exact scenario: with `0.3.17.0` installed and the counter deleted, the next build
+derived **`0.3.17.1`** rather than repeating `0.3.17.0`.
+
 The tracked manifest is left alone deliberately: the version stops appearing in every diff, and the
 packaged value stays derived rather than remembered. The layout manifest is stamped by a substitution
 scoped to the `Identity` element, and the script then asserts both that the stamp landed and that the

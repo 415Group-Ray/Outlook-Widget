@@ -219,7 +219,7 @@ internal sealed class SilentAuthProbe : IDisposable
             //
             // Refine rather than replace: an acquired token is never overridden, which is what keeps a
             // stale record harmless.
-            return AuthorizationStateStore.Refine(status, _paths);
+            return AuthorizationStateStore.Refine(status, _paths, _configuration.Options!);
         }
         catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
         {

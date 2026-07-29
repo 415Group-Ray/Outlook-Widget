@@ -43,20 +43,38 @@ public static class AuthorizationStateStore
     };
 
     /// <summary>
-    /// Records a terminal authorization outcome.
+    /// Records a terminal authorization outcome for one registration.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Rejects anything other than <see cref="TokenAcquisitionStatus.ApprovalRequired"/>. The narrow
     /// contract is the point: this is not a general cache of the last authentication result, and widening
     /// it would let a transient failure persist as though it were a policy decision.
+    /// </para>
+    /// <para>
+    /// <b>The registration is part of the record, and omitting it was a bug.</b> Consent is granted to a
+    /// specific application in a specific tenant, so a record that names only a status is not about
+    /// anything. State lives under package identity, which does not change when
+    /// <c>authentication.json</c> is repointed at another client or tenant, so the old registration's
+    /// refusal would have been applied to the new one — telling the user an administrator is required
+    /// before self-consent had ever been attempted for it. That is the same harm as claiming
+    /// approval-required on an ambiguous signal, arrived at by outliving its subject.
+    /// </para>
+    /// <para>
+    /// The identifiers are written in the clear, which adds no exposure: they are not secrets, they
+    /// appear in network traffic, and <c>authentication.json</c> already ships them beside both
+    /// executables in this same package. Hashing them would only obscure a diagnostic.
+    /// </para>
     /// </remarks>
     public static void Write(
         CoordinationPaths paths,
+        AuthenticationOptions options,
         TokenAcquisitionStatus status,
         DateTimeOffset recordedAt,
         IOperationalLogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(options);
 
         if (status != TokenAcquisitionStatus.ApprovalRequired)
         {
@@ -70,7 +88,13 @@ public static class AuthorizationStateStore
             Directory.CreateDirectory(paths.RootDirectory);
 
             string json = JsonSerializer.Serialize(
-                new AuthorizationRecord { Status = status.ToString(), RecordedAtUtc = recordedAt });
+                new AuthorizationRecord
+                {
+                    Status = status.ToString(),
+                    RecordedAtUtc = recordedAt,
+                    TenantId = options.TenantId,
+                    ClientId = options.ClientId,
+                });
 
             File.WriteAllText(paths.AuthorizationStateFilePath, json);
         }
@@ -109,9 +133,12 @@ public static class AuthorizationStateStore
     /// administrator is needed and withdraws the retry a user may simply want. So an unreadable record
     /// yields no refinement, and the caller keeps the less specific state it already had.
     /// </remarks>
-    public static TokenAcquisitionStatus? TryRead(CoordinationPaths paths)
+    public static TokenAcquisitionStatus? TryRead(
+        CoordinationPaths paths,
+        AuthenticationOptions options)
     {
         ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(options);
 
         try
         {
@@ -120,7 +147,20 @@ public static class AuthorizationStateStore
             AuthorizationRecord? record =
                 JsonSerializer.Deserialize<AuthorizationRecord>(json, Options);
 
-            return Enum.TryParse(record?.Status, out TokenAcquisitionStatus status)
+            if (record is null)
+            {
+                return null;
+            }
+
+            // A record from another registration says nothing about this one. Treated as absent rather
+            // than deleted: this process may not be the one that owns it, and a read has no business
+            // mutating state.
+            if (record.TenantId != options.TenantId || record.ClientId != options.ClientId)
+            {
+                return null;
+            }
+
+            return Enum.TryParse(record.Status, out TokenAcquisitionStatus status)
                    && status == TokenAcquisitionStatus.ApprovalRequired
                 ? status
                 : null;
@@ -144,12 +184,14 @@ public static class AuthorizationStateStore
     /// </remarks>
     public static TokenAcquisitionStatus Refine(
         TokenAcquisitionStatus silentStatus,
-        CoordinationPaths paths)
+        CoordinationPaths paths,
+        AuthenticationOptions options)
     {
         ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(options);
 
         return silentStatus == TokenAcquisitionStatus.InteractionRequired
-               && TryRead(paths) == TokenAcquisitionStatus.ApprovalRequired
+               && TryRead(paths, options) == TokenAcquisitionStatus.ApprovalRequired
             ? TokenAcquisitionStatus.ApprovalRequired
             : silentStatus;
     }
@@ -159,5 +201,14 @@ public static class AuthorizationStateStore
         public string? Status { get; init; }
 
         public DateTimeOffset RecordedAtUtc { get; init; }
+
+        /// <summary>
+        /// The registration this outcome belongs to. Default (empty) on a record written before these
+        /// fields existed, which therefore matches no real registration and is ignored — the correct
+        /// outcome, since such a record cannot be attributed to one.
+        /// </summary>
+        public Guid TenantId { get; init; }
+
+        public Guid ClientId { get; init; }
     }
 }

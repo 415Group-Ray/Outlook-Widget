@@ -26,12 +26,18 @@ namespace OutlookWidget.Core.Authentication;
 /// companion owns that call, and both a core-wide and a provider-wide source check enforce it.
 /// </para>
 /// <para>
-/// <b>Whether a zero handle actually works is an unresolved gate, not an assumption.</b> Phase 0's
-/// gate 9 exists to measure exactly this. Microsoft documents that WAM requires "an active,
-/// interactive Windows user session" and the ability to display UI; the provider is COM-activated by
-/// the Widgets host inside the signed-in user's session, so it satisfies the session requirement, but
-/// no documentation states what a zero parent handle does on a silent-only call. If it fails, the
-/// surface decision in section 18 reopens.
+/// <b>A zero handle works, and that is measured rather than assumed.</b> Phase 0's gate 9 existed to
+/// find out and it passed: the provider acquired a token silently with no window of its own, observed as
+/// <c>silent auth Acquired</c> on the pinned card. That settled the section 18 surface decision on
+/// evidence, so the tray/popover fallback branch is closed.
+/// </para>
+/// <para>
+/// The reasoning that made it uncertain is kept, because it is what a reader needs if this ever breaks.
+/// Microsoft documents that WAM requires "an active, interactive Windows user session" and the ability to
+/// display UI; the provider is COM-activated by the Widgets host inside the signed-in user's session, so
+/// it satisfies the session requirement, and no documentation states what a zero parent handle does on a
+/// silent-only call. The answer is empirical and specific to the pinned MSAL and Broker versions — a
+/// dependency bump is the change most likely to invalidate it.
 /// </para>
 /// </remarks>
 public static class BrokerClient
