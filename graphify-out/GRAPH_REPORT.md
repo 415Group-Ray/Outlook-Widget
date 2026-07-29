@@ -1,21 +1,20 @@
 # Graph Report - Outlook Widget  (2026-07-29)
 
 ## Corpus Check
-- 68 files · ~88,052 words
+- 68 files · ~88,523 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 784 nodes · 1679 edges · 36 communities (33 shown, 3 thin omitted)
+- 784 nodes · 1678 edges · 35 communities (32 shown, 3 thin omitted)
 - Extraction: 85% EXTRACTED · 15% INFERRED · 0% AMBIGUOUS · INFERRED: 247 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `037a8963`
+- Built from commit: `20781578`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- DeliveryState
 - OutlookWidget.Core (shared .NET library)
 - .RefreshAsync
 - .SeedState
@@ -83,11 +82,7 @@
 - **Load-bearing coordination invariants** — readme_mutationlock_ref_struct, readme_mandatory_mutex_timeout, readme_single_flight_expiring_record, readme_provider_only_updatewidget, readme_one_suppression_file_per_operation, readme_cross_process_concurrency_suite [EXTRACTED 1.00]
 - **MSIX signing, publisher identity, and packaging chain** — docs_phase0_evidence_signing_decisions, docs_phase0_evidence_publisher_subject_quoting, docs_phase0_evidence_build_package_ps1, docs_phase0_evidence_msbuild_comma_path_constraint, docs_phase0_evidence_gate_1_signed_msix_install, docs_troubleshooting_install_failures [INFERRED 0.85]
 
-## Communities (36 total, 3 thin omitted)
-
-### Community 0 - "DeliveryState"
-Cohesion: 0.18
-Nodes (10): Detail, Headline, Instance, DeliveryState, JsonSerializerOptions, SkeletonCard, SkeletonCardData, State (+2 more)
+## Communities (35 total, 3 thin omitted)
 
 ### Community 1 - "OutlookWidget.Core (shared .NET library)"
 Cohesion: 0.05
@@ -102,8 +97,8 @@ Cohesion: 0.12
 Nodes (13): Fact, Func, TimeSpan, DeliveryWorkerTests, Fact, ProtectedCacheTests, int, IReadOnlyList (+5 more)
 
 ### Community 4 - "OutlookWidget.Core.Refresh"
-Cohesion: 0.11
-Nodes (15): OutlookWidget.Core.Tests.TestInfrastructure, OutlookWidget.Core.Tests, OutlookWidget.Core.Authentication, OutlookWidget.Provider, OutlookWidget.Packaging, OutlookWidget.Core.Diagnostics, OutlookWidget.Core.Refresh, OutlookWidget.Core.Delivery (+7 more)
+Cohesion: 0.08
+Nodes (24): OutlookWidget.Core.Tests.TestInfrastructure, OutlookWidget.Core.Tests, OutlookWidget.Core.Authentication, OutlookWidget.Provider, OutlookWidget.Packaging, OutlookWidget.Core.Diagnostics, OutlookWidget.Core.Refresh, OutlookWidget.Core.Delivery (+16 more)
 
 ### Community 5 - "DisclosureTombstoneStore"
 Cohesion: 0.08
@@ -115,7 +110,7 @@ Nodes (49): Client/tenant IDs supplied via package configuration, never committe
 
 ### Community 7 - "WidgetProvider"
 Cohesion: 0.06
-Nodes (28): IWidgetProvider, IWidgetDeliverySink, Func, IEnumerable, ProcessStartInfo, string, OutlookLauncher, OutlookLaunchResult (+20 more)
+Nodes (29): Detail, Headline, Instance, IWidgetProvider, DeliveryState, IWidgetDeliverySink, JsonSerializerOptions, SkeletonCard (+21 more)
 
 ### Community 8 - ".Current"
 Cohesion: 0.09
@@ -150,8 +145,8 @@ Cohesion: 0.33
 Nodes (6): Mail.ReadBasic Boundary, Native Widget Architecture, Outlook Widget v1, Companion Interactive and Provider Silent Authentication, Surface-Independent Core, AGENTS.md Instructions
 
 ### Community 16 - "New-Assets.ps1"
-Cohesion: 0.62
-Nodes (5): Add-EnvelopeGlyph(), New-Canvas(), New-IconTile(), New-RoundedPath(), New-WidgetScreenshot()
+Cohesion: 0.57
+Nodes (5): New-AppIcon(), New-Canvas(), New-GradientBrush(), New-RoundedPath(), New-WidgetScreenshot()
 
 ### Community 17 - "Gate 7 — Outlook launch resolution"
 Cohesion: 0.67
@@ -211,7 +206,7 @@ _Questions this graph is uniquely positioned to answer:_
   _High betweenness centrality (0.093) - this node is a cross-community bridge._
 - **Why does `OutlookWidget.Core.Tests.TestInfrastructure` connect `OutlookWidget.Core.Refresh` to `.Start`, `CoordinationStaticAnalysisTests`?**
   _High betweenness centrality (0.066) - this node is a cross-community bridge._
-- **Why does `IOperationalLogger` connect `IOperationalLogger` to `.RefreshAsync`, `DeliveryWorker`, `StateCommitCoordinator`, `DisclosureTombstoneStore`, `WidgetProvider`, `.Current`, `.Start`, `AuthenticationConfigurationTests`, `CoordinationFixture`, `.Record`?**
+- **Why does `IOperationalLogger` connect `IOperationalLogger` to `.RefreshAsync`, `DeliveryWorker`, `OutlookWidget.Core.Refresh`, `DisclosureTombstoneStore`, `StateCommitCoordinator`, `WidgetProvider`, `.Current`, `.Start`, `AuthenticationConfigurationTests`, `CoordinationFixture`, `.Record`?**
   _High betweenness centrality (0.065) - this node is a cross-community bridge._
 - **What connects `net10.0-windows`, `Microsoft.NET.Sdk`, `OutlookWidget.App` to the rest of the system?**
   _35 weakly-connected nodes found - possible documentation gaps or missing edges._

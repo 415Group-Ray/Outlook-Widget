@@ -1,7 +1,7 @@
-# Graph Report - Outlook Widget  (2026-07-28)
+# Graph Report - Outlook Widget  (2026-07-29)
 
 ## Corpus Check
-- 68 files · ~87,679 words
+- 68 files · ~88,052 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `87b62537`
+- Built from commit: `037a8963`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -31,7 +31,7 @@
 - OutlookWidget.Core.csproj
 - Sources of Truth
 - Outlook Widget v1
-- New-PlaceholderAssets.ps1
+- New-Assets.ps1
 - Gate 7 — Outlook launch resolution
 - Cross-Process Coordination
 - Disclosure Tombstones
@@ -149,7 +149,7 @@ Nodes (6): Graphify Working Agreement, docs/phase0-evidence.md, Phase-Gated Deli
 Cohesion: 0.33
 Nodes (6): Mail.ReadBasic Boundary, Native Widget Architecture, Outlook Widget v1, Companion Interactive and Provider Silent Authentication, Surface-Independent Core, AGENTS.md Instructions
 
-### Community 16 - "New-PlaceholderAssets.ps1"
+### Community 16 - "New-Assets.ps1"
 Cohesion: 0.62
 Nodes (5): Add-EnvelopeGlyph(), New-Canvas(), New-IconTile(), New-RoundedPath(), New-WidgetScreenshot()
 

@@ -4,9 +4,9 @@
     Generates the package's icon and widget picker assets.
 
 .DESCRIPTION
-    Draws a self-contained app icon - a rounded blue tile with an envelope glyph - at every size
-    and scale Windows looks for, plus the widget picker screenshot at the exact size the Widgets
-    Board documentation requires.
+    Draws the app icon - a gradient envelope on transparency, with no background plate - at every
+    size and scale Windows looks for, plus the widget picker screenshot at the exact size the
+    Widgets Board documentation requires.
 
     THESE ARE THE v1 ASSETS, NOT PLACEHOLDERS
 
@@ -34,8 +34,8 @@
 
     ASSETS PRODUCED
 
-    App icon, as a self-contained rounded tile so it looks correct whether or not Windows draws a
-    plate behind it:
+    App icon, as a glyph on transparency so it matches its neighbours on every surface and does not
+    fight the plate Windows draws on the taskbar:
       StoreLogo             50px, plus scale-100/125/150/200/400
       Square150x150Logo     150px, plus scale-125/150/200/400
       Square44x44Logo       44px, plus scale-125/150/200/400
@@ -81,12 +81,23 @@ New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 # Palette
 # ---------------------------------------------------------------------------
 
-# A blue gradient rather than the previous flat #005A9E. Flat fills read as unfinished at tile
-# sizes, and the gradient costs nothing.
-$tileTop    = [System.Drawing.Color]::FromArgb(255, 0x2C, 0x7C, 0xD8)
-$tileBottom = [System.Drawing.Color]::FromArgb(255, 0x0A, 0x46, 0x8C)
-$glyph      = [System.Drawing.Color]::FromArgb(255, 0xFF, 0xFF, 0xFF)
-$accent     = [System.Drawing.Color]::FromArgb(255, 0xFF, 0xB9, 0x00)
+# The envelope is the icon. There is no background tile.
+#
+# The first version drew a white envelope on a filled blue rounded square, which looked dated beside
+# its neighbours: in the widget picker's provider list, and in Windows 11's own Start and taskbar
+# icons, the convention is a coloured glyph on transparency with no plate. A filled tile also fought
+# the taskbar's own plate and read as a missing icon.
+#
+# Colours are chosen to survive on BOTH light and dark surfaces, which rules out white as a primary
+# fill: the icon sits on a dark taskbar, a light Start flyout, and either picker theme. Mid-blue
+# against amber does that; white against blue did not.
+$bodyTop     = [System.Drawing.Color]::FromArgb(255, 0x4A, 0x9B, 0xF0)
+$bodyBottom  = [System.Drawing.Color]::FromArgb(255, 0x18, 0x55, 0xAE)
+$flapTop     = [System.Drawing.Color]::FromArgb(255, 0x8F, 0xC6, 0xFA)
+$flapBottom  = [System.Drawing.Color]::FromArgb(255, 0x52, 0xA1, 0xF2)
+$seam        = [System.Drawing.Color]::FromArgb(70,  0x0B, 0x33, 0x6B)
+$badgeTop    = [System.Drawing.Color]::FromArgb(255, 0xFF, 0xCB, 0x45)
+$badgeBottom = [System.Drawing.Color]::FromArgb(255, 0xF5, 0x9E, 0x0B)
 
 # Widget card colours, matched to the Widgets Board's own surfaces so the picker preview looks
 # like a widget rather than like a poster of one.
@@ -144,109 +155,105 @@ function New-Canvas {
     return @{ Bitmap = $bmp; Graphics = $g }
 }
 
-function Add-EnvelopeGlyph {
-    <#
-        Draws the envelope into a square region. Proportional to $Size so one definition serves
-        16px and 600px, and deliberately bold and simple: a glyph with fine detail turns to mush
-        at the 16px taskbar size, which is the one users see most often.
-    #>
+function New-GradientBrush {
     param(
-        [Parameter(Mandatory)]$Graphics,
-        [Parameter(Mandatory)][double]$Left,
         [Parameter(Mandatory)][double]$Top,
-        [Parameter(Mandatory)][double]$Size,
-        [switch]$IncludeAccent
+        [Parameter(Mandatory)][double]$Bottom,
+        [Parameter(Mandatory)][System.Drawing.Color]$From,
+        [Parameter(Mandatory)][System.Drawing.Color]$To
     )
 
-    $bodyX = $Left + $Size * 0.13
-    $bodyY = $Top + $Size * 0.26
-    $bodyW = $Size * 0.74
-    $bodyH = $Size * 0.48
-    $radius = $Size * 0.06
+    # A one-pixel-tall gradient produces a divide-by-zero inside GDI+, which happens at 16px where
+    # the flap is genuinely about that tall.
+    $height = [Math]::Max($Bottom - $Top, 1.0)
 
-    $body = New-RoundedPath -X $bodyX -Y $bodyY -Width $bodyW -Height $bodyH -Radius $radius
-    $brush = [System.Drawing.SolidBrush]::new($glyph)
-    $Graphics.FillPath($brush, $body)
-    $brush.Dispose()
-
-    # The flap, stroked in the tile colour over the white body. Drawing it as a stroke rather than
-    # a filled triangle keeps the envelope readable when the glyph is only a few pixels tall.
-    $penWidth = [Math]::Max($Size * 0.055, 1.0)
-    $pen = [System.Drawing.Pen]::new($tileBottom, [single]$penWidth)
-    $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
-    $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
-    $pen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
-
-    $inset = $bodyW * 0.10
-
-    # Explicitly typed as PointF[]. DrawLines is overloaded for Point[] and PointF[], and an
-    # untyped PowerShell array binds to the integer overload and then fails to convert.
-    [System.Drawing.PointF[]]$flap = @(
-        [System.Drawing.PointF]::new([single]($bodyX + $inset), [single]($bodyY + $bodyH * 0.16))
-        [System.Drawing.PointF]::new([single]($bodyX + $bodyW / 2), [single]($bodyY + $bodyH * 0.62))
-        [System.Drawing.PointF]::new([single]($bodyX + $bodyW - $inset), [single]($bodyY + $bodyH * 0.16))
-    )
-
-    $Graphics.DrawLines($pen, $flap)
-    $pen.Dispose()
-
-    # An amber unread dot, omitted below 32px because at that size it merges with the envelope and
-    # costs legibility rather than adding meaning.
-    if ($IncludeAccent -and $Size -ge 32) {
-        $dotSize = $Size * 0.26
-        $dotX = $Left + $Size * 0.66
-        $dotY = $Top + $Size * 0.14
-
-        # A tile-coloured ring separates the dot from the white body underneath.
-        $ring = [System.Drawing.SolidBrush]::new($tileBottom)
-        $Graphics.FillEllipse($ring, [single]($dotX - $Size * 0.035), [single]($dotY - $Size * 0.035),
-            [single]($dotSize + $Size * 0.07), [single]($dotSize + $Size * 0.07))
-        $ring.Dispose()
-
-        $dot = [System.Drawing.SolidBrush]::new($accent)
-        $Graphics.FillEllipse($dot, [single]$dotX, [single]$dotY, [single]$dotSize, [single]$dotSize)
-        $dot.Dispose()
-    }
-
-    $body.Dispose()
+    return [System.Drawing.Drawing2D.LinearGradientBrush]::new(
+        [System.Drawing.PointF]::new(0, [single]$Top),
+        [System.Drawing.PointF]::new(0, [single]($Top + $height)),
+        $From, $To)
 }
 
-function New-IconTile {
+function New-AppIcon {
     <#
-        The app icon: a rounded gradient tile with the envelope centred on it.
+        The app icon: a gradient envelope on transparency, with no background plate.
 
-        Self-contained on purpose. Windows may or may not draw a plate behind an icon depending on
-        the variant and the surface, and an icon that supplies its own background looks correct
-        either way. The previous flat blue square on a blue taskbar plate read as a missing icon.
+        WHY NO TILE. The picker's provider list, the Windows 11 Start list, and the taskbar all
+        surround this icon with glyph-on-transparency neighbours. A filled rounded square reads as
+        dated next to them, and on the taskbar it fights the plate Windows draws itself. The first
+        version of this script drew exactly that and it looked wrong in place.
+
+        Proportional to $Size throughout, so one definition serves 16px and 600px. Detail is dropped
+        rather than scaled below 32px: the taskbar size is the one seen most often, and a gradient
+        seam and an unread badge at 16px are noise that costs legibility.
     #>
     param([Parameter(Mandatory)][int]$Size)
 
     $canvas = New-Canvas -Width $Size -Height $Size
     $g = $canvas.Graphics
 
-    # Windows 11 app icons are roughly a 22% corner radius. Small sizes get slightly less, or the
-    # tile stops reading as a square at all.
-    $radiusFactor = if ($Size -le 24) { 0.16 } else { 0.22 }
+    $detailed = $Size -ge 32
 
-    # Inset by half a pixel so the anti-aliased edge lands inside the bitmap rather than being
-    # clipped, which otherwise leaves a hard corner on one side.
-    $inset = 0.5
-    $tile = New-RoundedPath -X $inset -Y $inset -Width ($Size - $inset * 2) -Height ($Size - $inset * 2) `
-        -Radius ($Size * $radiusFactor)
+    # The envelope fills most of the canvas. Windows already pads icons on every surface that shows
+    # them, so building in more padding just makes the icon look smaller than its neighbours.
+    $left = $Size * 0.06
+    $right = $Size * 0.94
+    $width = $right - $left
 
-    $brush = [System.Drawing.Drawing2D.LinearGradientBrush]::new(
-        [System.Drawing.PointF]::new(0, 0),
-        [System.Drawing.PointF]::new(0, [single]$Size),
-        $tileTop, $tileBottom)
-    $g.FillPath($brush, $tile)
-    $brush.Dispose()
-    $tile.Dispose()
+    # A badge needs room above the envelope, so the envelope sits lower when one is drawn.
+    $bodyTopY = if ($detailed) { $Size * 0.28 } else { $Size * 0.24 }
+    $bodyBottomY = $Size * 0.80
+    $bodyHeight = $bodyBottomY - $bodyTopY
 
-    # The glyph occupies a generous share of the tile. Icons that leave too much padding look
-    # smaller than their neighbours in the Start list.
-    $glyphSize = $Size * 0.68
-    $glyphOffset = ($Size - $glyphSize) / 2
-    Add-EnvelopeGlyph -Graphics $g -Left $glyphOffset -Top $glyphOffset -Size $glyphSize -IncludeAccent
+    # Generous rounding, which is what separates a modern envelope from a rectangle with a line in
+    # it. Clamped at small sizes or the corners eat the whole shape.
+    $radius = if ($detailed) { $Size * 0.10 } else { $Size * 0.07 }
+
+    $body = New-RoundedPath -X $left -Y $bodyTopY -Width $width -Height $bodyHeight -Radius $radius
+    $bodyBrush = New-GradientBrush -Top $bodyTopY -Bottom $bodyBottomY -From $bodyTop -To $bodyBottom
+    $g.FillPath($bodyBrush, $body)
+    $bodyBrush.Dispose()
+
+    # The flap: a filled triangle with its apex pointing down, clipped to the body so it inherits
+    # the body's rounded top corners. Filled rather than stroked - a stroke reads as a line drawn on
+    # a box, while a fill reads as an envelope, and the lighter gradient is what gives it depth.
+    $g.SetClip($body)
+
+    $flapApexY = $bodyTopY + $bodyHeight * 0.62
+
+    [System.Drawing.PointF[]]$flapPoints = @(
+        [System.Drawing.PointF]::new([single]$left, [single]$bodyTopY)
+        [System.Drawing.PointF]::new([single]($left + $width / 2), [single]$flapApexY)
+        [System.Drawing.PointF]::new([single]$right, [single]$bodyTopY)
+    )
+
+    $flapBrush = New-GradientBrush -Top $bodyTopY -Bottom $flapApexY -From $flapTop -To $flapBottom
+    $g.FillPolygon($flapBrush, $flapPoints)
+    $flapBrush.Dispose()
+
+    # A translucent seam along the flap's underside. This is the whole depth cue: without it the
+    # flap and body read as two flat triangles meeting, with it the flap sits on top of the body.
+    if ($detailed) {
+        $seamPen = [System.Drawing.Pen]::new($seam, [single][Math]::Max($Size * 0.022, 1.0))
+        $seamPen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
+        $g.DrawLines($seamPen, $flapPoints)
+        $seamPen.Dispose()
+    }
+
+    $g.ResetClip()
+    $body.Dispose()
+
+    # The unread badge, in the corner the envelope leaves free. Amber against blue needs no
+    # separating ring, and adding one would show as a halo on the transparent side.
+    if ($detailed) {
+        $badgeSize = $Size * 0.34
+        $badgeX = $Size - $badgeSize - $Size * 0.03
+        $badgeY = $Size * 0.03
+
+        $badgeBrush = New-GradientBrush -Top $badgeY -Bottom ($badgeY + $badgeSize) `
+            -From $badgeTop -To $badgeBottom
+        $g.FillEllipse($badgeBrush, [single]$badgeX, [single]$badgeY, [single]$badgeSize, [single]$badgeSize)
+        $badgeBrush.Dispose()
+    }
 
     $g.Dispose()
     return $canvas.Bitmap
@@ -286,7 +293,7 @@ function New-WidgetScreenshot {
 
     $textBrush = [System.Drawing.SolidBrush]::new($textColour)
     $subtleBrush = [System.Drawing.SolidBrush]::new($subtleColour)
-    $accentBrush = [System.Drawing.SolidBrush]::new($accent)
+    $accentBrush = [System.Drawing.SolidBrush]::new($badgeBottom)
 
     $fontFamily = 'Segoe UI'
     $titleFont = [System.Drawing.Font]::new($fontFamily, 9.5, [System.Drawing.FontStyle]::Regular)
@@ -299,7 +306,7 @@ function New-WidgetScreenshot {
     $pad = 16
 
     # Attribution row: the app icon and name, as the Board itself draws above a widget.
-    $icon = New-IconTile -Size 18
+    $icon = New-AppIcon -Size 18
     $g.DrawImage($icon, [single]$pad, [single]$pad, 18, 18)
     $icon.Dispose()
     $g.DrawString('Outlook Inbox', $titleFont, $subtleBrush, [single]($pad + 24), [single]($pad + 1))
@@ -397,11 +404,11 @@ foreach ($item in @(
 )) {
     # The unqualified file, which is what the manifest names and what Windows falls back to when
     # no resources.pri is present.
-    Save-Asset -Name "$($item.Name).png" -Bitmap (New-IconTile -Size $item.Base)
+    Save-Asset -Name "$($item.Name).png" -Bitmap (New-AppIcon -Size $item.Base)
 
     foreach ($scale in $scales) {
         $size = [int][Math]::Round($item.Base * $scale / 100.0)
-        Save-Asset -Name "$($item.Name).scale-$scale.png" -Bitmap (New-IconTile -Size $size)
+        Save-Asset -Name "$($item.Name).scale-$scale.png" -Bitmap (New-AppIcon -Size $size)
     }
 }
 
@@ -409,13 +416,13 @@ foreach ($item in @(
 # Windows does not draw its own background plate; both are the same self-contained tile here, which
 # is what makes the icon look right in either position.
 foreach ($target in @(16, 24, 32, 48, 256)) {
-    Save-Asset -Name "Square44x44Logo.targetsize-$target.png" -Bitmap (New-IconTile -Size $target)
+    Save-Asset -Name "Square44x44Logo.targetsize-$target.png" -Bitmap (New-AppIcon -Size $target)
     Save-Asset -Name "Square44x44Logo.targetsize-${target}_altform-unplated.png" `
-        -Bitmap (New-IconTile -Size $target)
+        -Bitmap (New-AppIcon -Size $target)
 }
 
 # The widget's attribution icon.
-Save-Asset -Name 'WidgetIcon.png' -Bitmap (New-IconTile -Size 128)
+Save-Asset -Name 'WidgetIcon.png' -Bitmap (New-AppIcon -Size 128)
 
 # The picker screenshots. 300x304 with transparent rounded corners, per the documentation.
 Save-Asset -Name 'WidgetScreenshot.png' -Bitmap (New-WidgetScreenshot -Theme 'Dark')

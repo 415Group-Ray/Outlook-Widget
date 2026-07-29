@@ -38,7 +38,7 @@
   <Identity
     Name="415Group.OutlookInboxWidget"
     Publisher="CN=&quot;415 Group, Inc.&quot;"
-    Version="0.3.1.0"
+    Version="0.3.2.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
@@ -141,6 +141,14 @@
             PublicFolder="Public">
             <uap3:Properties>
               <WidgetProvider>
+                <!--
+                  ProviderIcons is what the Add Widgets picker draws beside this app's name in its
+                  provider list, alongside Weather, Traffic, Phone Link and the rest. Worth knowing,
+                  because it is not obvious from the element name and it is the icon most users see
+                  first: every neighbour in that list is a glyph on transparency, so an icon with a
+                  filled background plate stands out as dated. StoreLogo serves here because it is
+                  now exactly that - a transparent envelope glyph with no tile.
+                -->
                 <ProviderIcons>
                   <Icon Path="Assets\StoreLogo.png" />
                 </ProviderIcons>

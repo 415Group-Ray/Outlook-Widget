@@ -534,10 +534,30 @@ with the SDK tools means running it explicitly, which `Build-Package.ps1` now do
 Verified in the installed 0.3.1.0 package: `resources.pri` present, 32 asset files, and MakePri
 reported 15 scale variants and 10 target sizes indexed with zero warnings.
 
-The flat single-colour placeholder also had a specific visible failure worth recording: an unplated
-blue square on the taskbar's blue plate reads as a missing icon. The replacement assets are
-self-contained rounded tiles with their own gradient, so they render correctly whether or not
-Windows draws a plate behind them.
+The flat single-colour placeholder had a specific visible failure worth recording: an unplated blue
+square on the taskbar's blue plate reads as a missing icon.
+
+### The first replacement was also wrong, in a way only visible in place
+
+The first redraw made the icon a **self-contained rounded tile** — a white envelope on a blue
+gradient square — reasoning that an icon supplying its own background renders correctly whether or
+not Windows draws a plate. Seen in the Add Widgets picker's provider list next to Weather, Traffic,
+Timer, Watchlist and the rest, it looked dated: **every neighbour in that list is a glyph on
+transparency with no plate**, and the filled square read as an icon from an older design era.
+
+Two things this established, neither of which was reachable from documentation:
+
+1. **`ProviderIcons/Icon` is what the picker's provider list draws.** Not obvious from the element
+   name, and it is the icon a user sees before they have pinned anything. The manifest now says so.
+2. **The reasoning "self-contained is safer" was backwards for this surface.** It optimised for
+   never looking wrong against an unknown background and ignored what the icon sits beside.
+
+The icon is now a gradient envelope on full transparency with no tile: body and flap as separate
+gradients with a translucent seam between them for depth, and an amber unread badge in the corner the
+envelope leaves free. The seam and badge are dropped below 32px rather than scaled, because the
+taskbar size is seen most often and both become noise there. Colours avoid white as a primary fill,
+since the icon has to read on a dark taskbar and a light Start flyout alike — which is what the
+white-on-blue tile got away with only by supplying its own background.
 
 ### Decision: the generated assets are the v1 artwork
 
