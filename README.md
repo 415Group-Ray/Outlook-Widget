@@ -3,26 +3,27 @@
 A glanceable Windows 11 widget showing Microsoft 365 Inbox counts and the newest few email
 messages, without opening Outlook.
 
-**Status: early implementation, native surface proven, sign-in built but unmeasured.** The cross-process coordination core is
-built and tested, and a signed MSIX registers a COM widget provider that appears in the Widgets
-Board, pins, renders at small, medium, and large, survives both a reboot and a package upgrade with
-its instance restored, launches New Outlook and the companion from its actions, and exits when
-unpinned. **Every native-surface Phase 0 gate except gates 9 and 11 has passed on the reference
+**Status: early implementation, native surface proven, brokered sign-in working.** The cross-process
+coordination core is built and tested, and a signed MSIX registers a COM widget provider that appears
+in the Widgets Board, pins, renders at small, medium, and large, survives both a reboot and a package
+upgrade with its instance restored, launches New Outlook and the companion from its actions, and exits
+when unpinned. **Every native-surface Phase 0 gate except gates 9 and 11 has passed on the reference
 machine**, so the tray/popover fallback is not being built.
 
-Both open gates wait on authentication. **Gate 9** — silent-only token acquisition from the provider
-with a zero parent handle — is now **implemented but not measured**. **Gate 11** — cached-first
-refresh and cross-process invalidation across a real host — cannot be observed until there is
-something to refresh. Gate 11 could not decide between the native surface and the fallback, because
-both consume the same coordination core; gate 9 could, because a provider that cannot get a token
-silently would show sign-in-required forever while a tray app could authenticate in its own UI
-process.
+**Sign-in works, and gate 8 split.** The companion has a real window and acquires a delegated
+`Mail.ReadBasic` token through WAM — measured on the reference tenant. But **self-consent does not
+work there**: the tenant's Microsoft-managed consent policy permits user consent to mail permissions
+only for a fixed list of Microsoft-chosen mail clients, so an administrator had to grant consent for
+this registration. The gate asks two questions and they got different answers, so it is neither a pass
+nor a fail. See [docs/phase0-evidence.md](docs/phase0-evidence.md).
 
-**Brokered sign-in is built.** The companion has a real window and performs WAM sign-in with
-self-consent to `Mail.ReadBasic`; the provider acquires silently with no window of its own and reports
-the classified result on its card. Neither has been run against the tenant yet, so gates 8 and 9 are
-implemented rather than passed — measuring them takes an elevated install and two manual steps, listed
-in [docs/phase0-evidence.md](docs/phase0-evidence.md).
+**Gate 9** — silent-only token acquisition from the provider with a zero parent handle — is
+**implemented and not yet measured**. The provider reports its classified outcome on the card, which is
+the readout; a pinned widget has not yet been read. **Gate 11** — cached-first refresh and
+cross-process invalidation across a real host — cannot be observed until there is something to refresh.
+Gate 11 could not decide between the native surface and the fallback, because both consume the same
+coordination core; gate 9 could, because a provider that cannot get a token silently would show
+sign-in-required forever while a tray app could authenticate in its own UI process.
 
 There is still no Microsoft Graph access, so the provider draws a placeholder card describing
 coordination and authentication state — **nothing here shows real mail.** That is the next slice. See
@@ -56,10 +57,15 @@ package's.
   interactive authentication and cannot open a browser. This is enforced by the assembly
   reference graph rather than by convention: the single `AcquireTokenInteractive` call site
   lives in the companion, which the provider does not reference at all.
-- **No token in any file this app writes.** WAM keeps the refresh token device-bound inside the
-  broker. MSAL's shared cache — which the two processes need so the provider can find the
-  account the companion signed in — holds ID tokens and account metadata, is DPAPI-protected,
-  and sits inside the package store so uninstall removes it.
+- **No access or refresh token in any file this app writes.** WAM keeps the refresh token
+  device-bound inside the broker, and access tokens are never persisted.
+
+  MSAL's shared cache — which the two processes need so the provider can find the account the
+  companion signed in — **does** hold ID tokens along with account metadata. An ID token is a
+  token, so that is stated rather than glossed: it is a signed record of who signed in, not a
+  credential for reading mail, and possessing it does not grant mailbox access. It is
+  DPAPI-protected under the current user and sits inside the package store, so uninstall removes
+  it.
 - **No telemetry.** Nothing leaves the device. Local operational logs record an event name, a
   status category, a duration, and a count — the logging API has no parameter capable of
   accepting a sender, subject, account, link, or token, which is enforced by its shape rather

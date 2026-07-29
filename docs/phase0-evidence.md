@@ -102,7 +102,7 @@ permission.
 | 4 — `GetWidgetInfos()` restores all instances; final-instance exit | **PASS** | All three criteria observed. The widget rendered again after a reboot, which requires `RecoverEnabledInstances` to have rebuilt the instance map from `GetWidgetInfos()` before the class object was registered — the Board does not replay `CreateWidget` for an already-pinned widget, so a provider that started empty would have rendered nothing. That covers pinned IDs, definitions, and per-instance sizes. **The provider process exited when the widget was unpinned**, confirming `DeleteWidget` signalled on the transition to empty and `Main` revoked its registration and returned. And **`CustomState` recovery is confirmed**: the large card reports `delivered 0` rather than `delivered none`, so the generation the sink wrote into `CustomState` came back through `GetWidgetInfos()` on a later provider start. The first implementation wrote that value without ever reading it back, so it round-tripped nowhere; this is the observation that the round trip is now closed |
 | 5 — two instances at different sizes render independently | **Superseded; replacement PASSES** | **A second instance could not be pinned.** After pinning, the picker entry was greyed out and marked as added. The cause is not the manifest: the installed definition carries `AllowMultiple="true"` and declares all three sizes. The replacement gate — one instance rendering correctly at small, medium, and large — **passes**, with two rendering defects found and fixed along the way. See the gate 5 section below |
 | 6 — widget action launches the companion | **PASS** | Clicking **Open companion** on the pinned widget launched the companion, which displayed package identity `415Group.OutlookInboxWidget_0.2.0.0_x64__dgbvqhastx60y` and its coordination root inside the package store. Note that the companion did **not** report a launch argument, which is the correct outcome and is explained below: the documented shell-activation candidate succeeded, and that path carries no arguments |
-| 9 — provider silent-only acquisition with a zero parent handle | **Implemented; NOT measured** | The code now exists: the provider builds its client through `BrokerClient` passing `BrokerClient.NoParentWindow`, runs `SilentAuthService` on a background task after `CoRegisterClassObject`, and publishes the classified outcome to the card — the large size reports `silent auth <status>` and the detail line describes it in words. That readout is the only way to observe this gate, because the provider has no console and no window. **It still requires gate 8 to have put a token in the broker first, and then a pinned widget to read.** Three source-level tests enforce the boundary: no interactive API in the core, none in the provider, and the zero-handle helper is what the provider passes |
+| 9 — provider silent-only acquisition with a zero parent handle | **Implemented; NOT measured** | The code now exists: the provider builds its client through `BrokerClient` passing `BrokerClient.NoParentWindow`, runs `SilentAuthService` on a background task after `CoRegisterClassObject`, and publishes the classified outcome to the card — the large size reports `silent auth <status>` and the detail line describes it in words. That readout is the only way to observe this gate, because the provider has no console and no window. **Gate 8 has since put a token in the broker and the shared cache is populated, so the only thing outstanding is reading a pinned card.** Three source-level tests enforce the boundary: no interactive API in the core, none in the provider, and the zero-handle helper is what the provider passes |
 | 11 — cached-first refresh and cross-process invalidation | **Partly established; NOT passed** | The coordination subsystem passes 136 automated tests including genuine multi-process contention. Separately, and new: **the named events now exist.** Both `OutlookWidget-StateChanged-v1` and `OutlookWidget-SuppressDetails-v1` were confirmed present while the installed provider ran. Until `StateChangeListener` was written nothing created them, so `StateCommitCoordinator` and `DisclosureTombstoneStore` were opening a non-existent event and swallowing the failure — every cross-process signal in the product was a silent no-op. **The gate itself is not met:** it requires cached-first refresh and cross-process invalidation observed across real Board activation and provider recycle, and neither a refresh nor a state commit can happen until authentication and Graph exist. It cannot be closed in Phase 0's native work |
 
 **Two native-surface gates have not passed: 9 and 11.** Any status claim elsewhere must say "every
@@ -417,45 +417,45 @@ script fails if any key file appears under the repository root.
 
 ## What is still blocking, and what unblocks it
 
-**An interactive sign-in on the reference machine.** This changed. The registration was done, and now
-the authentication code is too: gates 8 and 9 are implemented, build clean, and ship in
-0.3.5.0. What neither has is a measurement.
+**One card read.** This section previously listed three manual steps; the first two are done. Gate 8 has
+been measured and split — brokered sign-in passes, self-consent fails on this tenant — and admin consent
+was granted for the registration, so a token is in the broker and the shared cache is populated.
 
-The remaining sequence is short and is entirely manual, because every step of it is a platform
-behaviour no test can stand in for:
+**The single remaining step for gate 9:** open the Widgets Board with **Outlook Inbox** pinned and read
+the card. The large size ends its diagnostic line with `silent auth <status>`; the medium and large
+detail line says the same in words. `silent auth Acquired` is the gate. Anything else is a failure, and
+`BrokerUnavailable` is the one that reopens the section 18 surface decision.
 
-1. Install 0.3.5.0. Elevation is not needed — the development certificate is already trusted, so
-   `-SkipCertificateTrust` applies. A pinned widget holds the package open, so this needs
-   `-ForceApplicationShutdown` as well; see the recorded measurement below.
+Two operational notes for that read, both measured:
 
-   **The manifest version must be bumped for every reinstall.** `Build-Package.ps1` reads
-   `Identity/Version` and does not increment it, so rebuilding after a code change without bumping
-   produces a package with the same identity and different contents, which Windows refuses with
-   HRESULT `0x80073CFB`. This was hit going from 0.3.3.0 to 0.3.4.0 and is recorded in the
-   troubleshooting guide, including why it is neither an elevation problem nor the running-process
-   case that `-ForceApplicationShutdown` exists for.
-2. Open the companion and press **Sign in**. The window reports the classified outcome. This is
-   gate 8, and it is also where the tenant's user-consent policy is exercised for the first time:
-   an `ApprovalRequired` result means self-consent is blocked and the gate fails in the specific way
-   the risk table anticipated.
-3. With a token in the broker, pin the widget and read the large card. `silent auth Acquired` is
-   gate 9. Anything else is a failure, and `BrokerUnavailable` is the one that reopens the section 18
-   surface decision.
+- The provider's lifetime is demand-driven rather than pin-driven, so it may not be running even with a
+  widget pinned. Opening the Board activates it.
+- The probe runs **once per provider process**, on a background task started after
+  `CoRegisterClassObject`. A card can legitimately read `silent auth pending` for a moment; if it stays
+  there, the acquisition has not returned rather than having failed.
+
+**Reinstalling requires a manifest version bump every time.** `Build-Package.ps1` reads
+`Identity/Version` and does not increment it, so rebuilding after a code change without bumping produces
+a package with the same identity and different contents, which Windows refuses with HRESULT
+`0x80073CFB`. Hit going from 0.3.3.0 to 0.3.4.0; recorded in the troubleshooting guide along with why it
+is neither an elevation problem nor the running-process case `-ForceApplicationShutdown` exists for.
+Elevation is not needed for upgrades — the certificate is already trusted, so `-SkipCertificateTrust`
+applies — but a pinned widget holds the package open, so `-ForceApplicationShutdown` is.
 
 Gates 10 and 12 still need `GraphMailClient`, so they follow gate 8 as before.
 
-**A discovery worth recording, because it nearly failed gate 9 for the wrong reason.** MSAL keeps ID
-tokens and account metadata in its own cache even when the broker holds the device-bound refresh
-token, and Microsoft's documentation is explicit that without persisting that cache, "restarting the
-app means that `GetAccounts` API will miss some of the accounts". The companion and the provider are
-different processes. Without a *shared* cache the provider would have enumerated no accounts and
-reported sign-in-required immediately after a successful companion sign-in — and the obvious reading
-of that would have been that the zero parent handle failed, which is the opposite of true. The shared
-cache is now attached in `BrokerClient` and lives in the coordination root; see the plan's section 12.
+**The shared-cache requirement is no longer an argument from documentation.** MSAL keeps ID tokens and
+account metadata in its own cache even when the broker holds the device-bound refresh token, and
+Microsoft's documentation is explicit that without persisting it, "restarting the app means that
+`GetAccounts` API will miss some of the accounts". The companion and the provider are different
+processes, so without a *shared* cache the provider would enumerate no accounts and report
+sign-in-required immediately after a successful companion sign-in — and the obvious reading of that
+would have been that the zero parent handle failed, which is the opposite of true.
 
-This is an argument from documentation, not a measurement. It has not been observed either way on this
-machine, and step 3 above is what would distinguish a cache problem from a handle problem if gate 9
-fails.
+**The file now exists:** `msal-v1.bin`, 3510 bytes, in the coordination root inside the package store,
+written by the companion's sign-in. That the mechanism *works end to end* is still what gate 9's card
+read establishes; what is settled is that the cache is created and correctly placed, so a gate 9 failure
+can be attributed to the handle rather than to a missing cache.
 
 The registration could not have been avoided by prompting the user. Consent *is* already a user
 prompt — self-consent to `Mail.ReadBasic` at first sign-in, no administrator step — but the
@@ -671,7 +671,7 @@ Three separate observations, kept separate because they prove different things:
 | 0.2.1.0 → **0.2.2.0**, a real version upgrade | No — already exited | Succeeded with the widget still pinned |
 | 0.2.2.0 → **0.2.3.0**, a real version upgrade | **Yes** | Succeeded with `-ForceApplicationShutdown`; the script's pre-install notice fired correctly, the pin survived, and the widget still renders afterwards |
 | 0.3.3.0 → 0.3.3.0, same version, **different contents** | Yes | **Failed** with `0x80073CFB`, and failed identically elevated. A rebuilt payload under an unchanged version is refused outright. This is a *different* failure from the first row and has a different fix — bump the manifest version, do not uninstall. See the troubleshooting guide |
-| 0.3.3.0 → **0.3.4.0**, then 0.3.4.0 → **0.3.5.0** | **Yes** both times | Both succeeded with `-SkipCertificateTrust -ForceApplicationShutdown` from a **non-elevated** session, confirming the certificate stays trusted across upgrades and that elevation is a first-install requirement only |
+| 0.3.3.0 → 0.3.4.0 → 0.3.5.0 → 0.3.6.0 → 0.3.7.0 → **0.3.8.0**, six consecutive version upgrades | **Yes** each time | All succeeded with `-SkipCertificateTrust -ForceApplicationShutdown` from a **non-elevated** session, confirming the certificate stays trusted across upgrades and that elevation is a first-install requirement only. The widget pin survived every one |
 
 The 0.2.1.0 → 0.2.2.0 upgrade had one limitation worth stating: the provider had already exited from
 the previous force-shutdown and the Board had not re-activated it, so the in-use path was not
