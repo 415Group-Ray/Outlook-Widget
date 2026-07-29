@@ -309,6 +309,24 @@ gone. Three of four builds in that sequence succeeded, and the repository is One
 documented sharing-violation risk, which makes transient contention the obvious suspect and an
 unverified one. If packaging failures recur, this is the first thing to reproduce properly.
 
+**A shallow clone defeated the first version of this, and the comment claimed otherwise.** The
+derivation checked only `git rev-list --count HEAD`'s exit code, with a comment asserting that a shallow
+clone would therefore be caught. It would not: that command **succeeds** in a shallow clone and returns
+the fetched depth, so a `--depth 1` clone derives `0.3.1.0` — lower than anything installed, which MSIX
+refuses. Neither safety net caught it, because the backward-version guard reads state a fresh clone does
+not have, and the failure then surfaces at install time as a version error naming the package rather
+than the clone.
+
+Now checked explicitly and before the count: `--is-inside-work-tree`, then
+`--is-shallow-repository`, each a named failure. Shallow is rejected rather than worked around —
+deepening the clone would silently mutate the caller's repository, and guessing a floor would produce a
+version unrelated to history.
+
+Worth generalising, because it is the second instance: **a comment asserting a guarantee is not the
+guarantee.** The clipped Sign in button, the sentence claiming a successful acquisition proved
+self-consent, and this all share one shape — prose describing protection that the code did not
+implement, in a form no test would contradict.
+
 The tracked manifest is left alone deliberately: the version stops appearing in every diff, and the
 packaged value stays derived rather than remembered. The layout manifest is stamped by a substitution
 scoped to the `Identity` element, and the script then asserts both that the stamp landed and that the

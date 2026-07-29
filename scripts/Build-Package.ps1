@@ -205,12 +205,44 @@ function Resolve-PackageVersion {
     $major = [int]$parts[0]
     $minor = [int]$parts[1]
 
-    # Commit height. A shallow clone or a missing git would make this meaningless rather than merely
-    # wrong, so it is a hard failure with a named cause instead of a silent fallback to zero.
+    # Commit height, with the preconditions checked FIRST rather than inferred from the count.
+    #
+    # An earlier version of this checked only the exit code and claimed in a comment that a shallow
+    # clone would therefore be caught. It would not: `git rev-list --count HEAD` SUCCEEDS in a shallow
+    # clone and returns the fetched depth. A `--depth 1` clone reports 1, so the derived version would
+    # be 0.3.1.0 — lower than anything already installed, and MSIX refuses a downgrade.
+    #
+    # Neither safety net below catches it either. The backward-version guard reads state that a fresh
+    # clone does not have, and the failure surfaces at install time as a version error naming the
+    # package rather than the clone.
+
+    $insideWorkTree = & git rev-parse --is-inside-work-tree 2>$null
+
+    if ($LASTEXITCODE -ne 0 -or $insideWorkTree -ne 'true') {
+        throw 'Not inside a git work tree, so the package version cannot be derived. Build from a clone of the repository.'
+    }
+
+    # Shallow is rejected rather than worked around. Deepening the clone here would silently change the
+    # caller's repository, and guessing a floor would produce a version with no relationship to history.
+    $isShallow = & git rev-parse --is-shallow-repository 2>$null
+
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Cannot determine whether this repository is shallow, so the package version cannot be derived safely.'
+    }
+
+    if ($isShallow -eq 'true') {
+        throw @'
+This is a shallow clone, so commit height is the fetched depth rather than the real history and the
+derived package version would be too low to install over an existing one.
+
+Fix it with:  git fetch --unshallow
+'@
+    }
+
     $height = & git rev-list --count HEAD 2>$null
 
     if ($LASTEXITCODE -ne 0 -or -not ($height -match '^\d+$')) {
-        throw 'Cannot determine the git commit height, so the package version cannot be derived. Build from a full clone.'
+        throw 'Cannot determine the git commit height, so the package version cannot be derived.'
     }
 
     $build = [int]$height
