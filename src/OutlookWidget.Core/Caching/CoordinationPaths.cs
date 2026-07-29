@@ -103,6 +103,39 @@ public sealed class CoordinationPaths
     /// </summary>
     public string SuppressionDirectory => Path.Combine(RootDirectory, $"suppression-{_scope}");
 
+    /// <summary>
+    /// Directory holding MSAL's own token cache. The same as the state root, so one uninstall
+    /// removes cache, coordination state, and account metadata together.
+    /// </summary>
+    /// <remarks>
+    /// The MSAL cache helper takes a directory and a file name separately rather than a path,
+    /// which is why this is exposed as a pair as well as a combined path.
+    /// </remarks>
+    public string TokenCacheDirectory => RootDirectory;
+
+    /// <summary>MSAL's token cache file name.</summary>
+    public string TokenCacheFileName => $"msal-{_scope}.bin";
+
+    /// <summary>
+    /// MSAL's token cache, DPAPI-protected by the cache helper and shared by both processes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Placed here rather than where the MSAL documentation suggests.</b> That documentation
+    /// offers <c>%LocalAppData%\{AppName}\msalcache.bin</c> as the MSIX example, which on this
+    /// machine resolves outside the package store for the measured reason recorded on
+    /// <see cref="Resolve"/> — so the account metadata would survive uninstall. Section 11 promises
+    /// it does not.
+    /// </para>
+    /// <para>
+    /// It holds ID tokens and account metadata, not the refresh token: with the broker enabled the
+    /// refresh token stays device-bound inside WAM. That is why this file is a convenience for
+    /// account discovery rather than the credential itself, and why losing it costs a fresh
+    /// interactive sign-in and nothing more.
+    /// </para>
+    /// </remarks>
+    public string TokenCacheFilePath => Path.Combine(TokenCacheDirectory, TokenCacheFileName);
+
     /// <summary>Guards synchronous local state commits. Bounded waits only.</summary>
     public string MutationMutexName => $"OutlookWidget-Mutation-{_scope}";
 

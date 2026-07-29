@@ -55,11 +55,36 @@ Distinguish four causes before changing anything:
   **Do not unpin the widget to work around this.** It would let the install proceed, and it
   destroys the pin for no reason — the force-shutdown path preserves it.
 
+- **HRESULT `0x80073CFB`, "the provided package is already installed, and reinstallation of the
+  package was blocked."** The full text is more useful than the code: *the provided package has the
+  same identity as an already-installed package but the contents are different.*
+
+  This is the routine consequence of rebuilding after a code change without bumping the manifest
+  version. `Build-Package.ps1` reads `Identity/Version` from `Package.appxmanifest` and never
+  increments it, so every build between two manual bumps produces a package that Windows sees as the
+  same version with a different payload, and refuses.
+
+  **The fix is to increment `Version` in `Package.appxmanifest` and rebuild.** Do not remove the
+  installed package to force it through: uninstalling loses widget pins and package-local cache and
+  settings, which is a real cost for a problem a version bump solves.
+
+  It is worth stating what this is *not*, because the failure arrives with a list of plausible
+  neighbours and none of them apply:
+
+  - It is **not** an elevation problem. It fails identically elevated, because nothing about it
+    concerns certificate trust.
+  - It is **not** `0x80073D02`. That one is about running processes and is fixed by
+    `-ForceApplicationShutdown`. Passing that flag does not help here, and its message about
+    terminating the provider can make it look as though it should.
+  - It is **not** the "lower version over higher" case below. The versions are equal, not inverted,
+    so the remedy there — remove and reinstall — is the wrong tool and the expensive one.
+
 ## Sign-in problems
 
 | Symptom | Cause | Action |
 |---|---|---|
 | "Sign in required" on the widget | Silent token acquisition threw `MsalUiRequiredException` | Open the companion and sign in. The provider cannot prompt, by design |
+| Companion reports `Cancelled` but the dialog said **"Approval required"** | Tenant policy withheld consent, and the broker reported the dismissal as an ordinary cancellation | **Retrying will not help.** Grant admin consent for the registration. Measured limitation: the broker does not reliably distinguish a closed dialog from a policy refusal, so this status cannot separate the two — the companion's cancellation text says as much |
 | "Authentication broker unavailable" | WAM broker construction or use failed | Companion diagnostics. No browser will open from the provider under any circumstances |
 | "This app needs approval before it can read your mailbox" | Tenant user-consent policy blocked self-consent | **No token was issued and no Graph call was made.** Request administrator approval for delegated `Mail.ReadBasic` |
 | "Mailbox access needs approval" | Graph returned HTTP 403 | **A token was issued** and the mailbox request was refused. Different cause from the row above; check the mailbox and tenant configuration |
@@ -67,6 +92,81 @@ Distinguish four causes before changing anything:
 
 The two approval rows are the pair most often conflated. The log's status category
 distinguishes them (`ApprovalRequired` versus a recorded 403), and so must any diagnosis.
+
+### "Approval required" despite a permissive-looking user-consent setting
+
+Measured on the reference tenant, and the setting that causes it does not read like a restriction.
+
+**"Let Microsoft manage your consent settings (Recommended)"** with **"Enable user consent for popular
+Mail clients"** checked does *not* mean users may consent to mail permissions for any application. It
+maps to the Microsoft-managed policy `microsoft-user-allow-default-consent-apps`, which permits user
+consent to mail permissions for a **fixed list of Microsoft-chosen application IDs** — Apple Mail,
+Spark Email, eM Client, Android-Samsung, Android-Mail, and Thunderbird. The list is Microsoft's and
+cannot be added to, so your own registration can never self-consent while that setting is in force.
+
+Two things that look like they contradict this and do not:
+
+- The registration's API permissions blade may show `Admin consent required: No`. That column reports
+  the **organization default**, not your tenant's effective policy — the blade says so itself. The
+  permission does not inherently need admin consent; the policy withholds it.
+- The consent dialog lists three permissions where the registration configures one. The extra two are
+  MSAL's automatic OIDC scopes: `offline_access` ("Maintain access to data you have given it access
+  to") and `profile` ("View users' basic profile"). Neither is `User.Read`, which grants the full
+  profile and reads "Sign in and read user profile".
+
+The remedy is to grant admin consent for that single registration, which covers delegated
+`Mail.ReadBasic` for that app only and lets a signed-in user read their own basic mail. Loosening the
+tenant-wide consent policy is a much larger blast radius for the same outcome.
+
+### The reported status does not match the failure
+
+The companion prints a `Signals:` line beneath the status — the exception type, MSAL's error code, and
+any `AADSTS` numbers. Include it in any report of a misclassified sign-in.
+
+It exists because a status word alone was insufficient once: a tenant consent block arrived carrying
+none of the `AADSTS` codes the classifier knew about and reported as a generic `Failed`. If a state is
+reported as `Failed` where a specific one applies, that line is what identifies the missing rule.
+It carries categories only and never the exception message.
+
+### Reading the provider's own token state
+
+The provider has no console and no window, and the operational log records categories rather than a
+running state, so the card is the readout. At the **large** size the diagnostic line ends with
+`silent auth <status>`, where the status is one of `Acquired`, `InteractionRequired`,
+`ApprovalRequired`, `BrokerUnavailable`, `NoConfiguration`, `Cancelled`, or `Failed`, and `pending`
+before the attempt finishes. The medium and large detail line says the same thing in words.
+
+The attempt runs once per provider process, on a background task started after COM registration. If
+the status reads `pending` and stays there, the acquisition has not returned — not that it failed.
+
+### The companion signed in successfully, but the widget still says sign-in required
+
+Distinguish two causes, because they look identical and one of them is not a sign-in problem:
+
+1. **The provider has not re-attempted since the sign-in.** The attempt runs once per provider
+   process. Closing and reopening the Widgets Board re-activates the provider and runs it again.
+2. **The two processes are not sharing MSAL's token cache.** WAM keeps the refresh token
+   device-bound inside the broker, but MSAL keeps the *account metadata* in its own cache — and
+   without that cache the provider enumerates no accounts and reports interaction-required no matter
+   what the companion just did. The cache is a DPAPI-protected file in the coordination root; the
+   companion's window prints its full path after a successful sign-in.
+
+   If that file is missing or unreadable while the companion reports `Acquired`, this is the cause,
+   and it is **not** evidence that the provider's zero window handle failed. Distinguishing the two is
+   the whole reason the path is printed.
+
+### The WAM account picker does not appear
+
+Microsoft documents that a Windows update can leave the `Microsoft.AccountsControl` component
+incorrectly registered, and the symptom is that the account picker never comes up. Re-register it from
+an elevated PowerShell session:
+
+```powershell
+if (-not (Get-AppxPackage Microsoft.AccountsControl)) { Add-AppxPackage -Register "$env:windir\SystemApps\Microsoft.AccountsControl_cw5n1h2txyewy\AppxManifest.xml" -DisableDevelopmentMode -ForceApplicationShutdown }
+```
+
+This is a machine-state problem rather than anything about this package, and it presents as a
+cancelled sign-in because the dialog closes without returning an account.
 
 ## Mailbox problems
 

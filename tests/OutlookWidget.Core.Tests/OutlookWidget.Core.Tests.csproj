@@ -48,6 +48,16 @@
     -->
     <AssemblyMetadata Include="ProviderSourceDirectory"
                       Value="$(MSBuildThisFileDirectory)..\..\src\OutlookWidget.Provider" />
+
+    <!--
+      The companion is read as source for the same reason, and for one of its own: it is the single
+      permitted home of interactive authentication, and Phase 2 converts it into a WinUI 3 project.
+      Referencing it would eventually drag the XAML toolchain into the test host, which is the cost
+      the provider comment above describes. Which file owns the interactive call is an edit-time
+      property of the source, so reading it is not a weaker check.
+    -->
+    <AssemblyMetadata Include="AppSourceDirectory"
+                      Value="$(MSBuildThisFileDirectory)..\..\src\OutlookWidget.App" />
     <AssemblyMetadata Include="PackageManifestPath"
                       Value="$(MSBuildThisFileDirectory)..\..\src\OutlookWidget.Package\Package.appxmanifest" />
     <AssemblyMetadata Include="PackageAssetsDirectory"

@@ -46,6 +46,8 @@ internal static class RepositorySources
 
     public static string ProviderSourceDirectory => Directory("ProviderSourceDirectory");
 
+    public static string AppSourceDirectory => Directory("AppSourceDirectory");
+
     public static string PackageAssetsDirectory => Directory("PackageAssetsDirectory");
 
     public static string PackageManifestPath => File("PackageManifestPath");
@@ -53,6 +55,8 @@ internal static class RepositorySources
     public static IEnumerable<string> CoreSourceFiles() => SourceFiles(CoreSourceDirectory);
 
     public static IEnumerable<string> ProviderSourceFiles() => SourceFiles(ProviderSourceDirectory);
+
+    public static IEnumerable<string> AppSourceFiles() => SourceFiles(AppSourceDirectory);
 
     private static IEnumerable<string> SourceFiles(string root) =>
         System.IO.Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)

@@ -150,6 +150,25 @@ internal static class SkeletonCard
     public static AuthenticationConfigurationStatus ConfigurationStatus { get; set; } =
         AuthenticationConfigurationStatus.Absent;
 
+    /// <summary>
+    /// The result of this process's silent token acquisition, or <see langword="null"/> before the
+    /// attempt has finished.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>This is the gate 9 readout.</b> Gate 9 asks whether the provider can acquire a token silently
+    /// with a zero parent window handle, and there is no way to observe that from outside the process:
+    /// the provider is a background COM server with no console and no window, and the operational log
+    /// records categories rather than a running state. Putting the classified status on the card makes
+    /// the gate answerable by pinning the widget and reading it.
+    /// </para>
+    /// <para>
+    /// A status word only — never a token, an account, an expiry, or an error message. It is set by the
+    /// background probe rather than read here, so the delivery path stays free of I/O.
+    /// </para>
+    /// </remarks>
+    public static TokenAcquisitionStatus? SilentAuthStatus { get; set; }
+
     public static string Data(WidgetInstance instance, DeliveryState state)
     {
         (string headline, string detail) = Describe(state);
@@ -213,12 +232,12 @@ internal static class SkeletonCard
             CacheReadStatus.Success =>
                 ("Coordination is live",
                     "Cached state was read and delivered by the provider. No mailbox data exists "
-                    + "yet: authentication and Graph arrive in Phase 1 slice 2."),
+                    + "yet: Graph access arrives with the next core slice. " + DescribeSilentAuth()),
 
             CacheReadStatus.Absent =>
                 ("No cached state yet",
                     "The provider is running and rendering. Nothing has been committed to the "
-                    + "cache yet."),
+                    + "cache yet. " + DescribeSilentAuth()),
 
             CacheReadStatus.Cleared =>
                 ("Cache cleared",
@@ -240,6 +259,38 @@ internal static class SkeletonCard
             _ => ("Unknown state", "The provider read a cache status it does not recognise."),
         };
     }
+
+    /// <summary>
+    /// One sentence describing what the provider's silent acquisition did, for the medium and large
+    /// detail line.
+    /// </summary>
+    /// <remarks>
+    /// Phrased so that each outcome states its own remedy, because these are the same distinctions the
+    /// real signed-out, sign-in-required, and broker-unavailable cards must draw in Phase 2 and this is
+    /// the first place the wording gets tried against a real host.
+    /// </remarks>
+    private static string DescribeSilentAuth() =>
+        SilentAuthStatus switch
+        {
+            null => "Silent token acquisition has not finished yet.",
+
+            TokenAcquisitionStatus.Acquired =>
+                "The provider acquired a token silently with no window of its own, so gate 9 passes.",
+
+            TokenAcquisitionStatus.InteractionRequired =>
+                "Sign-in required: open the companion and sign in.",
+
+            TokenAcquisitionStatus.ApprovalRequired =>
+                "An administrator must approve mailbox access for this app.",
+
+            TokenAcquisitionStatus.BrokerUnavailable =>
+                "The Windows authentication broker is unavailable, so signing in will not help.",
+
+            TokenAcquisitionStatus.NoConfiguration =>
+                "This build shipped without a usable Entra registration.",
+
+            _ => "Silent token acquisition failed; this is usually transient.",
+        };
 
     /// <summary>
     /// The large-size diagnostic, as three separate lines.
@@ -282,7 +333,8 @@ internal static class SkeletonCard
                 + (instance.IsActive ? "active" : "inactive"),
             $"generation {state.Generation} · delivered {delivered} · mode {state.Mode} · "
                 + $"read {state.ReadStatus} · payload {payload}",
-            $"config {ConfigurationStatus} · widget {instance.Id}");
+            $"config {ConfigurationStatus} · silent auth "
+                + $"{(SilentAuthStatus?.ToString() ?? "pending")} · widget {instance.Id}");
     }
 
     /// <summary>

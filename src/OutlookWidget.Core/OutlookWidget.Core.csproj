@@ -20,6 +20,13 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="Microsoft.Identity.Client" />
     <PackageReference Include="Microsoft.Identity.Client.Broker" />
+
+    <!--
+      The shared token cache. Required rather than optional: MSAL keeps account metadata in its own
+      cache even when the broker holds the refresh token, so without persistence the provider cannot
+      discover the account the companion signed in. See Directory.Packages.props.
+    -->
+    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" />
   </ItemGroup>
 
   <ItemGroup>

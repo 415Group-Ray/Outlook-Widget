@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Microsoft.Identity.Client;
 using Microsoft.Windows.Widgets.Providers;
 using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
@@ -104,9 +105,7 @@ internal static partial class Program
         // Read once at startup rather than on the delivery path, and deliberately NOT fatal. A
         // package shipped without configuration cannot authenticate, which is a card the user
         // should see rather than a provider process that dies in the background where the Widgets
-        // host started it. Nothing consumes the options yet — authentication arrives in slice 2 —
-        // so only the status is surfaced, so that "the package shipped without configuration" is
-        // distinguishable on the device from "authentication is not built yet".
+        // host started it.
         AuthenticationConfigurationResult configuration = AuthenticationConfiguration.Load(logger);
         SkeletonCard.ConfigurationStatus = configuration.Status;
 
@@ -157,6 +156,11 @@ internal static partial class Program
         // process that no longer exists, and the exit code is the only place that is visible.
         int revoke = 0;
 
+        // Bounds the silent-authentication probe below. Cancelled before revoke, so a broker call that
+        // never returns cannot keep this process alive after its last widget was removed.
+        using var authProbeCancellation = new CancellationTokenSource();
+        Task authProbe = Task.CompletedTask;
+
         try
         {
             int registration = CoRegisterClassObject(
@@ -185,6 +189,19 @@ internal static partial class Program
                     delivery.RequestDelivery();
                 }
 
+                // Started AFTER the class object is registered, and deliberately not awaited.
+                //
+                // Building the MSAL client opens the shared token cache and a silent acquisition can
+                // reach the network to refresh a token, so doing either before CoRegisterClassObject
+                // would add that latency to every cold activation — against the nonfunctional
+                // activation targets — for a result no callback needs in order to render.
+                authProbe = ProbeSilentAuthenticationAsync(
+                    configuration,
+                    paths,
+                    delivery,
+                    logger,
+                    authProbeCancellation.Token);
+
                 // Blocks until DeleteWidget removes the last enabled instance. No timeout: a
                 // provider that exited on its own schedule would stop updating widgets that are
                 // still pinned, and the host would have to reactivate it to recover.
@@ -192,6 +209,13 @@ internal static partial class Program
             }
             finally
             {
+                // Cancelled and drained before the delivery worker is disposed, so the probe cannot
+                // request a pass against a disposed worker. Bounded, per invariant 2: the async
+                // deadline is the same ceiling every other cross-process wait uses, and a probe still
+                // running after it is abandoned rather than allowed to hold the process open.
+                authProbeCancellation.Cancel();
+                authProbe.Wait(CoordinationBounds.AsyncDeadline);
+
                 // Revoked before the using-declared stack unwinds, so no callback can arrive
                 // against a disposed delivery worker or listener.
                 revoke = CoRevokeClassObject(cookie);
@@ -203,6 +227,77 @@ internal static partial class Program
         }
 
         return revoke;
+    }
+
+    /// <summary>
+    /// Attempts one silent token acquisition and publishes the classified outcome to the card.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>This is the whole of gate 9, and it is silent-only by construction.</b>
+    /// <see cref="BrokerClient.NoParentWindow"/> is what makes the zero handle explicit and searchable:
+    /// this process owns no window and runs no message loop, so there is nothing else it could
+    /// truthfully pass. The service it builds exposes only silent acquisition, so no code path from
+    /// here can open a browser or a dialog — and a source-level test fails the build if the interactive
+    /// API ever appears in this project.
+    /// </para>
+    /// <para>
+    /// <b>It never throws.</b> Every failure becomes a status on the card. This runs unobserved in a
+    /// background COM server; an escaping exception would take down a provider the user did not start
+    /// and leave the host showing stale content with nothing to explain it.
+    /// </para>
+    /// </remarks>
+    private static async Task ProbeSilentAuthenticationAsync(
+        AuthenticationConfigurationResult configuration,
+        CoordinationPaths paths,
+        DeliveryWorker delivery,
+        IOperationalLogger logger,
+        CancellationToken cancellationToken)
+    {
+        TokenAcquisitionStatus status;
+
+        try
+        {
+            if (!configuration.IsLoaded)
+            {
+                status = TokenAcquisitionStatus.NoConfiguration;
+            }
+            else
+            {
+                IPublicClientApplication client = await BrokerClient
+                    .CreateAsync(configuration.Options!, paths, BrokerClient.NoParentWindow)
+                    .ConfigureAwait(false);
+
+                var silent = new SilentAuthService(client, logger);
+
+                status = (await silent.AcquireAsync(cancellationToken).ConfigureAwait(false)).Status;
+            }
+        }
+        catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
+        {
+            // Includes failures from building the client itself — a corrupt token cache, or a broker
+            // whose native runtime will not initialise — which happen before there is any acquisition
+            // to classify. The classifier handles what it recognises and everything else lands as a
+            // generic failure, which is the correct card either way.
+            status = AuthenticationFailures.Classify(e, AuthenticationPhase.Silent);
+        }
+
+        SkeletonCard.SilentAuthStatus = status;
+
+        // The card changed, so ask for a pass. Guarded because the last widget may have been unpinned
+        // while this was in flight, in which case the worker is being torn down and there is nothing
+        // left to deliver to.
+        try
+        {
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                delivery.RequestDelivery();
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // The provider is shutting down. Nothing to report and nowhere to report it.
+        }
     }
 
     [LibraryImport("ole32.dll")]

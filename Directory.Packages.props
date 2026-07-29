@@ -32,6 +32,28 @@
     -->
     <PackageVersion Include="Microsoft.Identity.Client" Version="4.87.0" />
     <PackageVersion Include="Microsoft.Identity.Client.Broker" Version="4.87.0" />
+
+    <!--
+      The cross-platform token cache, and NOT an optional convenience.
+
+      Current Microsoft documentation states that MSAL "continues to store ID tokens
+      and account metadata" in its own cache even when the broker holds the refresh
+      token, and that without persisting it "restarting the app means that
+      GetAccounts API will miss some of the accounts". The companion signs in and the
+      provider acquires silently in a *different process*, so an in-memory cache would
+      leave the provider unable to find the account the companion just added — gate 9
+      would fail for a reason that has nothing to do with the zero window handle it
+      exists to test.
+
+      The alternative was a hand-rolled DPAPI file with a process-local lock, which is
+      what the MSAL documentation itself labels a naive implementation. Two processes
+      share this file, so the cross-process locking in the first-party helper is the
+      whole reason to take the dependency rather than write twenty lines.
+
+      Pinned to the same 4.87.0 as MSAL: the extension and the core library share cache
+      format assumptions, and a split version pair is not a combination Microsoft tests.
+    -->
+    <PackageVersion Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.87.0" />
   </ItemGroup>
 
   <ItemGroup Label="Platform">

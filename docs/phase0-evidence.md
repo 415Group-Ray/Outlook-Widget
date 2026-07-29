@@ -8,8 +8,9 @@ companion from its actions, and its provider process exits when the widget is un
 
 **Two native-surface gates are still open, and both wait on authentication.**
 
-- **Gate 9** — provider silent-only acquisition with a zero parent handle. Not started; needs the
-  authentication code: `SilentAuthService` and the broker construction.
+- **Gate 9** — provider silent-only acquisition with a zero parent handle. **Implemented, not
+  measured.** `SilentAuthService` and the broker construction now exist and the provider publishes its
+  classified outcome to the card; what has not happened is a run against the tenant.
 - **Gate 11** — cached-first refresh and cross-process invalidation across real Board activation and
   provider recycle. Its signalling half is now real, but neither a refresh nor a state commit is
   possible before authentication and Graph exist.
@@ -29,11 +30,20 @@ decision. It is not expected to fail, and it is not proven not to.
 Gate 5 was superseded after the Board was measured to allow only one instance per widget definition.
 Two rendering defects were found by the resize test and fixed in 0.2.1.0.
 
-**What remains all depends on the authentication code:** gates 8, 9, 10, 11, and 12. The Entra app
-registration itself is **created** and its identifiers ship in the package, so nothing waits on a
-portal task any more. There is no outstanding *activation, lifecycle, rendering, launch, or
-packaging* question. Nothing below is a projection; each row records what was actually observed, and
-unproven items say so rather than being marked pass.
+**Gate 8 has been measured and split.** Brokered WAM sign-in **passes** — a delegated `Mail.ReadBasic`
+token was acquired on 0.3.7.0. **Self-consent fails** on this tenant: the Microsoft-managed consent
+policy refused it and an administrator had to grant consent for the registration. The gate asks two
+questions and they got different answers, so it is not a PASS and not a FAIL.
+
+Gate 9 is implemented with a readout and **still not measured**; gates 10 and 12 still need
+`GraphMailClient`, and gate 11 needs a real refresh. The Entra app registration is **created** and its identifiers ship in the package, so
+nothing waits on a portal task any more. There is no outstanding *activation, lifecycle, rendering,
+launch, or packaging* question. Nothing below is a projection; each row records what was actually
+observed, and unproven items say so rather than being marked pass.
+
+**"Implemented" is not a gate status.** Gates 8 and 9 have code, a build, an install, and a readout,
+and no measurement. Two rows below say so explicitly, and the distinction is the whole point of this
+document.
 
 Reference machine: the author's own Entra-managed PC. Recorded 2026-07-28.
 
@@ -76,7 +86,7 @@ Gates are grouped per section 17, because the group determines what a failure me
 | Gate | Status | Evidence |
 |---|---|---|
 | 1 — signed MSIX installs; certificate can be trusted | **PASS** | Managed-device policy **does** permit trusting a certificate in `LocalMachine\TrustedPeople` on this PC, and sideload installation succeeded. Installed as `415Group.OutlookInboxWidget_0.1.0.0_x64__dgbvqhastx60y`, family `415Group.OutlookInboxWidget_dgbvqhastx60y`, signed by `CN="415 Group, Inc."`. `signtool verify /pa` succeeds once the certificate is trusted, and the RFC 3161 timestamp verifies against DigiCert. Developer Mode was **off** throughout, so it is not required for this workflow |
-| 8 — WAM sign-in with MFA/CA, self-consent to `Mail.ReadBasic` | **Not started** | The registration exists and its identifiers ship in the package. Needs `InteractiveAuthService` and a real parent window in the companion |
+| 8 — WAM sign-in with MFA/CA, self-consent to `Mail.ReadBasic` | **SPLIT: sign-in PASSES, self-consent FAILS** | Measured 2026-07-29 on 0.3.7.0. **Brokered sign-in works:** the companion acquired a delegated `Mail.ReadBasic` token through WAM with a real parent window, reporting `Acquired` with an expiry an hour out. **Self-consent does not:** the tenant's Microsoft-managed consent policy refused it, and the token was only obtainable after an administrator granted consent for the registration. Both halves are recorded below. This row must not be reduced to "PASS" — the gate asks two questions and they got different answers |
 | 10 — `Mail.ReadBasic` returns exactly the approved properties | **Not started** | The registration exists. Needs `GraphMailClient` and a token, so it follows gate 8 |
 
 A failure in this group stops the product rather than triggering the tray fallback, because
@@ -92,11 +102,13 @@ permission.
 | 4 — `GetWidgetInfos()` restores all instances; final-instance exit | **PASS** | All three criteria observed. The widget rendered again after a reboot, which requires `RecoverEnabledInstances` to have rebuilt the instance map from `GetWidgetInfos()` before the class object was registered — the Board does not replay `CreateWidget` for an already-pinned widget, so a provider that started empty would have rendered nothing. That covers pinned IDs, definitions, and per-instance sizes. **The provider process exited when the widget was unpinned**, confirming `DeleteWidget` signalled on the transition to empty and `Main` revoked its registration and returned. And **`CustomState` recovery is confirmed**: the large card reports `delivered 0` rather than `delivered none`, so the generation the sink wrote into `CustomState` came back through `GetWidgetInfos()` on a later provider start. The first implementation wrote that value without ever reading it back, so it round-tripped nowhere; this is the observation that the round trip is now closed |
 | 5 — two instances at different sizes render independently | **Superseded; replacement PASSES** | **A second instance could not be pinned.** After pinning, the picker entry was greyed out and marked as added. The cause is not the manifest: the installed definition carries `AllowMultiple="true"` and declares all three sizes. The replacement gate — one instance rendering correctly at small, medium, and large — **passes**, with two rendering defects found and fixed along the way. See the gate 5 section below |
 | 6 — widget action launches the companion | **PASS** | Clicking **Open companion** on the pinned widget launched the companion, which displayed package identity `415Group.OutlookInboxWidget_0.2.0.0_x64__dgbvqhastx60y` and its coordination root inside the package store. Note that the companion did **not** report a launch argument, which is the correct outcome and is explained below: the documented shell-activation candidate succeeded, and that path carries no arguments |
-| 9 — provider silent-only acquisition with a zero parent handle | **Not started** | The registration exists. Needs `SilentAuthService`, and a token in the broker cache from gate 8 first. A source-level test now asserts the provider contains no `AcquireTokenInteractive`, which is the enforcement rather than the gate |
+| 9 — provider silent-only acquisition with a zero parent handle | **Implemented; NOT measured** | The code now exists: the provider builds its client through `BrokerClient` passing `BrokerClient.NoParentWindow`, runs `SilentAuthService` on a background task after `CoRegisterClassObject`, and publishes the classified outcome to the card — the large size reports `silent auth <status>` and the detail line describes it in words. That readout is the only way to observe this gate, because the provider has no console and no window. **It still requires gate 8 to have put a token in the broker first, and then a pinned widget to read.** Three source-level tests enforce the boundary: no interactive API in the core, none in the provider, and the zero-handle helper is what the provider passes |
 | 11 — cached-first refresh and cross-process invalidation | **Partly established; NOT passed** | The coordination subsystem passes 136 automated tests including genuine multi-process contention. Separately, and new: **the named events now exist.** Both `OutlookWidget-StateChanged-v1` and `OutlookWidget-SuppressDetails-v1` were confirmed present while the installed provider ran. Until `StateChangeListener` was written nothing created them, so `StateCommitCoordinator` and `DisclosureTombstoneStore` were opening a non-existent event and swallowing the failure — every cross-process signal in the product was a silent no-op. **The gate itself is not met:** it requires cached-first refresh and cross-process invalidation observed across real Board activation and provider recycle, and neither a refresh nor a state commit can happen until authentication and Graph exist. It cannot be closed in Phase 0's native work |
 
 **Two native-surface gates have not passed: 9 and 11.** Any status claim elsewhere must say "every
-native-surface gate **except 9 and 11**", and must not say the native group is complete.
+native-surface gate **except 9 and 11**", and must not say the native group is complete. Gate 9 now
+has an implementation and a readout, which is a different thing from a measurement: the sentence to
+avoid is "gate 9 is done".
 
 They differ in consequence, and conflating them is what produced the earlier overstatement:
 
@@ -224,6 +236,160 @@ on every Outlook update.
 
 **Not started.** Optional; gates only the Focused unread setting.
 
+## Measured: a token was acquired, and what that does and does not prove
+
+On 0.3.7.0 the companion reported **`Acquired`** for delegated `Mail.ReadBasic`, with an expiry roughly
+an hour ahead. Brokered WAM sign-in against this registration, from a real Win32 parent window, works.
+
+**The shared token cache was written, which is the part that mattered most.** `msal-v1.bin`, 3510 bytes,
+appeared at
+`%LocalAppData%\Packages\415Group.OutlookInboxWidget_dgbvqhastx60y\LocalCache\Local\OutlookWidget\`.
+Until this point the need for a shared cache was an argument from Microsoft's documentation; it is now
+an observed file, inside the package store, where uninstall removes it. This is the mechanism gate 9
+depends on to find in the provider the account the companion signed in.
+
+**It proves nothing about self-consent, and the companion said otherwise until this was caught.** The
+report text asserted that a successful acquisition meant self-consent had succeeded without an
+administrator step. That was false the first time it ran on a tenant needing admin consent, which was
+this one: an acquisition is **indistinguishable** between "the user consented" and "an administrator had
+already granted consent". The claim was removed rather than reworded, because the process genuinely
+cannot know — which consent path was exercised is a fact about the tenant, not about the token.
+
+Worth generalising, because it is the same shape as the clipped button and the misclassified
+cancellation: **a check that cannot fail is not evidence.** That sentence would have printed on every
+successful sign-in on every tenant regardless of how consent was obtained.
+
+## Measured: the tenant blocks self-consent, and the setting that does it looks permissive
+
+**Gate 8's self-consent criterion fails on this tenant.** Pressing Sign in reached Entra and returned
+the **Approval required** dialog — "This app requires your admin's approval to…" — rather than a
+consent prompt. No token was issued.
+
+The tenant's user-consent setting is **"Let Microsoft manage your consent settings (Recommended)"**
+with **"Enable user consent for popular Mail clients"** checked. That reads as permissive and is not.
+It maps to the Microsoft-managed policy `microsoft-user-allow-default-consent-apps`, which permits user
+consent to mail permissions for a **fixed list of six Microsoft-chosen application IDs** — Apple Mail,
+Spark Email, eM Client, Android-Samsung, Android-Mail, and Thunderbird. Microsoft owns the list and it
+cannot be added to, so a first-party registration of one's own can never self-consent under this
+setting. `Mail.ReadBasic` is also not in the low-impact class the policy otherwise allows.
+
+This is the section 19 risk row "tenant user-consent policy blocks self-consent" occurring, not a
+defect. The code reached the platform and the platform refused.
+
+**Two readings that look like contradictions and are not:**
+
+- The API permissions blade shows `Admin consent required: No` for `Mail.ReadBasic`. That column
+  states the *organization default*, and the blade's own notice says user consent "can be customized
+  per permission, user, or app" and that the column "may not reflect the value in your organization".
+  The permission does not inherently require admin consent; this tenant's policy withholds it.
+- The consent dialog lists **three** items where the registration configures **one**. The other two
+  are MSAL's automatic OIDC scopes: "Maintain access to data you have given it access to" is
+  `offline_access`, and "View users' basic profile" is `profile` — confirmed by its expanded
+  description, "basic profile (e.g., name, picture, user name, email address)". It is **not**
+  `User.Read`, which grants the full profile and displays as "Sign in and read user profile". No scope
+  beyond `Mail.ReadBasic` is requested or configured.
+
+**Resolution, as an explicit scope decision.** Admin consent was granted for this single registration
+as a local unblock for this tenant. It is **not** a change to the product's intended flow: self-consent
+remains the designed path, `ApprovalRequired` remains a first-class outcome for environments where it
+is blocked, and the tenant consent policy was not modified. Granting it covers delegated
+`Mail.ReadBasic` for this app only, which lets a signed-in user read *their own* basic mail; there are
+no application permissions on the registration, so no other mailbox becomes reachable.
+
+## Measured: the broker does not distinguish a dismissed approval dialog from a policy block
+
+Two attempts at the same user action — reaching the **Approval required** dialog and dismissing it —
+produced **two different results**, and that is the finding.
+
+| Package | Reported status | Signals |
+|---|---|---|
+| 0.3.5.0 | `Failed` | Not captured; the diagnostic line did not exist yet |
+| 0.3.6.0 | `Cancelled` | `MsalClientException · code authentication_canceled` |
+
+**The 0.3.5.0 `Failed` is unexplained, and an earlier version of this section explained it wrongly.**
+That version attributed it to consent being matched only by `AADSTS` substring. That cannot be the
+cause: `authentication_canceled` was handled by the original classifier and has always mapped to
+`Cancelled`. So the first run carried some different signal that was never recorded, and it is not
+reproducible now that consent has been granted. It is left recorded as unexplained rather than given a
+plausible cause.
+
+**What follows from the pair is more useful than either run alone.** The same gesture yielding
+different MSAL errors means the broker does not reliably separate "the user closed the dialog" from
+"tenant policy refused". Therefore `ApprovalRequired` **cannot be inferred** from an interactive
+failure, and 0.3.6.0's first attempt to do so — mapping `access_denied` to it — was withdrawn before it
+shipped as a conclusion:
+
+- Claiming `ApprovalRequired` on an ambiguous signal asserts an administrator is required and removes
+  the retry affordance, so a user who merely closed a window is told something false with no way
+  forward.
+- Reporting `Cancelled` offers the retry and claims nothing that was not observed.
+
+The state is now claimed only on a **definite** signal: MSAL's typed
+`UiRequiredExceptionClassification.ConsentRequired`, an Entra consent code, or the OAuth
+`consent_required`. It under-reports rather than mislabels. Because that means a real policy block can
+surface as `Cancelled`, the cancellation copy carries the distinction the classifier cannot: it says
+that a recurring *Approval required* dialog is tenant policy rather than a retryable condition.
+
+This is a **platform limitation, not a satisfied requirement.** Section 8 wants the approval state
+distinguishable, and on this broker it is only reliably distinguishable when Entra volunteers a consent
+code. That is worth revisiting if a later MSAL or WAM version reports dismissal more precisely.
+
+**One change here was sound and is kept:** classification is now phase-aware. A consent failure means
+"go interactive and self-consent" during silent acquisition and "an administrator must approve" during
+interactive acquisition, and paired tests assert the same exception classifies differently by phase.
+
+**A status word was not enough to diagnose any of this,** which is the general lesson. There was no way
+to discover which signal a failure carried without inspecting it, so the companion now prints a bounded
+`Signals:` line — exception type name, MSAL error code, and extracted `AADSTS\d+` tokens. That line is
+what produced the table above. Categories only, never `Exception.Message`, and deliberately not routed
+through `IOperationalLogger`, whose API has nowhere to put a string and must keep it that way. A test
+plants an account address and a Graph URL in a message and asserts neither survives into the output.
+
+## Measured: the companion window's button was clipped, and only looking at it showed that
+
+The companion's new Win32 window was verified three ways before anyone looked at it: it built clean,
+it created a real top-level window when run unpackaged, and it created one when launched through
+package activation from the installed 0.3.4.0 package. All three passed. A screen capture of the
+rendered window showed the **Sign in button cut off at the bottom edge**, and the report box stopping
+well short of the right margin.
+
+The cause is the same mistake in both axes. `CreateWindowEx` takes the *outer* window size, including
+the caption and border, and the child controls were positioned by subtracting guessed multiples of the
+margin from that outer figure. The client area is smaller by an amount that depends on frame metrics,
+so the button's lower edge fell past the bottom of it. Fixed in 0.3.5.0 by calling `GetClientRect` and
+laying the children out from the real client size, which removes the guess rather than correcting it.
+
+Worth recording for the same reason the two resize defects above are: **a window handle is not a
+rendered window.** Every automated check available here — compile, process alive, non-zero
+`MainWindowHandle`, correct window title — passed with a visibly broken control, because none of them
+inspect pixels. Phase 2 replaces this window with the WinUI one, and the lesson carries: the accepted
+widget screenshots were also reviewed by eye, and that is not incidental.
+
+## Measured: the companion does not exit on its own after launching
+
+The companion was reported to open and then close quickly after the 0.3.4.0 install. That was
+**not reproduced**, and it is recorded because the negative result is what rules out a defect in the
+new message loop.
+
+Three launch routes were tried, and in all three the process created a window and stayed alive:
+
+| Launch route | Result |
+|---|---|
+| Unpackaged build output, direct | Window created, alive until killed |
+| Installed executable under `WindowsApps`, direct | Window created, alive until killed |
+| Package activation, `shell:AppsFolder\...!App` | Window created, **alive past 54 seconds** |
+
+No `Application Error` or `.NET Runtime` event was logged for `OutlookWidget.App` in the surrounding
+half hour — the only matching event was the expected `Application Hang` for
+`OutlookWidget.Provider`, which is deployment terminating it under `-ForceApplicationShutdown`.
+
+The most likely explanation for the original observation is that the launch landed inside the install's
+force-shutdown window, when deployment terminates every process belonging to the package — which
+includes the companion, not only the provider, and which produces no error log because the process is
+killed rather than failing. **This remains an inference; the symptom was not reproduced, so it is not
+recorded as explained.** If it recurs outside an install, it is a real defect and this table is the
+baseline to compare against.
+
 ## Signing decisions, as recorded
 
 All of section 15's required decisions are now made, and made before the first install.
@@ -251,8 +417,45 @@ script fails if any key file appears under the repository root.
 
 ## What is still blocking, and what unblocks it
 
-**The authentication code.** The Entra app registration itself is done — see below — so gates 8, 9,
-10, and 12 now wait on Phase 1 slice 2 rather than on a portal task.
+**An interactive sign-in on the reference machine.** This changed. The registration was done, and now
+the authentication code is too: gates 8 and 9 are implemented, build clean, and ship in
+0.3.5.0. What neither has is a measurement.
+
+The remaining sequence is short and is entirely manual, because every step of it is a platform
+behaviour no test can stand in for:
+
+1. Install 0.3.5.0. Elevation is not needed — the development certificate is already trusted, so
+   `-SkipCertificateTrust` applies. A pinned widget holds the package open, so this needs
+   `-ForceApplicationShutdown` as well; see the recorded measurement below.
+
+   **The manifest version must be bumped for every reinstall.** `Build-Package.ps1` reads
+   `Identity/Version` and does not increment it, so rebuilding after a code change without bumping
+   produces a package with the same identity and different contents, which Windows refuses with
+   HRESULT `0x80073CFB`. This was hit going from 0.3.3.0 to 0.3.4.0 and is recorded in the
+   troubleshooting guide, including why it is neither an elevation problem nor the running-process
+   case that `-ForceApplicationShutdown` exists for.
+2. Open the companion and press **Sign in**. The window reports the classified outcome. This is
+   gate 8, and it is also where the tenant's user-consent policy is exercised for the first time:
+   an `ApprovalRequired` result means self-consent is blocked and the gate fails in the specific way
+   the risk table anticipated.
+3. With a token in the broker, pin the widget and read the large card. `silent auth Acquired` is
+   gate 9. Anything else is a failure, and `BrokerUnavailable` is the one that reopens the section 18
+   surface decision.
+
+Gates 10 and 12 still need `GraphMailClient`, so they follow gate 8 as before.
+
+**A discovery worth recording, because it nearly failed gate 9 for the wrong reason.** MSAL keeps ID
+tokens and account metadata in its own cache even when the broker holds the device-bound refresh
+token, and Microsoft's documentation is explicit that without persisting that cache, "restarting the
+app means that `GetAccounts` API will miss some of the accounts". The companion and the provider are
+different processes. Without a *shared* cache the provider would have enumerated no accounts and
+reported sign-in-required immediately after a successful companion sign-in — and the obvious reading
+of that would have been that the zero parent handle failed, which is the opposite of true. The shared
+cache is now attached in `BrokerClient` and lives in the coordination root; see the plan's section 12.
+
+This is an argument from documentation, not a measurement. It has not been observed either way on this
+machine, and step 3 above is what would distinguish a cache problem from a handle problem if gate 9
+fails.
 
 The registration could not have been avoided by prompting the user. Consent *is* already a user
 prompt — self-consent to `Mail.ReadBasic` at first sign-in, no administrator step — but the
@@ -274,7 +477,7 @@ contradicted itself by asking for both here.
 | Redirect URI | `ms-appx-web://microsoft.aad.brokerplugin/{client-id}`, under **Mobile and desktop applications** |
 | Allow public client flows | Yes |
 | Client secret / certificate | **None** |
-| API permission | Microsoft Graph delegated **`Mail.ReadBasic`** only; `User.Read` removed |
+| API permission | Microsoft Graph delegated **`Mail.ReadBasic`** only; `User.Read` removed. **Verified in the portal 2026-07-29**, not merely asserted: the API permissions blade reads `Microsoft Graph (1)` with `Mail.ReadBasic` / Delegated / "Read user basic mail" as the sole row |
 | Application permissions | **None** |
 | Admin consent | **Not granted, deliberately** |
 
@@ -467,6 +670,8 @@ Three separate observations, kept separate because they prove different things:
 | 0.2.1.0 → 0.2.1.0 with `-ForceApplicationShutdown` | Yes | Succeeded; deployment terminated the provider |
 | 0.2.1.0 → **0.2.2.0**, a real version upgrade | No — already exited | Succeeded with the widget still pinned |
 | 0.2.2.0 → **0.2.3.0**, a real version upgrade | **Yes** | Succeeded with `-ForceApplicationShutdown`; the script's pre-install notice fired correctly, the pin survived, and the widget still renders afterwards |
+| 0.3.3.0 → 0.3.3.0, same version, **different contents** | Yes | **Failed** with `0x80073CFB`, and failed identically elevated. A rebuilt payload under an unchanged version is refused outright. This is a *different* failure from the first row and has a different fix — bump the manifest version, do not uninstall. See the troubleshooting guide |
+| 0.3.3.0 → **0.3.4.0**, then 0.3.4.0 → **0.3.5.0** | **Yes** both times | Both succeeded with `-SkipCertificateTrust -ForceApplicationShutdown` from a **non-elevated** session, confirming the certificate stays trusted across upgrades and that elevation is a first-install requirement only |
 
 The 0.2.1.0 → 0.2.2.0 upgrade had one limitation worth stating: the provider had already exited from
 the previous force-shutdown and the Board had not re-activated it, so the in-use path was not

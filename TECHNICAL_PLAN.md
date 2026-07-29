@@ -172,7 +172,8 @@ flowchart LR
 ### OutlookWidget.App
 
 - WinUI 3 companion/settings application, single-instance, serializing its own disclosure-changing operations.
-- Owns every interactive authentication operation.
+- Owns every interactive authentication operation, and owns `InteractiveAuthService` itself — the single `AcquireTokenInteractive` call site in the product. See section 12 for why it is here rather than in the core.
+- Supplies the real parent window handle that brokered sign-in is parented to. Until Phase 2 converts this project to WinUI 3 that window is a minimal Win32 top-level window created for the purpose, because WAM requires a real handle and the packaging probe's ownerless message box could not provide one.
 - Commits state and signals; it never calls `UpdateWidget`. Widget delivery belongs solely to the provider.
 - Displays account, last successful refresh, Graph/permission status, installed New Outlook status, and sanitized diagnostics.
 - Settings:
@@ -199,7 +200,8 @@ flowchart LR
 - Supports multiple pinned instances at different sizes; size and active state are never global. Phase 0 measured that the Widgets Board itself permits only one instance per widget definition, so this is currently unobservable through two simultaneous instances — but it remains a requirement rather than dead code, because the host constraint is the host's and may change, and per-instance keying costs nothing.
 - Returns cached content immediately, then refreshes asynchronously when required.
 - Handles refresh, Open Outlook, open-message, and open-settings actions.
-- Builds its broker-enabled MSAL client with `WithParentActivityOrWindow(() => IntPtr.Zero)` and calls only `AcquireTokenSilent`; Phase 0 must verify this construction on the pinned MSAL/Broker versions.
+- Builds its broker-enabled MSAL client through `BrokerClient`, passing `BrokerClient.NoParentWindow` — a named member rather than an inline `() => IntPtr.Zero`, so the zero handle is searchable and cannot be chosen accidentally — and calls only `AcquireTokenSilent`. Phase 0 must verify this construction on the pinned MSAL/Broker versions; it is gate 9 and is not yet measured.
+- Runs its silent acquisition on a background task started **after** `CoRegisterClassObject`, never before. Building the MSAL client opens the shared token cache and a silent acquisition can reach the network, so doing either on the activation path would charge that latency to every cold activation against the section 14 targets, for a result no callback needs in order to render. The task is cancelled and drained within the async deadline before the delivery worker is disposed.
 - Has no reference or code path to `AcquireTokenInteractive`. Broker/UI-required failures become a signed-out, sign-in-required, or broker-unavailable card with an action to open the companion.
 - Uses `Action.Execute` for refresh, Outlook, settings, and message actions. A message action carries only its bounded display slot and snapshot generation; it never embeds the Graph `webLink` or message ID in Adaptive Card JSON or `CustomState`.
 - On a message action, reloads the referenced snapshot, rejects a stale generation or invalid slot, validates the cached HTTPS `webLink` against the Outlook-host allowlist, and only then asks the system launcher to open it. `Action.OpenUrl` is not used in v1.
@@ -209,8 +211,10 @@ flowchart LR
 
 ### OutlookWidget.Core
 
-- `InteractiveAuthService`: companion-only WAM/MSAL configuration with a real WinUI HWND, interactive sign-in, logout, and account switching.
-- `SilentAuthService`: provider-safe broker configuration exposing only silent acquisition; it cannot start a browser or authentication UI.
+- `BrokerClient`: the one broker-enabled MSAL client construction both processes use, differing only in the parent-window delegate they pass. Current Microsoft documentation requires a parent window handle on the *builder* in order to use the broker at all, not merely on the interactive call, so both surfaces need the same configuration and the only legitimate difference between them is what that delegate returns. It also attaches the shared token cache, and it contains no interactive acquisition.
+- `SilentAuthService`: provider-safe silent-only acquisition; it cannot start a browser or authentication UI. Tries the cached account first and falls back to the operating-system account, in the order Microsoft documents.
+- `AuthenticationFailures`: maps MSAL failures onto the product's outcome states, classifying by exception type where MSAL provides one and by error code only for the broker-unavailable and consent cases, which have no dedicated type. Branches on exception text; never logs or returns it.
+- `InteractiveAuthService` **lives in `OutlookWidget.App`, not here.** This is a deliberate change from the original layout, recorded in section 12.
 - `GraphMailClient`: the two required reads and optional Focused count.
 - `MailboxSnapshotService`: combines Graph responses into one immutable display snapshot.
 - `RefreshCoordinator`: synchronous package-user named mutex for commits, an expiring lease record for cross-process single-flight, overall deadline, debounce, backoff, cancellation, and change notification. No named primitive is held across an `await`.
@@ -231,9 +235,9 @@ flowchart LR
 2. The action opens the companion app.
 3. The companion explains why `Mail.ReadBasic` is requested.
 4. The user clicks Sign in.
-5. The companion builds MSAL with `Microsoft.Identity.Client.Broker`, `WithBroker(...)`, and `WithParentActivityOrWindow(realHwnd)`, then invokes WAM. Entra handles MFA, Conditional Access, consent, Windows Hello, or FIDO as required.
+5. The companion builds MSAL with `Microsoft.Identity.Client.Broker`, `WithBroker(...)`, and `WithParentActivityOrWindow(realHwnd)`, then invokes WAM. Entra handles MFA, Conditional Access, consent, Windows Hello, or FIDO as required. It attempts silent acquisition first and prompts only when that reports interaction is required, per Microsoft's integration guidance; a broker-unavailable or approval-required silent outcome is reported rather than escalated to a prompt that cannot succeed.
 6. The app records only the selected MSAL home-account identifier and tenant identifier in DPAPI-protected state.
-7. WAM owns broker token maintenance. The application does not write access or refresh tokens into its own JSON/configuration files.
+7. WAM owns broker token maintenance. The application does not write access or refresh tokens into its own JSON/configuration files. MSAL's shared cache holds ID tokens and account metadata only, which is what lets the provider find in a second process the account the companion selected in the first.
 8. Before every Graph refresh, the companion or provider calls its restricted silent service. The provider never calls an interactive MSAL API; `MsalUiRequiredException` or broker-unavailable failures are terminal for that refresh and cannot fall back to a browser.
 9. An access token exists only in process memory for the Graph call.
 10. The core fetches Inbox counts and newest messages, validates and bounds the response, creates a snapshot, encrypts it, commits it, and requests delivery; the provider's delivery worker renders it.
@@ -643,6 +647,8 @@ src/
     ViewModels/
     Services/
     Assets/
+    InteractiveAuthService.cs
+    CompanionWindow.cs
   OutlookWidget.Provider/
     Program.cs
     WidgetProvider.cs
@@ -653,6 +659,7 @@ src/
     Cards/
   OutlookWidget.Packaging/
     PackageIdentity.cs
+    PackagedState.cs
   OutlookWidget.Core/
     Authentication/
     Graph/
@@ -678,6 +685,24 @@ scripts/
 
 `OutlookWidget.Packaging` was added during Phase 0 and is not a surface. It holds only the MSIX package-identity interop, because both executables need the package family name and the core must not acquire it: `CoordinationPaths.Resolve` takes that name as a parameter precisely so the core stays surface-agnostic and free of any knowledge that MSIX exists. Duplicating the interop in the companion and the provider would honour that rule and create a worse problem. See the Phase 0 evidence report for the alternatives considered.
 
+### `InteractiveAuthService` moved to the companion
+
+Section 3 originally listed `InteractiveAuthService` under `OutlookWidget.Core`. It is in `OutlookWidget.App` instead, and this is a change to the stated architecture rather than a filing detail.
+
+The reason is that this plan states a stronger invariant elsewhere: the provider must have **no reference or code path** to `AcquireTokenInteractive`. The provider references the core. Had the interactive service gone into the core, the provider would link an assembly containing the interactive API, and the only thing standing between a background COM server and an authentication window with no owner would be a source grep over provider files. With the service in the companion — which the provider does not reference — the boundary is enforced by the assembly reference graph. That is the strongest available form, and it does not depend on a test remembering to look.
+
+Everything genuinely shared stays in the core: broker configuration, the token cache, silent acquisition, and failure classification. What moved is only the call the provider must never make. The cost is that the interactive service is covered by source-level rather than behavioural tests, which is the same trade already accepted for the provider and for the same reason — Phase 2 converts this project to WinUI 3, and referencing it from the test project would pull the XAML toolchain into the test host.
+
+Three checks now hold the boundary together, and all three are needed: the core contains no interactive API, the provider contains none, and `InteractiveAuthService.cs` is the single file that does.
+
+### The shared MSAL token cache
+
+`Microsoft.Identity.Client.Extensions.Msal` is pinned alongside MSAL and the broker package, and the token cache it manages lives in the coordination root inside the package store.
+
+It is a requirement, not a convenience. Microsoft documents that MSAL keeps ID tokens and account metadata in its own cache even when the broker holds the device-bound refresh token, and that without persisting it "restarting the app means that `GetAccounts` API will miss some of the accounts". The companion signs in and the provider acquires silently in a **different process**, so without a shared cache the provider would enumerate no accounts and report sign-in-required immediately after a successful sign-in — failing gate 9 for a reason unrelated to the zero window handle the gate exists to test.
+
+The file is placed with the rest of the coordination state rather than at the location MSAL's own MSIX example suggests. That example uses `%LocalAppData%\{AppName}`, which Phase 0 measured is **not** redirected into the package store for a packaged full-trust app, so following it would leave account metadata behind after uninstall and contradict section 11.
+
 Keep the Phase 0 spike in the same solution and evolve it into production code only after its evidence is reviewed; do not create a disposable second architecture that obscures what was tested.
 
 ## 13. Development prerequisites
@@ -691,7 +716,7 @@ Reconfirm stable versions immediately before scaffolding. As of the planning dat
 - .NET 10 LTS with the current security patch.
 - **PowerShell 7.6 or later**, which runs on .NET 10. This is a constraint on the host, not the SDK: the packaging script loads the built `OutlookWidget.Core` assembly to validate authentication configuration with the product's own loader, so the host runtime must be at least as new as the framework Core targets. PowerShell 7.0–7.4 run on .NET 3.1–8 and cannot load it even with a .NET 10 SDK present. Both the preflight and the build script check this, deriving the required version from Core's project file rather than hardcoding it.
 - Windows App SDK 2.3.1 stable; do not use Preview or Experimental packages.
-- Centrally pinned `Microsoft.Identity.Client` and `Microsoft.Identity.Client.Broker` packages.
+- Centrally pinned `Microsoft.Identity.Client`, `Microsoft.Identity.Client.Broker`, and `Microsoft.Identity.Client.Extensions.Msal` packages, all at one matching version. The extension carries the cross-platform token cache the two processes share; see section 12 for why it is required rather than optional, and why a hand-rolled DPAPI file was rejected.
 - Repository-scoped `nuget.config` containing only approved package feeds and package-source mapping where practical.
 - Developer Mode on development PCs.
 - Access to create the Entra app registration in the tenant.

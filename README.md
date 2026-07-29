@@ -3,7 +3,7 @@
 A glanceable Windows 11 widget showing Microsoft 365 Inbox counts and the newest few email
 messages, without opening Outlook.
 
-**Status: early implementation, native surface proven.** The cross-process coordination core is
+**Status: early implementation, native surface proven, sign-in built but unmeasured.** The cross-process coordination core is
 built and tested, and a signed MSIX registers a COM widget provider that appears in the Widgets
 Board, pins, renders at small, medium, and large, survives both a reboot and a package upgrade with
 its instance restored, launches New Outlook and the companion from its actions, and exits when
@@ -11,17 +11,22 @@ unpinned. **Every native-surface Phase 0 gate except gates 9 and 11 has passed o
 machine**, so the tray/popover fallback is not being built.
 
 Both open gates wait on authentication. **Gate 9** — silent-only token acquisition from the provider
-with a zero parent handle — is not started. **Gate 11** — cached-first refresh and cross-process
-invalidation across a real host — cannot be observed until there is something to refresh. Gate 11
-could not decide between the native surface and the fallback, because both consume the same
-coordination core; gate 9 could, because a provider that cannot get a token silently would show
-sign-in-required forever while a tray app could authenticate in its own UI process.
+with a zero parent handle — is now **implemented but not measured**. **Gate 11** — cached-first
+refresh and cross-process invalidation across a real host — cannot be observed until there is
+something to refresh. Gate 11 could not decide between the native surface and the fallback, because
+both consume the same coordination core; gate 9 could, because a provider that cannot get a token
+silently would show sign-in-required forever while a tray app could authenticate in its own UI
+process.
 
-The provider currently draws a placeholder card describing coordination state, because there is no
-authentication or Microsoft Graph access yet — **nothing here shows real mail.** That is the next
-phase. The Entra app registration is already created and configured, so what remains is the
-authentication and Graph code rather than any setup step. See
-[docs/phase0-evidence.md](docs/phase0-evidence.md) for exactly what has and has not been proven, and
+**Brokered sign-in is built.** The companion has a real window and performs WAM sign-in with
+self-consent to `Mail.ReadBasic`; the provider acquires silently with no window of its own and reports
+the classified result on its card. Neither has been run against the tenant yet, so gates 8 and 9 are
+implemented rather than passed — measuring them takes an elevated install and two manual steps, listed
+in [docs/phase0-evidence.md](docs/phase0-evidence.md).
+
+There is still no Microsoft Graph access, so the provider draws a placeholder card describing
+coordination and authentication state — **nothing here shows real mail.** That is the next slice. See
+the evidence report for exactly what has and has not been proven, and
 [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
 
 ### Known platform limitation: one widget instance only
@@ -48,7 +53,13 @@ package's.
   cached, not requested.
 - **No authentication UI outside the companion app.** The widget provider can only acquire
   tokens silently and fails closed to a "sign in required" card. It has no code path to
-  interactive authentication and cannot open a browser.
+  interactive authentication and cannot open a browser. This is enforced by the assembly
+  reference graph rather than by convention: the single `AcquireTokenInteractive` call site
+  lives in the companion, which the provider does not reference at all.
+- **No token in any file this app writes.** WAM keeps the refresh token device-bound inside the
+  broker. MSAL's shared cache — which the two processes need so the provider can find the
+  account the companion signed in — holds ID tokens and account metadata, is DPAPI-protected,
+  and sits inside the package store so uninstall removes it.
 - **No telemetry.** Nothing leaves the device. Local operational logs record an event name, a
   status category, a duration, and a count — the logging API has no parameter capable of
   accepting a sender, subject, account, link, or token, which is enforced by its shape rather
@@ -98,7 +109,7 @@ pwsh -File scripts/Test-PackagePrerequisites.ps1
 ```text
 src/OutlookWidget.Core       Surface-agnostic coordination, caching, refresh, delivery, launching
 src/OutlookWidget.Packaging  MSIX package-identity interop, shared by the two executables
-src/OutlookWidget.App        Packaged companion; currently the Phase 0 probe, not finished WinUI
+src/OutlookWidget.App        Packaged companion; Phase 0 probe plus the only interactive sign-in
 src/OutlookWidget.Provider   Packaged COM Widgets provider; lifecycle and delivery, no mail yet
 src/OutlookWidget.Package    MSIX identity, assets, COM server and widget registration
 tests/                       Automated tests, including the concurrency suite
@@ -188,5 +199,13 @@ constraints are enforced mechanically because they are easy to break by accident
 - **Disclosure suppression is one file per operation,** deleted only by its own operation. A
   shared file cannot be safely reclaimed, because "read the owner, then delete if it matches"
   is not an atomic conditional delete.
+- **Interactive authentication lives in the companion, not the core.** The plan originally filed
+  it under the core; putting it there would make the provider link an assembly containing
+  `AcquireTokenInteractive`, leaving a source grep as the only barrier. Three source-level tests
+  hold the boundary: none in the core, none in the provider, and exactly one file in the
+  companion.
+- **The provider passes `BrokerClient.NoParentWindow`,** a named member rather than an inline
+  `() => IntPtr.Zero`, so the zero handle gate 9 tests is searchable and cannot be chosen by
+  accident. A test asserts the provider builds its client no other way.
 
 Each of those has a test asserting the invariant, and in several cases a source-level check.
