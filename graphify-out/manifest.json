@@ -210,18 +210,18 @@
     "semantic_hash": ""
   },
   "TECHNICAL_PLAN.md": {
-    "mtime": 1785351269.8952477,
-    "ast_hash": "3f8d57954638e3e2e3c0f0df70b5af20",
+    "mtime": 1785352123.3041358,
+    "ast_hash": "46507d2f58654fe9679958eb7bb9226c",
     "semantic_hash": ""
   },
   "docs/app-registration.md": {
-    "mtime": 1785339571.7643967,
-    "ast_hash": "bf5389d61073059ae7e37326f67bcd9c",
+    "mtime": 1785352067.8203838,
+    "ast_hash": "4e95c5faa224233aa3d4b360fa9ba0c0",
     "semantic_hash": ""
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1785351536.5373418,
-    "ast_hash": "243108a616b1993bfdb96dd523ba2198",
+    "mtime": 1785352037.9555528,
+    "ast_hash": "7b281379d193401ea1836306c8711d79",
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {

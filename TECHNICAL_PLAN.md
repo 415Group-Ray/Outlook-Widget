@@ -43,7 +43,7 @@ Give a Windows 11 user a glanceable, privacy-bounded view of the selected Micros
 
 - **Audience:** one user — the author — on their own devices. Wider internal use is a possible future, not a v1 requirement.
 - **Outlook client:** New Outlook only. Classic Outlook is explicitly out of scope; no Classic Outlook code path, setting, or test is built.
-- **Consent:** the author can self-consent to delegated `Mail.ReadBasic`. No administrator scheduling is on the critical path.
+- **Consent:** delegated `Mail.ReadBasic` is not marked as requiring admin consent, but **the reference tenant's user-consent policy refused self-consent anyway and an administrator had to grant it** (measured; see the evidence report). The permission's default is not what decides this — the tenant policy is. Treat an administrator step as likely rather than off the critical path.
 
 Scale is not a v1 engineering concern: the product is local, delegated, read-only, and has no hosted service. User count changes deployment and support work, not the Graph/data architecture.
 
@@ -93,7 +93,7 @@ The plan deliberately separates documented behavior from behavior that must be t
 - Whether any supported system association hands a Graph `webLink` into New Outlook. The product will not depend on this.
 - Observable Widgets-host delivery semantics: whether `UpdateWidget` blocks, queues, or coalesces, and whether the host offers any ordering guarantee. Record what is observed. Absent a demonstrated guarantee, the plan claims only final convergence and documents the transient-render limitation.
 - Actual provider lifetime and cached-first refresh behavior across Board open/close, restart, sleep, sign-out, and package update.
-- Target-device Widgets policy, and that self-consent to delegated `Mail.ReadBasic` actually succeeds against the tenant's user-consent policy.
+- Target-device Widgets policy, and **whether** self-consent to delegated `Mail.ReadBasic` succeeds against the tenant's user-consent policy. Answered during Phase 0: it does not on the reference tenant.
 
 Primary sources:
 
@@ -286,7 +286,9 @@ Use one registration. A separate production registration is a multi-user concern
 
 Do not add `User.Read` unless a later approved feature calls `/me`. Account display information can come from MSAL’s authentication result rather than a separate profile request.
 
-The author can self-consent to delegated `Mail.ReadBasic`, so no administrator step is on the critical path. Phase 0 still confirms this empirically at first sign-in, because a tenant user-consent policy change would surface as a consent prompt or an approval-required error rather than a code defect. Tenant-wide admin consent belongs to the multi-user step, if it ever happens; it is operational convenience, not evidence that the delegated permission intrinsically requires admin consent.
+Delegated `Mail.ReadBasic` is not marked as requiring admin consent, so self-consent was expected to keep an administrator off the critical path. **Phase 0 measured otherwise and this paragraph is corrected rather than deleted, because the reasoning was sound and the premise was wrong.** The reference tenant's user-consent policy — "Let Microsoft manage your consent settings" with mail-client consent enabled — permits user consent to mail permissions only for a fixed list of Microsoft-chosen mail clients, so a registration of one's own cannot self-consent under it. An administrator granted consent for this registration.
+
+The distinction that paragraph drew still holds and matters more now: admin consent is **operational necessity on some tenants, not evidence that the delegated permission intrinsically requires it.** Nothing about the permission changed, no application permission was added, and the grant covers this one registration's delegated scope. It is also not the multi-user step; that remains section 16 and separately gated.
 
 ## 6. Required Graph permissions
 
@@ -837,7 +839,7 @@ Preconditions: the OneDrive-backed clone is fully available locally; volatile ou
 5. ~~Two pinned instances at different sizes render and update independently.~~ **Superseded during Phase 0.** The Widgets Board was measured to allow only one pinned instance per widget definition on build 26200: the picker entry is greyed out and marked as added once the widget is pinned, despite `AllowMultiple="true"` in the installed manifest. The replacement gate is that **one instance resized through the widget's more-options menu renders correctly at small, medium, and large**, which exercises `OnWidgetContextChanged`, per-instance size tracking, and the card's `$host.widgetSize` conditions. The per-instance design requirement in section 3 is unchanged and unrelaxed — it is simply no longer observable through two simultaneous instances. See `docs/phase0-evidence.md` for the measurement and for why a second widget definition was not added to restore coverage.
 6. Widget action launches the companion.
 7. The Open Outlook action launches New Outlook without a versioned executable path.
-8. Companion WAM sign-in supports MFA/Conditional Access with a real HWND, and self-consent to `Mail.ReadBasic` succeeds without an administrator step. If it does not, the failure is recorded as an approval-required authorization state, not as a Graph error.
+8. Companion WAM sign-in supports MFA/Conditional Access with a real HWND, and self-consent to `Mail.ReadBasic` succeeds without an administrator step. If it does not, the failure is recorded as an approval-required authorization state, not as a Graph error. — **Met in part during Phase 0.** Brokered sign-in with a real HWND passes. **Self-consent does not**: the reference tenant's user-consent policy refused it and an administrator granted consent for the registration. The escape clause was exercised as written, so the criterion behaved correctly even though its first half did not hold. Not a pass; recorded as a split. See `docs/phase0-evidence.md`.
 9. Provider construction with the pinned Broker dependency and zero parent handle supports silent acquisition after companion exit and PC restart, never opens a browser, and fails closed when broker/UI is required.
 10. `Mail.ReadBasic` returns exactly the approved properties and no body data is requested.
 11. Cached-first, activation-driven refresh and cross-process cache invalidation operate across Board activation/deactivation, provider recycle, logout, and privacy changes.
@@ -1052,7 +1054,7 @@ The estimate assumes:
 - One tenant, one user, one selected mailbox.
 - New Outlook only; no Classic Outlook code path or test.
 - No managed deployment, enterprise signing, hosted backend, push notifications, message-body access, shared mailbox support, or Store publication.
-- Self-consent works, so no administrator scheduling is on the critical path.
+- ~~Self-consent works, so no administrator scheduling is on the critical path.~~ **Falsified during Phase 0**, with no schedule impact: the reference tenant refused self-consent and an administrator grant was needed, but the author holds that administrator role, so nothing had to be scheduled with anyone else. The estimate stands; the assumption behind it does not, and it would matter on a tenant where the author is not an administrator.
 
 Sharing the tool later is a separate estimate: section 16, enterprise signing, a production registration, and a fleet test pass.
 

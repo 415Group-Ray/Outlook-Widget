@@ -481,10 +481,10 @@ coordination root inside the package store, written by the companion's sign-in �
 9's pass, and it is simultaneously the measurement that retires this documentation argument: the cache
 is created, correctly placed, and actually consumed cross-process.
 
-The registration could not have been avoided by prompting the user. Consent *is* already a user
-prompt — self-consent to `Mail.ReadBasic` at first sign-in, no administrator step — but the
-registration is the application's identity and is what issues the client ID, and no token request can
-be made without one. Entra does not implement OpenID Connect Dynamic Client Registration, so there
+The registration could not have been avoided by prompting the user. Consent *is* a user prompt in
+principle — though not on this tenant, where policy escalated it to an administrator; see the gate 8
+finding above — but the registration is the application's identity and is what issues the client ID, and
+no token request can be made without one. Entra does not implement OpenID Connect Dynamic Client Registration, so there
 was no bootstrap path: creating a registration through Graph would itself require a token.
 
 ## The Entra app registration, as created
@@ -503,18 +503,33 @@ contradicted itself by asking for both here.
 | Client secret / certificate | **None** |
 | API permission | Microsoft Graph delegated **`Mail.ReadBasic`** only; `User.Read` removed. **Verified in the portal 2026-07-29**, not merely asserted: the API permissions blade reads `Microsoft Graph (1)` with `Mail.ReadBasic` / Delegated / "Read user basic mail" as the sole row |
 | Application permissions | **None** |
-| Admin consent | **Not granted, deliberately** |
+| Admin consent | **Granted 2026-07-29**, after gate 8 measured that this tenant blocks self-consent. It was deliberately withheld until then, for the reason below |
 
 The redirect URI platform matters and is a silent failure if wrong: current Microsoft documentation
 states WAM redirect URIs must be configured under *Mobile and desktop applications*, and a
 registration that places the same string under the Web platform simply never completes brokered
 sign-in.
 
-**Admin consent was deliberately not granted**, and that is a gate decision rather than an oversight.
-Gate 8 asks whether the author can self-consent to `Mail.ReadBasic` without an administrator step.
-Granting tenant-wide admin consent would pre-approve the permission, the self-consent path would
-never execute, and the gate would become unprovable while appearing to work. It stays ungranted until
-first sign-in exercises it.
+**Admin consent was withheld until first sign-in, then granted because the gate required it.** Both
+halves of that were decisions, and the order mattered.
+
+Withholding it was a gate decision rather than an oversight. Gate 8 asks whether the author can
+self-consent to `Mail.ReadBasic` without an administrator step. Granting tenant-wide admin consent up
+front would have pre-approved the permission, the self-consent path would never have executed, and the
+gate would have become unprovable while appearing to work. **That sequencing is what makes the finding
+below trustworthy**: the tenant refused self-consent under observation, rather than the question being
+quietly skipped.
+
+Granting it afterwards was a scope decision, recorded above with the measurement. It covers delegated
+`Mail.ReadBasic` for this registration only, so a signed-in user reads *their own* basic mail; there are
+no application permissions, so no other mailbox becomes reachable. It is **not** a change to the intended
+flow — self-consent remains the designed path and `ApprovalRequired` remains a first-class outcome for
+tenants that permit it.
+
+One consequence for anyone reproducing gate 8: **it cannot be re-measured on this tenant now.** Consent
+is granted, so a sign-in succeeds regardless of which path would have been taken, and the companion
+deliberately no longer claims otherwise. Reproducing the self-consent question needs a tenant where
+consent has not been granted.
 
 ### Configuration, and what it deliberately cannot change
 
