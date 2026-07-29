@@ -246,6 +246,37 @@ public sealed class CoordinationStaticAnalysisTests
     }
 
     [Fact]
+    public void The_provider_locates_state_only_through_the_packaged_state_guard()
+    {
+        // CoordinationPaths.Resolve accepts a null family name and answers with the ordinary
+        // per-user path. That is correct for unpackaged callers such as unit tests, and wrong for
+        // the provider, which must refuse to run without package identity because state outside the
+        // package store survives uninstall.
+        //
+        // The provider called Resolve directly and passed a possibly-null identity into it, which is
+        // how the fallback got in. PackagedState is the guarded composition; this asserts the
+        // provider cannot go around it again. Enforced by source because the alternative is
+        // launching the COM server.
+        var offenders = new List<string>();
+
+        foreach (string file in RepositorySources.ProviderSourceFiles())
+        {
+            string code = StripCommentsAndStrings(File.ReadAllText(file));
+
+            if (code.Contains("CoordinationPaths.Resolve", StringComparison.Ordinal))
+            {
+                offenders.Add(Path.GetFileName(file));
+            }
+        }
+
+        Assert.True(
+            offenders.Count == 0,
+            "The provider must locate state through PackagedState.Locate, which refuses an "
+                + "unpackaged process, rather than calling CoordinationPaths.Resolve with an "
+                + "identity that may be null. Found direct calls in: " + string.Join(", ", offenders));
+    }
+
+    [Fact]
     public void The_provider_has_no_reference_to_interactive_authentication()
     {
         // Section 3 requires the provider to be silent-only and to fail closed: broker- or

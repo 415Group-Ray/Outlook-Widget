@@ -82,6 +82,11 @@ graphify update .
   Windows-SDK-versioned target framework — so provider compile errors pass a green test run. This
   has already happened once. `dotnet build` on the solution is the check that catches it, and it is
   not optional.
+- **Solution builds and project builds put the provider in different directories.** The solution
+  declares `<Platform Project="x64" />` for it, so `dotnet build` writes
+  `bin\x64\Debug\...\win-x64\` while `dotnet build <the csproj>` writes `bin\Debug\...\win-x64\`.
+  Running the executable by hand from the wrong one executes a stale binary while a successful build
+  scrolls past. Check the timestamp, or build the project explicitly first.
 - Changes to packaging, signing, the manifest, assets, package identity, or certificate
   handling also require the relevant prerequisite and package-build checks.
 - Record device-, tenant-, Widgets-host-, WAM-, New Outlook-, and installed-package results in
@@ -115,7 +120,13 @@ coverage when changing nearby behavior.
 9. The privacy guarantee is final convergence, not retraction of an update already handed to
    the Widgets host. Do not claim a stronger guarantee without measured platform evidence.
 10. Cache and coordination state remain scoped to the current Windows user and stable package
-    identity. Sensitive cache content remains protected with DPAPI.
+    identity. Sensitive cache content remains protected with DPAPI. **A process without package
+    identity must refuse to run rather than resolve state.** `PackageIdentity.TryGetFamilyName`
+    returns null when unpackaged and `CoordinationPaths.Resolve` accepts null and answers with the
+    per-user path — both correct alone, and a silent fallback outside the package store when
+    composed. Go through `PackagedState.Locate`, which rejects a null identity before resolving any
+    path; never call `CoordinationPaths.Resolve` from an executable. A source-level test enforces
+    this for the provider.
 11. The provider's COM class ID appears in exactly three places and they must agree:
     `Program.ProviderClassId`, the manifest's `com:Class Id`, and the widget extension's
     `CreateInstance ClassId`. A mismatch installs cleanly and then fails activation with nothing

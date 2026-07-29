@@ -596,6 +596,72 @@ discovering that an icon can only be judged in place, next to its neighbours, at
 actually drawn. Dimensions, transparency, and resource indexing were all verifiable from
 documentation and all correct; none of that had any bearing on whether the thing looked right.
 
+## Measured: the provider fell back to unpackaged state storage instead of failing closed
+
+Found by review. `PackageIdentity.TryGetFamilyName` returns `null` for an unpackaged process by
+design, and `CoordinationPaths.Resolve` accepts `null` and answers with the ordinary per-user path by
+design. The provider's startup treated only a *thrown* `PackageIdentityException` as fatal, so a null
+family name passed straight through into `Resolve`, the resulting directories were created, and the
+process carried on — placing coordination state at `%LocalAppData%\OutlookWidget`, outside the package
+store, where uninstall cannot remove it.
+
+Both composed behaviours were individually correct. The fault was the composition, and it sat
+**directly underneath a comment explaining why that exact fallback is unacceptable**. The reasoning
+was right; the null case was simply never covered.
+
+**Confirmed on the reference machine.** Running the provider executable directly from its build
+output, where it genuinely has no package identity, created
+`%LocalAppData%\OutlookWidget\suppression-v1` and then kept running. Nothing today writes mailbox
+data there, so no privacy guarantee has actually been broken — but the location would have become the
+cache once authentication landed.
+
+Fixed by moving the composition behind `PackagedState.Locate` in `OutlookWidget.Packaging`, which
+rejects a null or empty family name **before resolving a path at all**, so a refusing process never
+computes an unpackaged location and never touches the filesystem. `Unpackaged` and
+`IdentityQueryFailed` are distinct statuses: both fail closed, but one means the executable was
+started directly and the other means a broken query, and they send an operator to different places.
+The provider now exits 2 and 1 respectively.
+
+After the fix, the same direct run **exits 2 and creates nothing**, while packaged COM activation
+still succeeds and still creates state under
+`%LocalAppData%\Packages\415Group.OutlookInboxWidget_dgbvqhastx60y\...`.
+
+`PackagedState` lives in `OutlookWidget.Packaging` rather than the core, and Packaging now references
+Core rather than the reverse — the core must stay free of any knowledge that MSIX exists, which is
+why `CoordinationPaths.Resolve` takes the family name as a parameter in the first place. Six unit
+tests cover both refusal paths through an injectable identity query, which is the only way to reach
+them: a test process cannot acquire package identity, cannot make the Win32 query fail on demand, and
+cannot launch the COM server.
+
+A source-level test additionally asserts the provider never calls `CoordinationPaths.Resolve`
+directly, so the two behaviours cannot be recombined at a new call site.
+
+## Measured: solution builds and project builds write to different output directories
+
+Found while verifying the fix above, and worth recording because it produced a false negative that
+looked exactly like the fix not working.
+
+| Command | Provider output |
+|---|---|
+| `dotnet build` (solution) | `bin\x64\Debug\net10.0-windows10.0.26100.0\win-x64\` |
+| `dotnet build src\OutlookWidget.Provider\...csproj` | `bin\Debug\net10.0-windows10.0.26100.0\win-x64\` |
+
+The split comes from the solution declaring `<Platform Project="x64" />` for this project, which
+solution-level builds honour and project-level builds do not. So a solution build leaves the
+`bin\Debug` copy untouched, and running the executable from there can execute a binary many hours
+old while a successful build scrolls past. That is what happened: the first verification run appeared
+to show the guard having no effect, when it was running yesterday's binary.
+
+Two lessons, recorded because the second is the more dangerous:
+
+1. When running a provider executable by hand, check its timestamp or build the project explicitly
+   first. `dotnet build` succeeding does not mean the copy you are about to run was rebuilt.
+2. **Searching a .NET assembly for a type name must use UTF-8.** The first attempt to confirm whether
+   the guard was compiled in searched with `-Encoding unicode` and reported `False` for assemblies
+   that did contain it, because assembly metadata strings are UTF-8. A verification method that
+   silently reports absence is worse than no verification, and this one briefly redirected the
+   investigation toward a build problem that did not exist.
+
 ## Observed characteristic: provider lifetime is demand-driven, not pin-driven
 
 Immediately after the force-shutdown, with the widget still pinned, `Get-Process

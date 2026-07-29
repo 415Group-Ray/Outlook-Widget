@@ -788,7 +788,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_coordinationpaths",
       "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community_name": "CoordinationFixture",
       "norm_label": "coordinationpaths.cs"
     },
     {
@@ -821,7 +821,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_coordinationpaths_outlookwidget_core_caching_coordinationpaths",
       "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community_name": "CoordinationFixture",
       "norm_label": "coordinationpaths"
     },
     {
@@ -832,7 +832,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_coordinationpaths_cs_string",
       "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community_name": "CoordinationFixture",
       "norm_label": "string"
     },
     {
@@ -848,8 +848,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_coordinationpaths_outlookwidget_core_caching_coordinationpaths_resolve",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 37,
+      "community_name": ".Locate",
       "norm_label": ".resolve()"
     },
     {
@@ -866,7 +866,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_coordinationpaths_outlookwidget_core_caching_coordinationpaths_ensurecreated",
       "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community_name": "CoordinationFixture",
       "norm_label": ".ensurecreated()"
     },
     {
@@ -876,8 +876,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache",
-      "community": 4,
-      "community_name": "OutlookWidget.Core.Refresh",
+      "community": 31,
+      "community_name": "ProtectedCache.cs",
       "norm_label": "protectedcache.cs"
     },
     {
@@ -894,7 +894,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_idataprotector",
       "community": 31,
-      "community_name": "IDataProtector",
+      "community_name": "ProtectedCache.cs",
       "norm_label": "idataprotector"
     },
     {
@@ -911,7 +911,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_idataprotector_protect",
       "community": 31,
-      "community_name": "IDataProtector",
+      "community_name": "ProtectedCache.cs",
       "norm_label": ".protect()"
     },
     {
@@ -928,7 +928,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_idataprotector_unprotect",
       "community": 31,
-      "community_name": "IDataProtector",
+      "community_name": "ProtectedCache.cs",
       "norm_label": ".unprotect()"
     },
     {
@@ -944,8 +944,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_currentuserdataprotector",
-      "community": 4,
-      "community_name": "OutlookWidget.Core.Refresh",
+      "community": 31,
+      "community_name": "ProtectedCache.cs",
       "norm_label": "currentuserdataprotector"
     },
     {
@@ -961,8 +961,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_currentuserdataprotector_protect",
-      "community": 4,
-      "community_name": "OutlookWidget.Core.Refresh",
+      "community": 31,
+      "community_name": "ProtectedCache.cs",
       "norm_label": ".protect()"
     },
     {
@@ -978,8 +978,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_currentuserdataprotector_unprotect",
-      "community": 4,
-      "community_name": "OutlookWidget.Core.Refresh",
+      "community": 31,
+      "community_name": "ProtectedCache.cs",
       "norm_label": ".unprotect()"
     },
     {
@@ -995,8 +995,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_cachereadstatus",
-      "community": 4,
-      "community_name": "OutlookWidget.Core.Refresh",
+      "community": 31,
+      "community_name": "ProtectedCache.cs",
       "norm_label": "cachereadstatus"
     },
     {
@@ -1013,7 +1013,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_cachereadresult",
       "community": 31,
-      "community_name": "IDataProtector",
+      "community_name": "ProtectedCache.cs",
       "norm_label": "cachereadresult"
     },
     {
@@ -1029,8 +1029,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_cachecommitstatus",
-      "community": 4,
-      "community_name": "OutlookWidget.Core.Refresh",
+      "community": 31,
+      "community_name": "ProtectedCache.cs",
       "norm_label": "cachecommitstatus"
     },
     {
@@ -1103,7 +1103,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_caching_protectedcache_outlookwidget_core_caching_protectedcache_read",
       "community": 31,
-      "community_name": "IDataProtector",
+      "community_name": "ProtectedCache.cs",
       "norm_label": ".read()"
     },
     {
@@ -1259,8 +1259,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "idisposable",
-      "community": 37,
-      "community_name": "MutexHoldingPeer",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "idisposable"
     },
     {
@@ -1467,7 +1467,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_diagnostics_ioperationallogger",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": "ioperationallogger.cs"
     },
     {
@@ -1500,7 +1500,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_diagnostics_ioperationallogger_outlookwidget_core_diagnostics_operationaleventid",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": "operationaleventid"
     },
     {
@@ -1517,7 +1517,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_diagnostics_ioperationallogger_outlookwidget_core_diagnostics_operationaloutcome",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": "operationaloutcome"
     },
     {
@@ -1572,8 +1572,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_outlookwidget_core_diagnostics_nulloperationallogger",
-      "community": 30,
-      "community_name": "IOperationalLogger",
+      "community": 28,
+      "community_name": "RecordingLogger",
       "norm_label": "nulloperationallogger.cs"
     },
     {
@@ -1589,8 +1589,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_diagnostics_nulloperationallogger_outlookwidget_core_diagnostics_nulloperationallogger",
-      "community": 30,
-      "community_name": "IOperationalLogger",
+      "community": 28,
+      "community_name": "RecordingLogger",
       "norm_label": "nulloperationallogger"
     },
     {
@@ -1607,7 +1607,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_diagnostics_nulloperationallogger_outlookwidget_core_diagnostics_nulloperationallogger_record",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": ".record()"
     },
     {
@@ -1618,7 +1618,7 @@
       "_origin": "ast",
       "id": "src_outlookwidget_core_diagnostics_nulloperationallogger_cs_timespan",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": "timespan"
     },
     {
@@ -1628,8 +1628,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_outlookwidget_core_launching_outlooklauncher",
-      "community": 4,
-      "community_name": "OutlookWidget.Core.Refresh",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "outlooklauncher.cs"
     },
     {
@@ -2541,8 +2541,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_leaserecord",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": "leaserecord.cs"
     },
     {
@@ -2558,8 +2558,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_leaserecord_outlookwidget_core_refresh_leaserecord",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": "leaserecord"
     },
     {
@@ -2569,8 +2569,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_leaserecord_cs_guid",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": "guid"
     },
     {
@@ -2603,8 +2603,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_leaserecord_outlookwidget_core_refresh_leaserecord_isownedby",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": ".isownedby()"
     },
     {
@@ -2614,8 +2614,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_leaserecord_cs_jsonserializeroptions",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": "jsonserializeroptions"
     },
     {
@@ -2648,8 +2648,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_leaserecord_outlookwidget_core_refresh_leaserecord_tryparse",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": ".tryparse()"
     },
     {
@@ -3267,8 +3267,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_leaseclaim",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": "leaseclaim"
     },
     {
@@ -3284,8 +3284,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_refreshleasestore",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": "refreshleasestore"
     },
     {
@@ -3301,8 +3301,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_refreshleasestore_tryclaim",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": ".tryclaim()"
     },
     {
@@ -3312,8 +3312,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_cs_cancellationtoken",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": "cancellationtoken"
     },
     {
@@ -3329,8 +3329,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_refreshleasestore_clear",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": ".clear()"
     },
     {
@@ -3340,8 +3340,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_cs_guid",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": "guid"
     },
     {
@@ -3357,8 +3357,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_refreshleasestore_isleaselive",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": ".isleaselive()"
     },
     {
@@ -3374,8 +3374,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_refreshleasestore_readrecord",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": ".readrecord()"
     },
     {
@@ -3391,8 +3391,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_refreshleasestore_outlookwidget_core_refresh_refreshleasestore_trywriterecord",
-      "community": 0,
-      "community_name": "RefreshLeaseStore",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": ".trywriterecord()"
     },
     {
@@ -3419,8 +3419,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statechangelistener_outlookwidget_core_refresh_statechangelistener",
-      "community": 38,
-      "community_name": "StateChangeListener",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "statechangelistener"
     },
     {
@@ -3430,8 +3430,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "eventwaithandle",
-      "community": 38,
-      "community_name": "StateChangeListener",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "eventwaithandle"
     },
     {
@@ -3441,8 +3441,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statechangelistener_cs_cancellationtokensource",
-      "community": 38,
-      "community_name": "StateChangeListener",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "cancellationtokensource"
     },
     {
@@ -3452,8 +3452,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statechangelistener_cs_action",
-      "community": 38,
-      "community_name": "StateChangeListener",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "action"
     },
     {
@@ -3463,8 +3463,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statechangelistener_cs_thread",
-      "community": 38,
-      "community_name": "StateChangeListener",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "thread"
     },
     {
@@ -3474,8 +3474,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statechangelistener_cs_long",
-      "community": 38,
-      "community_name": "StateChangeListener",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "long"
     },
     {
@@ -3485,8 +3485,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statechangelistener_cs_bool",
-      "community": 38,
-      "community_name": "StateChangeListener",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "bool"
     },
     {
@@ -3502,8 +3502,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statechangelistener_outlookwidget_core_refresh_statechangelistener_runloop",
-      "community": 38,
-      "community_name": "StateChangeListener",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": ".runloop()"
     },
     {
@@ -3519,8 +3519,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_refresh_statechangelistener_outlookwidget_core_refresh_statechangelistener_dispose",
-      "community": 38,
-      "community_name": "StateChangeListener",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": ".dispose()"
     },
     {
@@ -4020,6 +4020,96 @@
       "norm_label": "exception"
     },
     {
+      "label": "PackagedState.cs",
+      "file_type": "code",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "src_outlookwidget_packaging_packagedstate",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": "packagedstate.cs"
+    },
+    {
+      "label": "PackagedStateStatus",
+      "file_type": "code",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L6",
+      "metadata": {
+        "namespace": "OutlookWidget.Packaging",
+        "scope_chain": [
+          "s35"
+        ]
+      },
+      "_origin": "ast",
+      "id": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstatestatus",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": "packagedstatestatus"
+    },
+    {
+      "label": "PackagedStateResult",
+      "file_type": "code",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L33",
+      "metadata": {
+        "namespace": "OutlookWidget.Packaging",
+        "scope_chain": [
+          "s35"
+        ]
+      },
+      "_origin": "ast",
+      "id": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstateresult",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": "packagedstateresult"
+    },
+    {
+      "label": "PackagedState",
+      "file_type": "code",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L68",
+      "metadata": {
+        "namespace": "OutlookWidget.Packaging",
+        "scope_chain": [
+          "s35"
+        ]
+      },
+      "_origin": "ast",
+      "id": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": "packagedstate"
+    },
+    {
+      "label": ".Locate()",
+      "file_type": "code",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L73",
+      "metadata": {
+        "namespace": "OutlookWidget.Packaging",
+        "scope_chain": [
+          "s35"
+        ]
+      },
+      "_origin": "ast",
+      "id": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": ".locate()"
+    },
+    {
+      "label": "Func",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "src_outlookwidget_packaging_packagedstate_cs_func",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": "func"
+    },
+    {
       "label": "SkeletonCard.cs",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Provider/Cards/SkeletonCard.cs",
@@ -4444,8 +4534,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_provider_program_outlookwidget_provider_program",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "program"
     },
     {
@@ -4455,8 +4545,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_provider_program_cs_guid",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "guid"
     },
     {
@@ -4466,15 +4556,26 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_provider_program_cs_uint",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "uint"
+    },
+    {
+      "label": "int",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "src_outlookwidget_provider_program_cs_int",
+      "community": 7,
+      "community_name": "WidgetProvider",
+      "norm_label": "int"
     },
     {
       "label": ".Main()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L63",
+      "source_location": "L73",
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
@@ -4483,15 +4584,15 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_provider_program_outlookwidget_provider_program_main",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": ".main()"
     },
     {
       "label": ".CoRegisterClassObject()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L189",
+      "source_location": "L208",
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
@@ -4500,8 +4601,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_provider_program_outlookwidget_provider_program_coregisterclassobject",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": ".coregisterclassobject()"
     },
     {
@@ -4511,8 +4612,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_provider_program_cs_intptr",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "intptr"
     },
     {
@@ -4522,15 +4623,15 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_provider_program_cs_libraryimport",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "libraryimport"
     },
     {
       "label": ".CoRevokeClassObject()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L197",
+      "source_location": "L216",
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
@@ -4539,8 +4640,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_provider_program_outlookwidget_provider_program_corevokeclassobject",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": ".corevokeclassobject()"
     },
     {
@@ -5640,8 +5741,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_coordinationpathstests_outlookwidget_core_tests_coordinationpathstests",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 37,
+      "community_name": ".Locate",
       "norm_label": "coordinationpathstests"
     },
     {
@@ -5651,8 +5752,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_coordinationpathstests_cs_string",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 37,
+      "community_name": ".Locate",
       "norm_label": "string"
     },
     {
@@ -5668,8 +5769,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_coordinationpathstests_outlookwidget_core_tests_coordinationpathstests_packaged_state_lives_inside_the_package_store_so_uninstall_removes_it",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 37,
+      "community_name": ".Locate",
       "norm_label": ".packaged_state_lives_inside_the_package_store_so_uninstall_removes_it()"
     },
     {
@@ -5679,8 +5780,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_coordinationpathstests_cs_fact",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 37,
+      "community_name": ".Locate",
       "norm_label": "fact"
     },
     {
@@ -5696,8 +5797,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_coordinationpathstests_outlookwidget_core_tests_coordinationpathstests_packaged_state_is_not_placed_by_localapplicationdata_alone",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 37,
+      "community_name": ".Locate",
       "norm_label": ".packaged_state_is_not_placed_by_localapplicationdata_alone()"
     },
     {
@@ -5713,8 +5814,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_coordinationpathstests_outlookwidget_core_tests_coordinationpathstests_unpackaged_state_uses_the_ordinary_per_user_path",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 37,
+      "community_name": ".Locate",
       "norm_label": ".unpackaged_state_uses_the_ordinary_per_user_path()"
     },
     {
@@ -5730,8 +5831,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_coordinationpathstests_outlookwidget_core_tests_coordinationpathstests_the_family_name_rather_than_the_full_name_places_state",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 37,
+      "community_name": ".Locate",
       "norm_label": ".the_family_name_rather_than_the_full_name_places_state()"
     },
     {
@@ -5747,8 +5848,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_coordinationpathstests_outlookwidget_core_tests_coordinationpathstests_scope_isolates_state_without_changing_the_root",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 37,
+      "community_name": ".Locate",
       "norm_label": ".scope_isolates_state_without_changing_the_root()"
     },
     {
@@ -5764,8 +5865,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_coordinationpathstests_outlookwidget_core_tests_coordinationpathstests_named_primitives_are_user_scoped_rather_than_global",
-      "community": 9,
-      "community_name": "PackageIdentity",
+      "community": 37,
+      "community_name": ".Locate",
       "norm_label": ".named_primitives_are_user_scoped_rather_than_global()"
     },
     {
@@ -5966,10 +6067,27 @@
       "norm_label": ".the_delivery_sink_re_reads_disclosure_before_calling_the_host()"
     },
     {
-      "label": ".The_provider_has_no_reference_to_interactive_authentication()",
+      "label": ".The_provider_locates_state_only_through_the_packaged_state_guard()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
       "source_location": "L248",
+      "metadata": {
+        "namespace": "OutlookWidget.Core.Tests",
+        "scope_chain": [
+          "s193"
+        ]
+      },
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_the_provider_locates_state_only_through_the_packaged_state_guard",
+      "community": 11,
+      "community_name": "CoordinationStaticAnalysisTests",
+      "norm_label": ".the_provider_locates_state_only_through_the_packaged_state_guard()"
+    },
+    {
+      "label": ".The_provider_has_no_reference_to_interactive_authentication()",
+      "file_type": "code",
+      "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
+      "source_location": "L279",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -5986,7 +6104,7 @@
       "label": ".No_provider_call_site_uses_the_parameterless_WaitOne()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L276",
+      "source_location": "L307",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -6003,7 +6121,7 @@
       "label": ".The_core_has_no_reference_to_interactive_authentication()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L303",
+      "source_location": "L334",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -6020,7 +6138,7 @@
       "label": ".The_logging_api_exposes_no_field_capable_of_carrying_mailbox_or_identity_metadata()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L328",
+      "source_location": "L359",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -6037,7 +6155,7 @@
       "label": ".The_logger_accepts_no_exception_because_exception_text_carries_metadata()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L362",
+      "source_location": "L393",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -6054,7 +6172,7 @@
       "label": ".The_lease_horizon_exceeds_the_worst_case_refresh_transaction()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L375",
+      "source_location": "L406",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -6071,7 +6189,7 @@
       "label": ".The_graph_timeout_is_nested_inside_the_async_deadline()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L392",
+      "source_location": "L423",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -6088,7 +6206,7 @@
       "label": ".Every_documented_bound_matches_the_plan()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L398",
+      "source_location": "L429",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -6105,7 +6223,7 @@
       "label": ".Disclosure_modes_are_ordered_so_the_strongest_present_wins_by_comparison()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L421",
+      "source_location": "L452",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -7517,6 +7635,158 @@
       "norm_label": ".the_manifest_is_well_formed_and_declares_the_namespaces_it_uses()"
     },
     {
+      "label": "PackagedStateTests.cs",
+      "file_type": "code",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_packagedstatetests",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
+      "norm_label": "packagedstatetests.cs"
+    },
+    {
+      "label": "PackagedStateTests",
+      "file_type": "code",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L24",
+      "metadata": {
+        "namespace": "OutlookWidget.Core.Tests",
+        "scope_chain": [
+          "s66"
+        ]
+      },
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": "packagedstatetests"
+    },
+    {
+      "label": "string",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_packagedstatetests_cs_string",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": "string"
+    },
+    {
+      "label": ".A_packaged_process_resolves_state_inside_the_package_store()",
+      "file_type": "code",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L28",
+      "metadata": {
+        "namespace": "OutlookWidget.Core.Tests",
+        "scope_chain": [
+          "s66"
+        ]
+      },
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_a_packaged_process_resolves_state_inside_the_package_store",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": ".a_packaged_process_resolves_state_inside_the_package_store()"
+    },
+    {
+      "label": "Fact",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_packagedstatetests_cs_fact",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": "fact"
+    },
+    {
+      "label": ".An_unpackaged_process_is_refused_rather_than_given_the_per_user_path()",
+      "file_type": "code",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L45",
+      "metadata": {
+        "namespace": "OutlookWidget.Core.Tests",
+        "scope_chain": [
+          "s66"
+        ]
+      },
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_an_unpackaged_process_is_refused_rather_than_given_the_per_user_path",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": ".an_unpackaged_process_is_refused_rather_than_given_the_per_user_path()"
+    },
+    {
+      "label": ".An_empty_family_name_is_treated_as_unpackaged()",
+      "file_type": "code",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L62",
+      "metadata": {
+        "namespace": "OutlookWidget.Core.Tests",
+        "scope_chain": [
+          "s66"
+        ]
+      },
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_an_empty_family_name_is_treated_as_unpackaged",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": ".an_empty_family_name_is_treated_as_unpackaged()"
+    },
+    {
+      "label": ".A_failed_identity_query_is_refused_and_distinguished_from_unpackaged()",
+      "file_type": "code",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L70",
+      "metadata": {
+        "namespace": "OutlookWidget.Core.Tests",
+        "scope_chain": [
+          "s66"
+        ]
+      },
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_a_failed_identity_query_is_refused_and_distinguished_from_unpackaged",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": ".a_failed_identity_query_is_refused_and_distinguished_from_unpackaged()"
+    },
+    {
+      "label": ".No_state_is_created_by_any_refusal()",
+      "file_type": "code",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L84",
+      "metadata": {
+        "namespace": "OutlookWidget.Core.Tests",
+        "scope_chain": [
+          "s66"
+        ]
+      },
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_no_state_is_created_by_any_refusal",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": ".no_state_is_created_by_any_refusal()"
+    },
+    {
+      "label": ".The_scope_is_carried_through_to_the_resolved_paths()",
+      "file_type": "code",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L106",
+      "metadata": {
+        "namespace": "OutlookWidget.Core.Tests",
+        "scope_chain": [
+          "s66"
+        ]
+      },
+      "_origin": "ast",
+      "id": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_the_scope_is_carried_through_to_the_resolved_paths",
+      "community": 37,
+      "community_name": ".Locate",
+      "norm_label": ".the_scope_is_carried_through_to_the_resolved_paths()"
+    },
+    {
       "label": "ProtectedCacheTests.cs",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/ProtectedCacheTests.cs",
@@ -7559,7 +7829,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_failingprotector",
       "community": 31,
-      "community_name": "IDataProtector",
+      "community_name": "ProtectedCache.cs",
       "norm_label": "failingprotector"
     },
     {
@@ -7576,7 +7846,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_failingprotector_protect",
       "community": 31,
-      "community_name": "IDataProtector",
+      "community_name": "ProtectedCache.cs",
       "norm_label": ".protect()"
     },
     {
@@ -7593,7 +7863,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_protectedcachetests_outlookwidget_core_tests_failingprotector_unprotect",
       "community": 31,
-      "community_name": "IDataProtector",
+      "community_name": "ProtectedCache.cs",
       "norm_label": ".unprotect()"
     },
     {
@@ -8329,8 +8599,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_refreshcoordinatortests_outlookwidget_core_tests_leaseobservingrequester_requestdelivery",
-      "community": 2,
-      "community_name": ".RefreshAsync",
+      "community": 8,
+      "community_name": ".Current",
       "norm_label": ".requestdelivery()"
     },
     {
@@ -8871,7 +9141,7 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_outlookwidget_core_tests_testinfrastructure_coordinationfixture",
-      "community": 28,
+      "community": 0,
       "community_name": "CoordinationFixture",
       "norm_label": "coordinationfixture"
     },
@@ -8882,7 +9152,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_cs_list",
-      "community": 28,
+      "community": 0,
       "community_name": "CoordinationFixture",
       "norm_label": "list"
     },
@@ -8899,7 +9169,7 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_outlookwidget_core_tests_testinfrastructure_coordinationfixture_track",
-      "community": 28,
+      "community": 0,
       "community_name": "CoordinationFixture",
       "norm_label": ".track()"
     },
@@ -8933,7 +9203,7 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_outlookwidget_core_tests_testinfrastructure_coordinationfixture_dispose",
-      "community": 28,
+      "community": 0,
       "community_name": "CoordinationFixture",
       "norm_label": ".dispose()"
     },
@@ -8951,7 +9221,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_outlookwidget_core_tests_testinfrastructure_recordinglogger",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": "recordinglogger"
     },
     {
@@ -8962,7 +9232,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_cs_lock",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": "lock"
     },
     {
@@ -8979,7 +9249,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_outlookwidget_core_tests_testinfrastructure_recordinglogger_record",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": ".record()"
     },
     {
@@ -8990,7 +9260,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_cs_timespan",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": "timespan"
     },
     {
@@ -9001,7 +9271,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_cs_ireadonlylist",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": "ireadonlylist"
     },
     {
@@ -9012,7 +9282,7 @@
       "_origin": "ast",
       "id": "id",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": "id"
     },
     {
@@ -9023,7 +9293,7 @@
       "_origin": "ast",
       "id": "outcome",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": "outcome"
     },
     {
@@ -9034,7 +9304,7 @@
       "_origin": "ast",
       "id": "count",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": "count"
     },
     {
@@ -9051,7 +9321,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_outlookwidget_core_tests_testinfrastructure_recordinglogger_saw",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": ".saw()"
     },
     {
@@ -9068,7 +9338,7 @@
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_coordinationfixture_outlookwidget_core_tests_testinfrastructure_recordinglogger_countof",
       "community": 28,
-      "community_name": "CoordinationFixture",
+      "community_name": "RecordingLogger",
       "norm_label": ".countof()"
     },
     {
@@ -9095,8 +9365,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_outlookwidget_core_tests_testinfrastructure_fakewidgethost",
-      "community": 39,
-      "community_name": "FakeWidgetHost",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": "fakewidgethost"
     },
     {
@@ -9106,8 +9376,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_cs_lock",
-      "community": 39,
-      "community_name": "FakeWidgetHost",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": "lock"
     },
     {
@@ -9117,8 +9387,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_cs_list",
-      "community": 39,
-      "community_name": "FakeWidgetHost",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": "list"
     },
     {
@@ -9128,8 +9398,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_cs_manualreseteventslim",
-      "community": 39,
-      "community_name": "FakeWidgetHost",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": "manualreseteventslim"
     },
     {
@@ -9139,8 +9409,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_cs_int",
-      "community": 39,
-      "community_name": "FakeWidgetHost",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": "int"
     },
     {
@@ -9150,8 +9420,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_cs_ireadonlylist",
-      "community": 39,
-      "community_name": "FakeWidgetHost",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": "ireadonlylist"
     },
     {
@@ -9167,8 +9437,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_outlookwidget_core_tests_testinfrastructure_fakewidgethost_throwonnextdelivery",
-      "community": 39,
-      "community_name": "FakeWidgetHost",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".throwonnextdelivery()"
     },
     {
@@ -9184,8 +9454,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_outlookwidget_core_tests_testinfrastructure_fakewidgethost_cancelnextdelivery",
-      "community": 39,
-      "community_name": "FakeWidgetHost",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".cancelnextdelivery()"
     },
     {
@@ -9280,8 +9550,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_outlookwidget_core_tests_testinfrastructure_fakewidgethost_dispose",
-      "community": 39,
-      "community_name": "FakeWidgetHost",
+      "community": 3,
+      "community_name": ".SeedState",
       "norm_label": ".dispose()"
     },
     {
@@ -9291,8 +9561,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer",
-      "community": 37,
-      "community_name": "MutexHoldingPeer",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "mutexholdingpeer.cs"
     },
     {
@@ -9308,8 +9578,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer",
-      "community": 37,
-      "community_name": "MutexHoldingPeer",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "mutexholdingpeer"
     },
     {
@@ -9319,8 +9589,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "process",
-      "community": 37,
-      "community_name": "MutexHoldingPeer",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "process"
     },
     {
@@ -9330,8 +9600,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_cs_string",
-      "community": 37,
-      "community_name": "MutexHoldingPeer",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "string"
     },
     {
@@ -9341,8 +9611,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_cs_bool",
-      "community": 37,
-      "community_name": "MutexHoldingPeer",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "bool"
     },
     {
@@ -9369,8 +9639,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_cs_timespan",
-      "community": 37,
-      "community_name": "MutexHoldingPeer",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": "timespan"
     },
     {
@@ -9386,8 +9656,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_waituntilholding",
-      "community": 37,
-      "community_name": "MutexHoldingPeer",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": ".waituntilholding()"
     },
     {
@@ -9403,8 +9673,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_kill",
-      "community": 37,
-      "community_name": "MutexHoldingPeer",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": ".kill()"
     },
     {
@@ -9420,8 +9690,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_outlookwidget_core_tests_testinfrastructure_mutexholdingpeer_dispose",
-      "community": 37,
-      "community_name": "MutexHoldingPeer",
+      "community": 10,
+      "community_name": ".Start",
       "norm_label": ".dispose()"
     },
     {
@@ -11847,6 +12117,16 @@
     {
       "relation": "imports",
       "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Packaging/OutlookWidget.Packaging.csproj",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_outlookwidget_packaging_outlookwidget_packaging",
+      "target": "src_outlookwidget_core_outlookwidget_core",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/OutlookWidget.Provider.csproj",
       "weight": 1.0,
       "_origin": "ast",
@@ -11891,6 +12171,16 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_outlookwidget_provider",
+      "target": "src_outlookwidget_packaging_outlookwidget_packaging",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/OutlookWidget.Core.Tests.csproj",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_outlookwidget_core_tests",
       "target": "src_outlookwidget_packaging_outlookwidget_packaging",
       "confidence_score": 1.0
     },
@@ -12401,11 +12691,11 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L105",
+      "source_location": "L71",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_app_program_outlookwidget_app_program_buildidentityreport",
-      "target": "src_outlookwidget_core_caching_coordinationpaths_outlookwidget_core_caching_coordinationpaths_resolve"
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate"
     },
     {
       "relation": "calls",
@@ -12413,19 +12703,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L73",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "src_outlookwidget_app_program_outlookwidget_app_program_buildidentityreport",
-      "target": "src_outlookwidget_packaging_packageidentity_outlookwidget_packaging_packageidentity_trygetfamilyname"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L72",
+      "source_location": "L100",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_app_program_outlookwidget_app_program_buildidentityreport",
@@ -12765,7 +13043,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L91",
+      "source_location": "L110",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_program_outlookwidget_provider_program_main",
@@ -13023,6 +13301,23 @@
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L1",
+      "weight": 1.0,
+      "metadata": {
+        "using_kind": "namespace",
+        "target_fqn": "OutlookWidget.Core.Caching",
+        "scope_kind": "file"
+      },
+      "_origin": "ast",
+      "source": "src_outlookwidget_packaging_packagedstate",
+      "target": "csharp_namespace:e3f9a2f03a60d9cf",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/Cards/SkeletonCard.cs",
       "source_location": "L4",
       "weight": 1.0,
@@ -13084,6 +13379,23 @@
       },
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_disclosuretombstonetests",
+      "target": "csharp_namespace:e3f9a2f03a60d9cf",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L1",
+      "weight": 1.0,
+      "metadata": {
+        "using_kind": "namespace",
+        "target_fqn": "OutlookWidget.Core.Caching",
+        "scope_kind": "file"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests",
       "target": "csharp_namespace:e3f9a2f03a60d9cf",
       "confidence_score": 1.0
     },
@@ -13259,11 +13571,11 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
-      "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L80",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L110",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "src_outlookwidget_provider_program_outlookwidget_provider_program_main",
+      "source": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate",
       "target": "src_outlookwidget_core_caching_coordinationpaths_outlookwidget_core_caching_coordinationpaths_resolve"
     },
     {
@@ -13341,6 +13653,18 @@
     {
       "relation": "calls",
       "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L90",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_no_state_is_created_by_any_refusal",
+      "target": "src_outlookwidget_core_caching_coordinationpaths_outlookwidget_core_caching_coordinationpaths_resolve"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Core/Caching/ProtectedCache.cs",
@@ -13380,7 +13704,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L81",
+      "source_location": "L100",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_program_outlookwidget_provider_program_main",
@@ -14661,7 +14985,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L166",
+      "source_location": "L185",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_program_outlookwidget_provider_program_main",
@@ -16982,7 +17306,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L389",
+      "source_location": "L420",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_the_lease_horizon_exceeds_the_worst_case_refresh_transaction",
@@ -20624,6 +20948,17 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_outlookwidget_packaging_packagedstate",
+      "target": "csharp_namespace:4f968258cd49deb3",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -20637,6 +20972,23 @@
       },
       "_origin": "ast",
       "source": "src_outlookwidget_provider_program",
+      "target": "csharp_namespace:4f968258cd49deb3",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L2",
+      "weight": 1.0,
+      "metadata": {
+        "using_kind": "namespace",
+        "target_fqn": "OutlookWidget.Packaging",
+        "scope_kind": "file"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests",
       "target": "csharp_namespace:4f968258cd49deb3",
       "confidence_score": 1.0
     },
@@ -20771,18 +21123,6 @@
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L73",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "src_outlookwidget_provider_program_outlookwidget_provider_program_main",
-      "target": "src_outlookwidget_packaging_packageidentity_outlookwidget_packaging_packageidentity_trygetfamilyname"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Packaging/PackageIdentity.cs",
       "source_location": "L52",
       "weight": 1.0,
@@ -20900,6 +21240,164 @@
       "source": "src_outlookwidget_packaging_packageidentity_outlookwidget_packaging_packageidentityexception",
       "target": "exception",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L68",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_outlookwidget_packaging_packagedstate",
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L33",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_outlookwidget_packaging_packagedstate",
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstateresult",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_outlookwidget_packaging_packagedstate",
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstatestatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L86",
+      "weight": 1.0,
+      "context": "return_type",
+      "metadata": {
+        "ref_token": "PackagedStateResult"
+      },
+      "_origin": "ast",
+      "source": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate",
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstateresult",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L86",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate",
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Packaging/PackagedState.cs",
+      "source_location": "L86",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "metadata": {
+        "ref_token": "Func"
+      },
+      "_origin": "ast",
+      "source": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate",
+      "target": "src_outlookwidget_packaging_packagedstate_cs_func",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/OutlookWidget.Provider/Program.cs",
+      "source_location": "L86",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_outlookwidget_provider_program_outlookwidget_provider_program_main",
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L73",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_a_failed_identity_query_is_refused_and_distinguished_from_unpackaged",
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L31",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_a_packaged_process_resolves_state_inside_the_package_store",
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L67",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_an_empty_family_name_is_treated_as_unpackaged",
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L51",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_an_unpackaged_process_is_refused_rather_than_given_the_per_user_path",
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L93",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_no_state_is_created_by_any_refusal",
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L111",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_the_scope_is_carried_through_to_the_resolved_paths",
+      "target": "src_outlookwidget_packaging_packagedstate_outlookwidget_packaging_packagedstate_locate"
     },
     {
       "relation": "contains",
@@ -21453,6 +21951,21 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
+      "source_location": "L71",
+      "weight": 1.0,
+      "context": "field",
+      "metadata": {
+        "ref_token": "int"
+      },
+      "_origin": "ast",
+      "source": "src_outlookwidget_provider_program_outlookwidget_provider_program",
+      "target": "src_outlookwidget_provider_program_cs_int",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "src/OutlookWidget.Provider/Program.cs",
       "source_location": "L61",
       "weight": 1.0,
       "context": "field",
@@ -21468,7 +21981,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L189",
+      "source_location": "L208",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_program_outlookwidget_provider_program",
@@ -21479,7 +21992,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L197",
+      "source_location": "L216",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_program_outlookwidget_provider_program",
@@ -21490,7 +22003,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L63",
+      "source_location": "L73",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_program_outlookwidget_provider_program",
@@ -21501,7 +22014,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L189",
+      "source_location": "L208",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -21517,7 +22030,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L143",
+      "source_location": "L162",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_program_outlookwidget_provider_program_main",
@@ -21529,7 +22042,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L178",
+      "source_location": "L197",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_program_outlookwidget_provider_program_main",
@@ -21542,7 +22055,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L121",
+      "source_location": "L140",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_program_outlookwidget_provider_program_main",
@@ -21552,7 +22065,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L189",
+      "source_location": "L208",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -21567,7 +22080,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L189",
+      "source_location": "L208",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -21582,7 +22095,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/Program.cs",
-      "source_location": "L197",
+      "source_location": "L216",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -22447,6 +22960,17 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_mutationmutextests",
+      "target": "csharp_namespace:19790e0a8b1ca999",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests",
       "target": "csharp_namespace:19790e0a8b1ca999",
       "confidence_score": 1.0
     },
@@ -23437,7 +23961,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L421",
+      "source_location": "L452",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests",
@@ -23448,7 +23972,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L398",
+      "source_location": "L429",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests",
@@ -23492,7 +24016,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L276",
+      "source_location": "L307",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests",
@@ -23514,7 +24038,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L303",
+      "source_location": "L334",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests",
@@ -23536,7 +24060,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L392",
+      "source_location": "L423",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests",
@@ -23547,7 +24071,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L375",
+      "source_location": "L406",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests",
@@ -23558,7 +24082,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L362",
+      "source_location": "L393",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests",
@@ -23569,7 +24093,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L328",
+      "source_location": "L359",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests",
@@ -23591,11 +24115,22 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L248",
+      "source_location": "L279",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests",
       "target": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_the_provider_has_no_reference_to_interactive_authentication",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
+      "source_location": "L248",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests",
+      "target": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_the_provider_locates_state_only_through_the_packaged_state_guard",
       "confidence_score": 1.0
     },
     {
@@ -23665,7 +24200,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L312",
+      "source_location": "L343",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_the_core_has_no_reference_to_interactive_authentication",
@@ -23725,7 +24260,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L289",
+      "source_location": "L320",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_no_provider_call_site_uses_the_parameterless_waitone",
@@ -23749,7 +24284,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L314",
+      "source_location": "L345",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_the_core_has_no_reference_to_interactive_authentication",
@@ -23773,10 +24308,22 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L262",
+      "source_location": "L293",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_the_provider_has_no_reference_to_interactive_authentication",
+      "target": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_stripcommentsandstrings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
+      "source_location": "L264",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_the_provider_locates_state_only_through_the_packaged_state_guard",
       "target": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_stripcommentsandstrings",
       "confidence_score": 1.0
     },
@@ -23811,7 +24358,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L421",
+      "source_location": "L452",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -23826,7 +24373,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L398",
+      "source_location": "L429",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -23871,7 +24418,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L276",
+      "source_location": "L307",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -23886,7 +24433,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L303",
+      "source_location": "L334",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -23916,7 +24463,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L392",
+      "source_location": "L423",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -23931,7 +24478,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L375",
+      "source_location": "L406",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -23946,7 +24493,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L362",
+      "source_location": "L393",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -23961,7 +24508,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L328",
+      "source_location": "L359",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -23991,7 +24538,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L248",
+      "source_location": "L279",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -23999,6 +24546,21 @@
       },
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_the_provider_has_no_reference_to_interactive_authentication",
+      "target": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_cs_fact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
+      "source_location": "L248",
+      "weight": 1.0,
+      "context": "attribute",
+      "metadata": {
+        "ref_token": "Fact"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_the_provider_locates_state_only_through_the_packaged_state_guard",
       "target": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_cs_fact",
       "confidence_score": 1.0
     },
@@ -24035,7 +24597,19 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L260",
+      "source_location": "L262",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_the_provider_locates_state_only_through_the_packaged_state_guard",
+      "target": "tests_outlookwidget_core_tests_testinfrastructure_repositorysources_outlookwidget_core_tests_testinfrastructure_repositorysources_providersourcefiles"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
+      "source_location": "L291",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_the_provider_has_no_reference_to_interactive_authentication",
@@ -24047,7 +24621,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs",
-      "source_location": "L287",
+      "source_location": "L318",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_coordinationstaticanalysistests_outlookwidget_core_tests_coordinationstaticanalysistests_no_provider_call_site_uses_the_parameterless_waitone",
@@ -26802,6 +27376,188 @@
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_packagemanifesttests_outlookwidget_core_tests_packagemanifesttests_readpngsize",
       "target": "width",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L26",
+      "weight": 1.0,
+      "context": "field",
+      "metadata": {
+        "ref_token": "string"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_cs_string",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L70",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_a_failed_identity_query_is_refused_and_distinguished_from_unpackaged",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L28",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_a_packaged_process_resolves_state_inside_the_package_store",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L62",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_an_empty_family_name_is_treated_as_unpackaged",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L45",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_an_unpackaged_process_is_refused_rather_than_given_the_per_user_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L84",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_no_state_is_created_by_any_refusal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L106",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_the_scope_is_carried_through_to_the_resolved_paths",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L28",
+      "weight": 1.0,
+      "context": "attribute",
+      "metadata": {
+        "ref_token": "Fact"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_a_packaged_process_resolves_state_inside_the_package_store",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_cs_fact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L70",
+      "weight": 1.0,
+      "context": "attribute",
+      "metadata": {
+        "ref_token": "Fact"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_a_failed_identity_query_is_refused_and_distinguished_from_unpackaged",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_cs_fact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L62",
+      "weight": 1.0,
+      "context": "attribute",
+      "metadata": {
+        "ref_token": "Fact"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_an_empty_family_name_is_treated_as_unpackaged",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_cs_fact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L45",
+      "weight": 1.0,
+      "context": "attribute",
+      "metadata": {
+        "ref_token": "Fact"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_an_unpackaged_process_is_refused_rather_than_given_the_per_user_path",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_cs_fact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L84",
+      "weight": 1.0,
+      "context": "attribute",
+      "metadata": {
+        "ref_token": "Fact"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_no_state_is_created_by_any_refusal",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_cs_fact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs",
+      "source_location": "L106",
+      "weight": 1.0,
+      "context": "attribute",
+      "metadata": {
+        "ref_token": "Fact"
+      },
+      "_origin": "ast",
+      "source": "tests_outlookwidget_core_tests_packagedstatetests_outlookwidget_core_tests_packagedstatetests_the_scope_is_carried_through_to_the_resolved_paths",
+      "target": "tests_outlookwidget_core_tests_packagedstatetests_cs_fact",
       "confidence_score": 1.0
     },
     {
@@ -32882,5 +33638,5 @@
       "source_file": "docs/phase0-evidence.md"
     }
   ],
-  "built_at_commit": "802b4bade93c1609f75f41d16481c681bcd0d068"
+  "built_at_commit": "56af581fce41fae3e4050341f4aa1589b82aa1af"
 }

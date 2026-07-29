@@ -60,24 +60,43 @@ internal static partial class Program
     /// </summary>
     private const uint RegClsMultipleUse = 0x1;
 
+    /// <summary>The identity query failed for a reason other than the process being unpackaged.</summary>
+    private const int ExitIdentityQueryFailed = 1;
+
+    /// <summary>
+    /// The process has no package identity. Distinct exit codes because the two diagnose
+    /// differently: one is a broken query, the other means this executable was started directly
+    /// rather than activated from an installed package.
+    /// </summary>
+    private const int ExitUnpackaged = 2;
+
     private static int Main()
     {
-        // Package identity places all coordination state. A failure to determine it is fatal on
-        // purpose: falling back to the unpackaged path would write cached mailbox data outside the
-        // package store, where uninstall cannot remove it, silently breaking the privacy claim
-        // that uninstall removes cached mail.
-        string? packageFamilyName;
+        // Package identity places all coordination state, and anything other than a resolved
+        // identity is fatal on purpose. Falling back to the unpackaged path would write cached
+        // mailbox data outside the package store, where uninstall cannot remove it, silently
+        // breaking the privacy claim that uninstall removes cached mail.
+        //
+        // Both failure paths run through PackagedState rather than being composed here. An earlier
+        // version of this method treated only the thrown case as fatal and passed a null family
+        // name straight into CoordinationPaths.Resolve, which answers with the ordinary per-user
+        // path — then created those directories and carried on, directly under this comment
+        // explaining why that must not happen. The reasoning was right; the null case was simply
+        // not covered.
+        PackagedStateResult state = PackagedState.Locate();
 
-        try
+        if (!state.IsResolved)
         {
-            packageFamilyName = PackageIdentity.TryGetFamilyName();
-        }
-        catch (PackageIdentityException)
-        {
-            return 1;
+            // Nothing has been created at this point, so a refusing provider leaves no trace on
+            // disk. The Widgets host retries activation; a provider that ran with the wrong state
+            // location would look healthy and be wrong.
+            return state.Status == PackagedStateStatus.Unpackaged
+                ? ExitUnpackaged
+                : ExitIdentityQueryFailed;
         }
 
-        CoordinationPaths paths = CoordinationPaths.Resolve(packageFamilyName);
+        string? packageFamilyName = state.PackageFamilyName;
+        CoordinationPaths paths = state.Paths!;
         paths.EnsureCreated();
 
         IOperationalLogger logger = NullOperationalLogger.Instance;

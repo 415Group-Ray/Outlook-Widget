@@ -24,6 +24,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!--
+      Packaging references Core, never the reverse. Core must stay free of any knowledge that MSIX
+      exists — CoordinationPaths.Resolve takes the package family name as a parameter for exactly
+      that reason — so the type that combines package identity with state location belongs on this
+      side of the boundary.
+    -->
+    <ProjectReference Include="..\OutlookWidget.Core\OutlookWidget.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="OutlookWidget.Core.Tests" />
   </ItemGroup>
 
