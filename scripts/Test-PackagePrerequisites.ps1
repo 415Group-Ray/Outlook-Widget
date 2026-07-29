@@ -321,33 +321,48 @@ else {
         -Detail 'vswhere.exe not found, so no Visual Studio installation was detected. MSIX packaging and the WinUI designer path need the VS workload; the Core library and its tests do not.'
 }
 
-# MakeAppx and SignTool ship with the Windows SDK. Without them there is no way
+# MakeAppx, SignTool and MakePri ship with the Windows SDK. Without them there is no way
 # to produce or sign an MSIX, which is a hard stop for every packaging gate.
+#
+# MakePri belongs in this list even though it is easy to think of as optional. Build-Package.ps1 runs
+# it to index the scale- and targetsize-qualified icon assets, and throws if it is absent - so a
+# preflight that checked only MakeAppx and SignTool would report a machine ready to package when the
+# build would in fact stop. Verifying the tools the build actually invokes is the whole point of the
+# probe, and the set is derived here rather than assumed.
 $sdkBinRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
-$makeAppx = if (Test-Path -LiteralPath $sdkBinRoot) {
-    Get-ChildItem -LiteralPath $sdkBinRoot -Filter 'makeappx.exe' -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { $_.DirectoryName -match '\\x64$' } | Sort-Object FullName -Descending | Select-Object -First 1
-}
-else { $null }
 
-$signTool = if (Test-Path -LiteralPath $sdkBinRoot) {
-    Get-ChildItem -LiteralPath $sdkBinRoot -Filter 'signtool.exe' -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { $_.DirectoryName -match '\\x64$' } | Sort-Object FullName -Descending | Select-Object -First 1
-}
-else { $null }
+function Find-SdkToolOrNull {
+    param([Parameter(Mandatory)][string]$Name)
 
-if ($makeAppx -and $signTool) {
+    if (-not (Test-Path -LiteralPath $sdkBinRoot)) {
+        return $null
+    }
+
+    # Highest SDK version, x64 host - the same selection Build-Package.ps1 makes, so the probe cannot
+    # report a tool the build would not choose.
+    return Get-ChildItem -LiteralPath $sdkBinRoot -Filter $Name -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.DirectoryName -match '\\x64$' } |
+        Sort-Object FullName -Descending |
+        Select-Object -First 1
+}
+
+$requiredSdkTools = [ordered]@{
+    'makeappx.exe' = Find-SdkToolOrNull -Name 'makeappx.exe'
+    'signtool.exe' = Find-SdkToolOrNull -Name 'signtool.exe'
+    'makepri.exe'  = Find-SdkToolOrNull -Name 'makepri.exe'
+}
+
+$missingTools = @($requiredSdkTools.Keys | Where-Object { -not $requiredSdkTools[$_] })
+
+if ($missingTools.Count -eq 0) {
+    $found = ($requiredSdkTools.Keys | ForEach-Object { "$_ at $($requiredSdkTools[$_].FullName)" }) -join '; '
+
     Add-Result -Name 'Windows SDK packaging tools' -Outcome 'Pass' -Category 'Tooling' `
-        -Detail "makeappx.exe found at $($makeAppx.FullName); signtool.exe found at $($signTool.FullName)."
+        -Detail "$found."
 }
 else {
-    $missingTools = @(
-        if (-not $makeAppx) { 'makeappx.exe' }
-        if (-not $signTool) { 'signtool.exe' }
-    )
-
     Add-Result -Name 'Windows SDK packaging tools' -Outcome 'Fail' -Category 'Tooling' `
-        -Detail "$($missingTools -join ' and ') not found under Windows Kits\10\bin. A signed MSIX cannot be produced on this machine until the Windows SDK packaging tools are installed."
+        -Detail "$($missingTools -join ', ') not found under Windows Kits\10\bin. A signed MSIX cannot be produced on this machine until the Windows SDK packaging tools are installed. MakePri is required because Build-Package.ps1 uses it to index the qualified icon assets; without it the icon renders from a single unscaled bitmap."
 }
 
 # ---------------------------------------------------------------------------

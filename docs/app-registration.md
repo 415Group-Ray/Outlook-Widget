@@ -75,9 +75,19 @@ likely to be aimed at the wrong environment by accident.
 | In the package | copied to `authentication.json` beside **both** executables |
 | Read by | `AuthenticationConfiguration.Load` in `OutlookWidget.Core` |
 
-`Build-Package.ps1` refuses to build when the local file is missing **or still contains the
-placeholder zeros**, and `AuthenticationOptions.TryCreate` rejects an all-zero GUID at runtime as
-well. A package cannot be produced that installs and then fails every sign-in for want of
+`Build-Package.ps1` refuses to build when the local file is missing, when it still contains the
+placeholder zeros, or when it fails validation **by the product's own loader** — the script stages the
+file into the layout and then calls `AuthenticationConfiguration.Load` against the copies that would
+actually ship. So malformed JSON, a missing property, and a non-GUID value are all caught at build
+time rather than at first sign-in.
+
+The loader is invoked rather than reimplemented in PowerShell so the two cannot drift. An earlier
+version checked only for placeholder zeros, which let every other kind of unusable file through and
+made the claim below false. If the packaging host cannot load the assembly, packaging **stops**
+rather than falling back to a weaker check: a validation step that quietly downgrades itself is worse
+than none, because the surrounding output still says the configuration was verified.
+
+A package therefore cannot be produced that installs and then fails every sign-in for want of
 configuration.
 
 Two values are deliberately **not** configurable, and adding them to the file changes nothing

@@ -284,9 +284,8 @@ the same directory and set the real tenantId and clientId from the Entra app reg
 "@
 }
 
-# Refuse the unedited template rather than shipping it. The loader also rejects an all-zero GUID at
-# runtime, so this is defence in depth - but a package that installs and then cannot authenticate is
-# a far more expensive way to discover the same mistake than a build that stops here.
+# The unedited template gets its own message, because it is the most likely mistake and "still the
+# template" is more use to the operator than "invalid".
 $authContent = Get-Content -LiteralPath $authSource -Raw
 
 if ($authContent -match '00000000-0000-0000-0000-000000000000') {
@@ -303,7 +302,61 @@ foreach ($projectName in @('OutlookWidget.App', 'OutlookWidget.Provider')) {
         -Destination (Join-Path (Join-Path $layoutPath $projectName) 'authentication.json') -Force
 }
 
-Write-Output 'Authentication configuration staged beside both executables.'
+# Validate the STAGED copies with the product's own loader.
+#
+# Checking for placeholder zeros was not enough, and the gap was not hypothetical: malformed JSON, a
+# missing property, or a non-GUID value all passed that check, got copied into the package, and then
+# failed at runtime as Malformed or Invalid - producing exactly the package the registration
+# documentation promised could not be built.
+#
+# The loader is invoked rather than reimplemented so the two cannot drift. Replicating "valid JSON,
+# both properties present, both non-empty GUIDs" in PowerShell would work today and silently diverge
+# the first time the loader gains a rule. This is possible because PowerShell 7 here runs on .NET 10,
+# matching the assembly's target framework, and it validates what actually ships rather than the
+# source file.
+$coreAssembly = Join-Path $layoutPath 'OutlookWidget.Provider\OutlookWidget.Core.dll'
+
+if (-not (Test-Path -LiteralPath $coreAssembly)) {
+    throw "Cannot validate authentication configuration: $coreAssembly is missing from the layout."
+}
+
+try {
+    Add-Type -LiteralPath $coreAssembly
+}
+catch {
+    # Fail rather than fall back to a weaker check. A validation step that quietly downgrades itself
+    # is worse than none, because the surrounding output still claims the configuration was verified.
+    throw @"
+Cannot load $coreAssembly to validate authentication configuration.
+
+  $($_.Exception.GetType().Name): $($_.Exception.Message)
+
+This host is PowerShell $($PSVersionTable.PSVersion) on .NET $([System.Environment]::Version); the
+assembly targets a newer framework. Packaging stops rather than shipping configuration it could not
+check.
+"@
+}
+
+foreach ($projectName in @('OutlookWidget.App', 'OutlookWidget.Provider')) {
+    $stagedDirectory = Join-Path $layoutPath $projectName
+    $result = [OutlookWidget.Core.Authentication.AuthenticationConfiguration]::Load($stagedDirectory, $null)
+
+    if ($result.Status.ToString() -ne 'Loaded') {
+        throw @"
+Authentication configuration is not usable: $($result.Status) for $projectName
+
+  Source: $authSource
+
+This is the product's own loader reporting on the copy that would have shipped, so a package built
+now would install and fail every sign-in. Expected two properties, tenantId and clientId, each a
+non-empty GUID:
+
+  { "tenantId": "<guid>", "clientId": "<guid>" }
+"@
+    }
+}
+
+Write-Output 'Authentication configuration staged beside both executables and validated by the product loader.'
 
 # ---------------------------------------------------------------------------
 # Assemble the rest of the layout

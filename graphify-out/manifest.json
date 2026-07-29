@@ -10,8 +10,8 @@
     "semantic_hash": ""
   },
   "scripts/Build-Package.ps1": {
-    "mtime": 1785328429.2230098,
-    "ast_hash": "4b2c8a47cf3ffdde54fbdc10965f8b4b",
+    "mtime": 1785336285.7091067,
+    "ast_hash": "2da4af848e02fbe3cad207c54420f1f4",
     "semantic_hash": ""
   },
   "scripts/Install-DevelopmentPackage.ps1": {
@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "scripts/Test-PackagePrerequisites.ps1": {
-    "mtime": 1785259882.6295252,
-    "ast_hash": "f39cc94663a7474d76e2b86cc8ba06c4",
+    "mtime": 1785336311.1692674,
+    "ast_hash": "31c7d415b1e7af7ea4f360954bcd3649",
     "semantic_hash": ""
   },
   "src/OutlookWidget.App/OutlookWidget.App.csproj": {
@@ -205,8 +205,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785332776.2645583,
-    "ast_hash": "312d2edf518cf2e6183b887997906566",
+    "mtime": 1785336331.7662416,
+    "ast_hash": "bbe8482f81a4304f2546d10099ab15c8",
     "semantic_hash": ""
   },
   "TECHNICAL_PLAN.md": {
@@ -215,8 +215,8 @@
     "semantic_hash": ""
   },
   "docs/app-registration.md": {
-    "mtime": 1785270485.1545384,
-    "ast_hash": "051bdd06551e0264ff687fb44bda7354",
+    "mtime": 1785336341.6197236,
+    "ast_hash": "bf5389d61073059ae7e37326f67bcd9c",
     "semantic_hash": ""
   },
   "docs/phase0-evidence.md": {

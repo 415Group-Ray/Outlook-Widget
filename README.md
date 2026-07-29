@@ -118,7 +118,9 @@ for that reason. The alternative was two copies of the same two-call Win32 buffe
 ## Build and test
 
 Requires the .NET 10 SDK. Producing an MSIX additionally requires the Windows SDK, which
-supplies `makeappx.exe` and `signtool.exe`.
+supplies `makeappx.exe`, `signtool.exe`, and `makepri.exe`. `Test-PackagePrerequisites.ps1` checks
+for all three; MakePri indexes the scale- and targetsize-qualified icon assets, and without it the
+package build stops.
 
 ```bash
 dotnet test
