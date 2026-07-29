@@ -220,18 +220,18 @@
     "semantic_hash": ""
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1785352665.4656804,
-    "ast_hash": "eb819b814e1a1bb8869c833d63c1941f",
+    "mtime": 1785353162.1583793,
+    "ast_hash": "26908f173364f546aad2a7ff3a0cdc40",
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
-    "mtime": 1785351294.8255618,
-    "ast_hash": "b42e02e4503fc8f3b6112e3f7f6065cf",
+    "mtime": 1785353153.2299569,
+    "ast_hash": "08b9d1f7611480db55de4c15ddb111c5",
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1785352654.4377098,
-    "ast_hash": "09dae0b964f819d4605e164a24a4f56b",
+    "mtime": 1785353166.079274,
+    "ast_hash": "02b338569b1a239f480226b021299422",
     "semantic_hash": ""
   },
   "CLAUDE.md": {

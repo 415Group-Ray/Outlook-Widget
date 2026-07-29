@@ -33,7 +33,9 @@ Note one permanent operational consequence: **the provider holds the package ope
 pinned**, so upgrades require `Add-AppxPackage -ForceApplicationShutdown`. Do not advise unpinning
 instead; that loses the pin for no reason. A second, related trap: `Build-Package.ps1` never increments
 `Identity/Version`, so rebuilding without a manual bump is refused with `0x80073CFB` — bump the manifest
-rather than uninstalling, which would lose the pin.
+rather than uninstalling, which would lose the pin. **Bump it in any commit that will be packaged, not
+only in commits touching code:** the SDK embeds the git commit SHA in every assembly, so a docs-only
+commit changes every binary in the package. Measured; see the evidence report.
 
 The cross-process coordination core is implemented and tested, and **authentication now exists**: the
 companion signs in interactively through WAM and the provider acquires silently. There is still **no

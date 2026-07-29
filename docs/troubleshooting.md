@@ -59,10 +59,19 @@ Distinguish four causes before changing anything:
   package was blocked."** The full text is more useful than the code: *the provided package has the
   same identity as an already-installed package but the contents are different.*
 
-  This is the routine consequence of rebuilding after a code change without bumping the manifest
-  version. `Build-Package.ps1` reads `Identity/Version` from `Package.appxmanifest` and never
-  increments it, so every build between two manual bumps produces a package that Windows sees as the
-  same version with a different payload, and refuses.
+  This is the routine consequence of rebuilding without bumping the manifest version.
+  `Build-Package.ps1` reads `Identity/Version` from `Package.appxmanifest` and never increments it, so
+  every build between two manual bumps produces a package that Windows sees as the same version with a
+  different payload, and refuses.
+
+  **It is not limited to code changes, which is measured rather than assumed.** The .NET SDK embeds the
+  git commit SHA in every assembly's informational version by default, so *any* commit changes *every*
+  assembly in the package — a documentation-only or comment-only commit included. Comparing the 0.3.10.0
+  and 0.3.11.0 packages showed even `OutlookWidget.Core.dll` differing, though its source was untouched
+  between them. Bump the version in any commit that will be packaged.
+
+  `Deterministic=true` does not prevent this and is not meant to: it makes a rebuild of the *same*
+  commit reproducible, not builds across commits.
 
   **The fix is to increment `Version` in `Package.appxmanifest` and rebuild.** Do not remove the
   installed package to force it through: uninstalling loses widget pins and package-local cache and

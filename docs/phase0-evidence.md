@@ -245,6 +245,60 @@ Worth generalising, because it is the same shape as the clipped button and the m
 cancellation: **a check that cannot fail is not evidence.** That sentence would have printed on every
 successful sign-in on every tenant regardless of how consent was obtained.
 
+## Measured: every commit changes every assembly, so every rebuild needs a version bump
+
+A comment-only change was rebuilt deliberately to find out whether the payload actually differs. It
+does — and not for the reason assumed.
+
+Comparing the 0.3.10.0 and 0.3.11.0 packages, **all four assemblies differ**, including
+`OutlookWidget.Core.dll`, whose source did not change at all between them. The cause is the embedded
+informational version:
+
+| Package | `OutlookWidget.Core.dll` ProductVersion |
+|---|---|
+| 0.3.10.0 | `0.1.0+3baac1e3e11d9afd3b7f1ed528b39b154d8907fa` |
+| 0.3.11.0 | `0.1.0+0acacba89ea51c08f5d080950adc3c2b0b476550` |
+
+That suffix is the **git commit SHA**, added by the .NET SDK's default
+`IncludeSourceRevisionInInformationalVersion`. So the real rule is stronger than the one recorded in the
+troubleshooting guide, which said a rebuild after *a code change* needs a bump:
+
+> **Any rebuild from a different commit produces a different payload.** A documentation-only commit,
+> a comment-only commit, and a whitespace commit all change every assembly in the package.
+
+Two practical consequences:
+
+- The manifest version must be bumped in **any commit that will be packaged**, not only in commits that
+  touch code. Skipping it produces `0x80073CFB` on install.
+- `Deterministic=true` is doing its job and does not make builds reproducible *across commits*. It makes
+  a rebuild of the *same* commit reproducible, which is a different and narrower guarantee than it is
+  easy to assume from the property name.
+
+**Worth knowing about this repository's own history:** the claim that 0.3.11.0's payload differed
+"because source comments changed" was wrong in its reasoning while right in its conclusion. The comments
+were irrelevant; the commit was what changed the binaries, and the docs-only commit before it would have
+done the same.
+
+An unresolved option, recorded rather than acted on because package version is a durable identity
+decision: `Build-Package.ps1` could derive the fourth version component automatically — from git height,
+or a build counter — instead of requiring a manual edit that is easy to forget and whose omission always
+fails at install time rather than at build time.
+
+## Measured: silent renewal through the broker survives token expiry
+
+Observed on 0.3.11.0, and it closes a question the convergence section had left open.
+
+The token acquired earlier expired at `19:22:50Z`. A later sign-in reported `Acquired` with a new expiry
+of `20:53:00Z`, so the broker renewed silently — no prompt, no `InteractionRequired`, and no interactive
+path taken. The expiry moving is the evidence that this was a fresh token rather than the cached one.
+
+This matters for the convergence work: the natural sign-in-required state that section suggested waiting
+for — "the first time a token expires beyond what the broker will silently renew" — did not arrive at
+ordinary expiry, because WAM holds a device-bound refresh token and renewed from it. Reaching a genuine
+`InteractionRequired` on this machine therefore needs something stronger than waiting: revoked consent, a
+Conditional Access re-authentication requirement, or a removed account. The bad-to-good card transition
+remains unmeasured, and it is now clearer why it is hard to stage rather than merely inconvenient.
+
 ## Measured: the companion's sign-in signal reaches a running provider
 
 Verified on 0.3.10.0, and stated narrowly because only part of the loop was exercised.
@@ -710,7 +764,7 @@ Three separate observations, kept separate because they prove different things:
 | 0.2.1.0 → **0.2.2.0**, a real version upgrade | No — already exited | Succeeded with the widget still pinned |
 | 0.2.2.0 → **0.2.3.0**, a real version upgrade | **Yes** | Succeeded with `-ForceApplicationShutdown`; the script's pre-install notice fired correctly, the pin survived, and the widget still renders afterwards |
 | 0.3.3.0 → 0.3.3.0, same version, **different contents** | Yes | **Failed** with `0x80073CFB`, and failed identically elevated. A rebuilt payload under an unchanged version is refused outright. This is a *different* failure from the first row and has a different fix — bump the manifest version, do not uninstall. See the troubleshooting guide |
-| 0.3.3.0 through **0.3.10.0**, eight consecutive version upgrades | **Yes** each time | All succeeded with `-SkipCertificateTrust -ForceApplicationShutdown` from a **non-elevated** session, confirming the certificate stays trusted across upgrades and that elevation is a first-install requirement only. The widget pin survived every one |
+| 0.3.3.0 through **0.3.11.0**, nine consecutive version upgrades | **Yes** each time | All succeeded with `-SkipCertificateTrust -ForceApplicationShutdown` from a **non-elevated** session, confirming the certificate stays trusted across upgrades and that elevation is a first-install requirement only. The widget pin survived every one |
 
 The 0.2.1.0 → 0.2.2.0 upgrade had one limitation worth stating: the provider had already exited from
 the previous force-shutdown and the Board had not re-activated it, so the in-use path was not
