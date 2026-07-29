@@ -11,8 +11,8 @@ application, with a tray/popover surface only if the native Phase 0 gates fail.
 The repository is in early implementation. Phase 0 is approved and **every native-surface gate except
 gates 9 and 11 has passed on the reference machine** — the widget is discoverable, pinnable, renders
 at all three sizes, survives a reboot with its instance restored, survives a package upgrade while
-pinned, launches New Outlook and the companion, and its provider exits when unpinned. Gate 4 is
-partial: `CustomState` recovery is implemented but not yet verified on the device.
+pinned, launches New Outlook and the companion, and its provider exits when unpinned. Gate 4 is fully
+verified, `CustomState` round trip included.
 
 **Do not describe the native group as complete.** Gates 9 and 11 are both native-surface gates and
 both wait on authentication. Gate 11 could not decide the surface question, because the fallback
