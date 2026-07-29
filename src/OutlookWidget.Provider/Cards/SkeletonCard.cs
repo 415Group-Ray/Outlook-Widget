@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Windows.Widgets;
+using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Delivery;
 using OutlookWidget.Core.Refresh;
@@ -136,6 +137,19 @@ internal static class SkeletonCard
     /// <summary>
     /// Builds the data document for one instance from the state this delivery pass read.
     /// </summary>
+    /// <summary>
+    /// Whether this build found usable Entra registration identifiers, read once at startup.
+    /// </summary>
+    /// <remarks>
+    /// Shown in the large-size diagnostic as a status word only — never the tenant or client ID.
+    /// Neither is a secret, but a widget card is a surface anyone walking past a screen can read,
+    /// and a status is all that is needed to tell "the package shipped without configuration" apart
+    /// from "authentication has not been built yet". It is set by the composition root rather than
+    /// read here, so the card does no I/O on the delivery path.
+    /// </remarks>
+    public static AuthenticationConfigurationStatus ConfigurationStatus { get; set; } =
+        AuthenticationConfigurationStatus.Absent;
+
     public static string Data(WidgetInstance instance, DeliveryState state)
     {
         (string headline, string detail) = Describe(state);
@@ -268,7 +282,7 @@ internal static class SkeletonCard
                 + (instance.IsActive ? "active" : "inactive"),
             $"generation {state.Generation} · delivered {delivered} · mode {state.Mode} · "
                 + $"read {state.ReadStatus} · payload {payload}",
-            $"widget {instance.Id}");
+            $"config {ConfigurationStatus} · widget {instance.Id}");
     }
 
     /// <summary>

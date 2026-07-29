@@ -1,15 +1,15 @@
 # Phase 0 evidence report
 
 Status: **in progress.** **Every native-surface gate except 9 and 11 now passes.** Gates 2, 3, 5 (as
-superseded), 6, and the native half of 7 passed outright, and gate 4 passed in part; gate 1 passed in
-the universal group. The widget is discoverable, pinnable, renders at all three sizes, survives a
-reboot and a package upgrade with its instance restored, launches New Outlook and the companion from
-its actions, and its provider process exits when the widget is unpinned.
+superseded), 4, 6, and the native half of 7 all passed; gate 1 passed in the universal group. The
+widget is discoverable, pinnable, renders at all three sizes, survives a reboot and a package upgrade
+with its instance restored, restores its `CustomState` through the host, launches New Outlook and the
+companion from its actions, and its provider process exits when the widget is unpinned.
 
 **Two native-surface gates are still open, and both wait on authentication.**
 
 - **Gate 9** — provider silent-only acquisition with a zero parent handle. Not started; needs the
-  Entra registration and the broker skeleton.
+  authentication code: `SilentAuthService` and the broker construction.
 - **Gate 11** — cached-first refresh and cross-process invalidation across real Board activation and
   provider recycle. Its signalling half is now real, but neither a refresh nor a state commit is
   possible before authentication and Graph exist.
@@ -29,11 +29,11 @@ decision. It is not expected to fail, and it is not proven not to.
 Gate 5 was superseded after the Board was measured to allow only one instance per widget definition.
 Two rendering defects were found by the resize test and fixed in 0.2.1.0.
 
-**What remains all depends on authentication:** gates 8, 9, 10, and 12 wait on the Entra app
-registration, and gate 11 waits on a real refresh, which waits on the same thing. There is no
-outstanding *activation, lifecycle, rendering, launch, or packaging* question. Nothing below is a
-projection; each row records what was actually observed, and unproven items say so rather than being
-marked pass.
+**What remains all depends on the authentication code:** gates 8, 9, 10, 11, and 12. The Entra app
+registration itself is **created** and its identifiers ship in the package, so nothing waits on a
+portal task any more. There is no outstanding *activation, lifecycle, rendering, launch, or
+packaging* question. Nothing below is a projection; each row records what was actually observed, and
+unproven items say so rather than being marked pass.
 
 Reference machine: the author's own Entra-managed PC. Recorded 2026-07-28.
 
@@ -56,7 +56,8 @@ pwsh -File scripts/Test-PackagePrerequisites.ps1
 | New Outlook | `Microsoft.OutlookForWindows` **1.2026.713.100**, family `Microsoft.OutlookForWindows_8wekyb3d8bbwe` |
 | .NET SDK | 10.0.302 (installed during this session; the machine previously had runtimes only) |
 | Visual Studio | **Not installed**, and not needed. Packaging is done directly with the Windows SDK tools |
-| Windows SDK | **10.0.26100** (installed during this session). `makeappx.exe` and `signtool.exe` both resolve under `Windows Kits\10\bin\10.0.26100.0\x64` |
+| Windows SDK | **10.0.26100** (installed during this session). `makeappx.exe`, `signtool.exe`, and `makepri.exe` all resolve under `Windows Kits\10\bin\10.0.26100.0\x64` |
+| PowerShell host | **7.6.4 on .NET 10.0.10.** Recorded because it is a packaging prerequisite rather than incidental: the build script loads the built `net10.0-windows` Core assembly to validate authentication configuration, so the host runtime must be at least as new as the framework Core targets. PowerShell 7.0–7.4 run on .NET 3.1–8 and could not, even with the .NET 10 SDK installed |
 | Developer Mode | Off (`AllowDevelopmentWithoutDevLicense` absent). A properly signed, trusted MSIX installed without it, confirming it is not required for this workflow |
 | Elevation | Available. Used once, for the certificate import |
 | `LocalMachine\TrustedPeople` | Writable. The development certificate imported successfully — see gate 1 |
@@ -75,8 +76,8 @@ Gates are grouped per section 17, because the group determines what a failure me
 | Gate | Status | Evidence |
 |---|---|---|
 | 1 — signed MSIX installs; certificate can be trusted | **PASS** | Managed-device policy **does** permit trusting a certificate in `LocalMachine\TrustedPeople` on this PC, and sideload installation succeeded. Installed as `415Group.OutlookInboxWidget_0.1.0.0_x64__dgbvqhastx60y`, family `415Group.OutlookInboxWidget_dgbvqhastx60y`, signed by `CN="415 Group, Inc."`. `signtool verify /pa` succeeds once the certificate is trusted, and the RFC 3161 timestamp verifies against DigiCert. Developer Mode was **off** throughout, so it is not required for this workflow |
-| 8 — WAM sign-in with MFA/CA, self-consent to `Mail.ReadBasic` | **Not started** | Needs the Entra registration and the companion app |
-| 10 — `Mail.ReadBasic` returns exactly the approved properties | **Not started** | Needs the registration and a token |
+| 8 — WAM sign-in with MFA/CA, self-consent to `Mail.ReadBasic` | **Not started** | The registration exists and its identifiers ship in the package. Needs `InteractiveAuthService` and a real parent window in the companion |
+| 10 — `Mail.ReadBasic` returns exactly the approved properties | **Not started** | The registration exists. Needs `GraphMailClient` and a token, so it follows gate 8 |
 
 A failure in this group stops the product rather than triggering the tray fallback, because
 the fallback is also a packaged MSIX using the same certificate and the same delegated
@@ -88,10 +89,10 @@ permission.
 |---|---|---|
 | 2 — discoverable and pinnable in the Widgets Board | **PASS** | Observed on the reference machine. **Outlook Inbox** appeared in the Add Widgets picker and pinned successfully, and the pinned card rendered the provider's own content — headline "No cached state yet", the detail line, and all three action buttons. This is the gate that decides the architecture: the native surface works, so the section 18 tray/popover fallback branch is not taken |
 | 3 — provider cold activation after reboot and package update | **PASS** | All three cases observed. **Cold start:** `CoCreateInstance` on CLSID `254395D8-5EAC-4A2D-9971-90C99BFFD192` from an ordinary PowerShell session succeeded with no provider running, proving the `com:ExeServer` registration, framework resolution, `CoRegisterClassObject`, and the class factory. **Board activation:** a rendered card cannot happen without it. **Reboot:** the widget rendered again after a restart. **Package update:** 0.2.1.0 → 0.2.2.0 was installed with the widget pinned, and the widget still rendered afterwards; the companion launched from the widget reported package full name `415Group.OutlookInboxWidget_0.2.2.0_x64__dgbvqhastx60y`, confirming the upgraded package is the one serving the widget rather than a stale process |
-| 4 — `GetWidgetInfos()` restores all instances; final-instance exit | **PARTIAL** | Two of three criteria observed. The widget rendered again after a reboot, which requires `RecoverEnabledInstances` to have rebuilt the instance map from `GetWidgetInfos()` before the class object was registered — the Board does not replay `CreateWidget` for an already-pinned widget, so a provider that started empty would have rendered nothing. That covers pinned IDs, definitions, and per-instance sizes. And **the provider process exited when the widget was unpinned**, confirming `DeleteWidget` signalled on the transition to empty and `Main` revoked its registration and returned. **`CustomState` recovery is the missing criterion:** the gate requires it restored, and the first implementation wrote the generation into `CustomState` without ever reading it back, so the value round-tripped nowhere. Recovery is now implemented and surfaced in the large-size diagnostic as `delivered N`, but it has **not been verified on the device** — that needs a reboot with the widget pinned, then a look at the large card |
+| 4 — `GetWidgetInfos()` restores all instances; final-instance exit | **PASS** | All three criteria observed. The widget rendered again after a reboot, which requires `RecoverEnabledInstances` to have rebuilt the instance map from `GetWidgetInfos()` before the class object was registered — the Board does not replay `CreateWidget` for an already-pinned widget, so a provider that started empty would have rendered nothing. That covers pinned IDs, definitions, and per-instance sizes. **The provider process exited when the widget was unpinned**, confirming `DeleteWidget` signalled on the transition to empty and `Main` revoked its registration and returned. And **`CustomState` recovery is confirmed**: the large card reports `delivered 0` rather than `delivered none`, so the generation the sink wrote into `CustomState` came back through `GetWidgetInfos()` on a later provider start. The first implementation wrote that value without ever reading it back, so it round-tripped nowhere; this is the observation that the round trip is now closed |
 | 5 — two instances at different sizes render independently | **Superseded; replacement PASSES** | **A second instance could not be pinned.** After pinning, the picker entry was greyed out and marked as added. The cause is not the manifest: the installed definition carries `AllowMultiple="true"` and declares all three sizes. The replacement gate — one instance rendering correctly at small, medium, and large — **passes**, with two rendering defects found and fixed along the way. See the gate 5 section below |
 | 6 — widget action launches the companion | **PASS** | Clicking **Open companion** on the pinned widget launched the companion, which displayed package identity `415Group.OutlookInboxWidget_0.2.0.0_x64__dgbvqhastx60y` and its coordination root inside the package store. Note that the companion did **not** report a launch argument, which is the correct outcome and is explained below: the documented shell-activation candidate succeeded, and that path carries no arguments |
-| 9 — provider silent-only acquisition with a zero parent handle | **Not started** | Needs the Entra registration and the broker skeleton. A source-level test now asserts the provider contains no `AcquireTokenInteractive`, which is the enforcement rather than the gate |
+| 9 — provider silent-only acquisition with a zero parent handle | **Not started** | The registration exists. Needs `SilentAuthService`, and a token in the broker cache from gate 8 first. A source-level test now asserts the provider contains no `AcquireTokenInteractive`, which is the enforcement rather than the gate |
 | 11 — cached-first refresh and cross-process invalidation | **Partly established; NOT passed** | The coordination subsystem passes 136 automated tests including genuine multi-process contention. Separately, and new: **the named events now exist.** Both `OutlookWidget-StateChanged-v1` and `OutlookWidget-SuppressDetails-v1` were confirmed present while the installed provider ran. Until `StateChangeListener` was written nothing created them, so `StateCommitCoordinator` and `DisclosureTombstoneStore` were opening a non-existent event and swallowing the failure — every cross-process signal in the product was a silent no-op. **The gate itself is not met:** it requires cached-first refresh and cross-process invalidation observed across real Board activation and provider recycle, and neither a refresh nor a state commit can happen until authentication and Graph exist. It cannot be closed in Phase 0's native work |
 
 **Two native-surface gates have not passed: 9 and 11.** Any status claim elsewhere must say "every
@@ -250,15 +251,70 @@ script fails if any key file appears under the repository root.
 
 ## What is still blocking, and what unblocks it
 
-**The Entra app registration, and nothing else.** Single-tenant, public client, delegated
-`Mail.ReadBasic` only, no secret. Gates 8, 9, 10, and 12 all wait on it. Settings are in
-[app-registration.md](app-registration.md).
+**The authentication code.** The Entra app registration itself is done — see below — so gates 8, 9,
+10, and 12 now wait on Phase 1 slice 2 rather than on a portal task.
 
-It cannot be avoided by prompting the user. Consent *is* already a user prompt — self-consent to
-`Mail.ReadBasic` at first sign-in, no administrator step — but the registration is the application's
-identity and is what issues the client ID, and no token request can be made without one. Entra does
-not implement OpenID Connect Dynamic Client Registration, so there is no bootstrap path: creating a
-registration through Graph would itself require a token. It is a one-time task, not a per-user one.
+The registration could not have been avoided by prompting the user. Consent *is* already a user
+prompt — self-consent to `Mail.ReadBasic` at first sign-in, no administrator step — but the
+registration is the application's identity and is what issues the client ID, and no token request can
+be made without one. Entra does not implement OpenID Connect Dynamic Client Registration, so there
+was no bootstrap path: creating a registration through Graph would itself require a token.
+
+## The Entra app registration, as created
+
+Recorded 2026-07-28 in the 415 Group tenant. **The raw tenant and client IDs are deliberately absent
+from this file**, which is committed; they live in git-ignored package configuration. See
+[app-registration.md](app-registration.md) for where, and for why an earlier version of that document
+contradicted itself by asking for both here.
+
+| Item | As created |
+|---|---|
+| Supported account types | Accounts in this organizational directory only — single tenant |
+| Application type | Public client, mobile and desktop |
+| Redirect URI | `ms-appx-web://microsoft.aad.brokerplugin/{client-id}`, under **Mobile and desktop applications** |
+| Allow public client flows | Yes |
+| Client secret / certificate | **None** |
+| API permission | Microsoft Graph delegated **`Mail.ReadBasic`** only; `User.Read` removed |
+| Application permissions | **None** |
+| Admin consent | **Not granted, deliberately** |
+
+The redirect URI platform matters and is a silent failure if wrong: current Microsoft documentation
+states WAM redirect URIs must be configured under *Mobile and desktop applications*, and a
+registration that places the same string under the Web platform simply never completes brokered
+sign-in.
+
+**Admin consent was deliberately not granted**, and that is a gate decision rather than an oversight.
+Gate 8 asks whether the author can self-consent to `Mail.ReadBasic` without an administrator step.
+Granting tenant-wide admin consent would pre-approve the permission, the self-consent path would
+never execute, and the gate would become unprovable while appearing to work. It stays ungranted until
+first sign-in exercises it.
+
+### Configuration, and what it deliberately cannot change
+
+The identifiers ship as `authentication.json` beside **both** executables — verified present in the
+installed 0.3.0.0 package — so neither process walks a relative path out of its own directory to find
+them. Two values are **not** configurable, and adding them to the file changes nothing because the
+loader has nowhere to put them:
+
+- **The scope.** `Mail.ReadBasic` is a compile-time constant, so no file on the machine can widen
+  what this application may read. A test writes a configuration file requesting `Mail.Read`,
+  `Mail.ReadWrite`, `User.Read`, a `common` authority, and a client secret, and asserts that every
+  one of them is ignored.
+- **The authority.** Derived from the tenant ID, so no file can redirect sign-in to `common`,
+  `organizations`, or another tenant — which would quietly turn a single-tenant registration into a
+  multi-tenant one.
+
+`Build-Package.ps1` refuses to build when the configuration is missing or still contains the
+template's placeholder zeros, and the loader rejects an all-zero GUID at runtime as well. Every load
+failure is a state rather than an exception: a provider the Widgets host started in the background
+must not die because the package shipped without configuration.
+
+The large-size card reports `config Loaded` so the packaged configuration is observable on the
+device without the raw identifiers ever appearing on a surface someone could read over a shoulder.
+**Observed on the reference machine** in the installed 0.3.2.0 package: the widget's large card shows
+`config Loaded`, so the file ships correctly, the loader finds it beside the provider executable, and
+both identifiers parsed to non-empty GUIDs. That is the whole configuration path proven end to end
+short of a token request.
 
 **Gate 11 also waits on it**, though indirectly: cached-first refresh and cross-process invalidation
 cannot be observed until there is something to refresh and something to commit.
@@ -455,6 +511,157 @@ sink's composition changed in this build — it now takes the disclosure read as
 re-checks before every host call. A widget that still renders is evidence that the new constructor
 wiring works in the real Widgets host rather than only under `CoCreateInstance`, which is the part a
 unit test could not reach.
+
+## Measured: the widget screenshot was the wrong size, and nothing failed because of it
+
+The picker documentation specifies the widget screenshot as **300 pixels wide and 304 tall, with
+transparent rounded corners, showing the medium size of the widget**. The original asset was
+**480×480 and opaque**.
+
+Nothing failed. Gate 2 passed with it, because the picker accepts the image and stretches it into
+its own 300×304 slot — so a wrong-sized asset renders as a plain block that looks like the provider
+supplied no preview at all. This is the third defect in this project whose only symptom was
+"it looks slightly wrong", after the clipped small card and the dropped diagnostic newlines. None
+was reachable by a unit test; all three needed either a documented requirement to check against or
+a person looking at a screen.
+
+A test now reads each screenshot's PNG `IHDR` and asserts 300×304, so the dimension cannot drift
+back. It reads the bytes directly rather than taking an imaging dependency in the test project.
+
+## Measured: qualified asset variants do nothing without a `resources.pri`
+
+The icon assets were also single-resolution. Adding `scale-125/150/200/400` and
+`targetsize-16/24/32/48/256` files is not sufficient on its own: Windows resolves the manifest's
+`Assets\Square44x44Logo.png` to that literal file unless the package carries a `resources.pri`
+indexing the qualifiers. A Visual Studio packaging project runs MakePri for this; packaging directly
+with the SDK tools means running it explicitly, which `Build-Package.ps1` now does.
+
+Verified in the installed 0.3.1.0 package: `resources.pri` present, 32 asset files, and MakePri
+reported 15 scale variants and 10 target sizes indexed with zero warnings.
+
+The flat single-colour placeholder had a specific visible failure worth recording: an unplated blue
+square on the taskbar's blue plate reads as a missing icon.
+
+### The first replacement was also wrong, in a way only visible in place
+
+The first redraw made the icon a **self-contained rounded tile** — a white envelope on a blue
+gradient square — reasoning that an icon supplying its own background renders correctly whether or
+not Windows draws a plate. Seen in the Add Widgets picker's provider list next to Weather, Traffic,
+Timer, Watchlist and the rest, it looked dated: **every neighbour in that list is a glyph on
+transparency with no plate**, and the filled square read as an icon from an older design era.
+
+Two things this established, neither of which was reachable from documentation:
+
+1. **`ProviderIcons/Icon` is what the picker's provider list draws.** Not obvious from the element
+   name, and it is the icon a user sees before they have pinned anything. The manifest now says so.
+2. **The reasoning "self-contained is safer" was backwards for this surface.** It optimised for
+   never looking wrong against an unknown background and ignored what the icon sits beside.
+
+The icon is now a gradient envelope on full transparency with no tile: body and flap as separate
+gradients with a translucent seam between them for depth, and an amber unread badge in the corner the
+envelope leaves free. The seam and badge are dropped below 32px rather than scaled, because the
+taskbar size is seen most often and both become noise there. Colours avoid white as a primary fill,
+since the icon has to read on a dark taskbar and a light Start flyout alike — which is what the
+white-on-blue tile got away with only by supplying its own background.
+
+### Decision: screenshots accepted, app icon not
+
+Reviewed on 2026-07-28. The outcome was split, and an earlier version of this section recorded it as
+a clean acceptance of everything — which was wrong within hours and is corrected here rather than
+left to mislead.
+
+**The widget picker screenshots are accepted.** That turns a preview into an obligation: the
+screenshot depicts the approved medium card — unread count plus the newest messages — which the
+provider **does not render yet**. Having been accepted as shipping artwork it is the design
+reference the medium card is expected to match when Phase 2 builds it, not merely an illustration.
+Until then the package advertises a card more finished than the one it draws, which is normal for a
+store preview and worth knowing rather than discovering.
+
+**The app icon is not accepted.** Three designs were rejected in sequence:
+
+| Attempt | Rejected because |
+|---|---|
+| White envelope on a filled blue tile | Looked dated beside the glyph-on-transparency icons around it in the picker's provider list |
+| Flatter gradient envelope on transparency | Not liked; no specific fault recorded |
+| Open envelope with a card rising out of it | Not liked; discarded before packaging |
+
+The icon is being designed outside this repository and will be supplied later. **What ships now is
+interim** — the second attempt, which is what the installed 0.3.2.0 package carries. Phase 2 owes
+the replacement, so section 18 no longer claims otherwise.
+
+415 Group branding remains **declined**; that half of the decision holds. The open question is the
+icon's design, not whether it carries a company mark.
+
+Worth naming the pattern rather than just the outcome: three of these iterations were spent
+discovering that an icon can only be judged in place, next to its neighbours, at the size it is
+actually drawn. Dimensions, transparency, and resource indexing were all verifiable from
+documentation and all correct; none of that had any bearing on whether the thing looked right.
+
+## Measured: the provider fell back to unpackaged state storage instead of failing closed
+
+Found by review. `PackageIdentity.TryGetFamilyName` returns `null` for an unpackaged process by
+design, and `CoordinationPaths.Resolve` accepts `null` and answers with the ordinary per-user path by
+design. The provider's startup treated only a *thrown* `PackageIdentityException` as fatal, so a null
+family name passed straight through into `Resolve`, the resulting directories were created, and the
+process carried on — placing coordination state at `%LocalAppData%\OutlookWidget`, outside the package
+store, where uninstall cannot remove it.
+
+Both composed behaviours were individually correct. The fault was the composition, and it sat
+**directly underneath a comment explaining why that exact fallback is unacceptable**. The reasoning
+was right; the null case was simply never covered.
+
+**Confirmed on the reference machine.** Running the provider executable directly from its build
+output, where it genuinely has no package identity, created
+`%LocalAppData%\OutlookWidget\suppression-v1` and then kept running. Nothing today writes mailbox
+data there, so no privacy guarantee has actually been broken — but the location would have become the
+cache once authentication landed.
+
+Fixed by moving the composition behind `PackagedState.Locate` in `OutlookWidget.Packaging`, which
+rejects a null or empty family name **before resolving a path at all**, so a refusing process never
+computes an unpackaged location and never touches the filesystem. `Unpackaged` and
+`IdentityQueryFailed` are distinct statuses: both fail closed, but one means the executable was
+started directly and the other means a broken query, and they send an operator to different places.
+The provider now exits 2 and 1 respectively.
+
+After the fix, the same direct run **exits 2 and creates nothing**, while packaged COM activation
+still succeeds and still creates state under
+`%LocalAppData%\Packages\415Group.OutlookInboxWidget_dgbvqhastx60y\...`.
+
+`PackagedState` lives in `OutlookWidget.Packaging` rather than the core, and Packaging now references
+Core rather than the reverse — the core must stay free of any knowledge that MSIX exists, which is
+why `CoordinationPaths.Resolve` takes the family name as a parameter in the first place. Six unit
+tests cover both refusal paths through an injectable identity query, which is the only way to reach
+them: a test process cannot acquire package identity, cannot make the Win32 query fail on demand, and
+cannot launch the COM server.
+
+A source-level test additionally asserts the provider never calls `CoordinationPaths.Resolve`
+directly, so the two behaviours cannot be recombined at a new call site.
+
+## Measured: solution builds and project builds write to different output directories
+
+Found while verifying the fix above, and worth recording because it produced a false negative that
+looked exactly like the fix not working.
+
+| Command | Provider output |
+|---|---|
+| `dotnet build` (solution) | `bin\x64\Debug\net10.0-windows10.0.26100.0\win-x64\` |
+| `dotnet build src\OutlookWidget.Provider\...csproj` | `bin\Debug\net10.0-windows10.0.26100.0\win-x64\` |
+
+The split comes from the solution declaring `<Platform Project="x64" />` for this project, which
+solution-level builds honour and project-level builds do not. So a solution build leaves the
+`bin\Debug` copy untouched, and running the executable from there can execute a binary many hours
+old while a successful build scrolls past. That is what happened: the first verification run appeared
+to show the guard having no effect, when it was running yesterday's binary.
+
+Two lessons, recorded because the second is the more dangerous:
+
+1. When running a provider executable by hand, check its timestamp or build the project explicitly
+   first. `dotnet build` succeeding does not mean the copy you are about to run was rebuilt.
+2. **Searching a .NET assembly for a type name must use UTF-8.** The first attempt to confirm whether
+   the guard was compiled in searched with `-Encoding unicode` and reported `False` for assemblies
+   that did contain it, because assembly metadata strings are UTF-8. A verification method that
+   silently reports absence is worse than no verification, and this one briefly redirected the
+   investigation toward a build problem that did not exist.
 
 ## Observed characteristic: provider lifetime is demand-driven, not pin-driven
 

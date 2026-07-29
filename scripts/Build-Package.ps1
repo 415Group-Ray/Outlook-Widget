@@ -60,6 +60,68 @@ $outputRoot = Join-Path $repoRoot 'src\OutlookWidget.Package\AppPackages'
 $layoutPath = Join-Path $outputRoot 'layout'
 
 # ---------------------------------------------------------------------------
+# Host runtime
+# ---------------------------------------------------------------------------
+
+<#
+.SYNOPSIS
+    The .NET major version OutlookWidget.Core targets, read from its project file.
+
+.DESCRIPTION
+    Derived rather than hardcoded. This value gates whether the packaging host can load the
+    product's own assembly to validate authentication configuration, so a hardcoded 10 would go
+    stale the moment the project moved to a newer framework - and it would go stale silently, in
+    the direction of accepting a host that cannot actually load the assembly.
+#>
+function Get-CoreRuntimeMajor {
+    $coreProject = Join-Path $repoRoot 'src\OutlookWidget.Core\OutlookWidget.Core.csproj'
+
+    if (-not (Test-Path -LiteralPath $coreProject)) {
+        throw "Cannot determine the required host runtime: $coreProject does not exist."
+    }
+
+    [xml]$coreXml = Get-Content -LiteralPath $coreProject -Raw
+    $tfm = $coreXml.Project.PropertyGroup.TargetFramework | Where-Object { $_ } | Select-Object -First 1
+
+    if ($tfm -notmatch '^net(?<major>\d+)\.') {
+        throw "Cannot parse a .NET major version from OutlookWidget.Core's TargetFramework '$tfm'."
+    }
+
+    return [int]$Matches['major']
+}
+
+# Checked BEFORE publishing anything, because the alternative is a full publish followed by a
+# failure that a two-second check could have reported.
+#
+# The configuration validation later in this script loads the built Core assembly with Add-Type, so
+# the host's runtime must be at least as new as the framework Core targets. PowerShell's own
+# `#Requires -Version 7.0` cannot express this: PowerShell 7.0 through 7.4 run on .NET 3.1 to 8, and
+# only 7.5 and later are on .NET 9 or newer. So a perfectly supported PowerShell 7 host with an
+# installed .NET 10 SDK can still be unable to load a net10.0 assembly - the SDK builds it, the host
+# runs it.
+$requiredRuntimeMajor = Get-CoreRuntimeMajor
+$hostRuntimeMajor = [System.Environment]::Version.Major
+
+if ($hostRuntimeMajor -lt $requiredRuntimeMajor) {
+    throw @"
+This PowerShell host cannot package the app.
+
+  PowerShell:            $($PSVersionTable.PSVersion)
+  Host .NET runtime:     $([System.Environment]::Version)
+  OutlookWidget.Core:    targets .NET $requiredRuntimeMajor
+
+Packaging validates the authentication configuration by loading the product's own loader, which
+needs a host runtime at least as new as the assembly. An installed .NET $requiredRuntimeMajor SDK is
+not sufficient: the SDK builds the assembly, the host has to run it.
+
+Use PowerShell 7.6 or later, which runs on .NET 10. Check with:
+  `$PSVersionTable.PSVersion; [System.Environment]::Version
+"@
+}
+
+Write-Output "Host: PowerShell $($PSVersionTable.PSVersion) on .NET $([System.Environment]::Version) (Core targets .NET $requiredRuntimeMajor)"
+
+# ---------------------------------------------------------------------------
 # Locate the SDK tools
 # ---------------------------------------------------------------------------
 
@@ -87,6 +149,9 @@ function Find-SdkTool {
 
 $makeAppx = Find-SdkTool -Name 'makeappx.exe'
 Write-Output "makeappx: $makeAppx"
+
+$makePri = Find-SdkTool -Name 'makepri.exe'
+Write-Output "makepri:  $makePri"
 
 if (-not $SkipSigning) {
     $signTool = Find-SdkTool -Name 'signtool.exe'
@@ -259,6 +324,103 @@ Publish-IntoLayout -ProjectName 'OutlookWidget.App' -ExecutableName 'OutlookWidg
 Publish-IntoLayout -ProjectName 'OutlookWidget.Provider' -ExecutableName 'OutlookWidget.Provider.exe'
 
 # ---------------------------------------------------------------------------
+# Authentication configuration
+# ---------------------------------------------------------------------------
+
+# The Entra registration identifiers ship beside BOTH executables rather than once at the package
+# root. Each process then reads the file from its own directory, so neither has to walk a relative
+# path out of it - the sibling-directory coupling that CompanionLauncher already needs as a
+# fallback is not worth reproducing for configuration that is loaded on every start.
+#
+# Neither identifier is a secret; both appear in ordinary network requests. They are kept out of Git
+# because a committed development value is the one most likely to be aimed at the wrong environment.
+$authSource = Join-Path $packageProject 'config\authentication.local.json'
+
+if (-not (Test-Path -LiteralPath $authSource)) {
+    throw @"
+Authentication configuration is missing: $authSource
+
+Copy src\OutlookWidget.Package\config\authentication.template.json to authentication.local.json in
+the same directory and set the real tenantId and clientId from the Entra app registration. The
+.local.json name is git-ignored deliberately; see docs/app-registration.md.
+"@
+}
+
+# The unedited template gets its own message, because it is the most likely mistake and "still the
+# template" is more use to the operator than "invalid".
+$authContent = Get-Content -LiteralPath $authSource -Raw
+
+if ($authContent -match '00000000-0000-0000-0000-000000000000') {
+    throw @"
+Authentication configuration still contains placeholder zeros: $authSource
+
+Replace tenantId and clientId with the real values from the Entra app registration. A package built
+with these would install and then fail every sign-in attempt.
+"@
+}
+
+foreach ($projectName in @('OutlookWidget.App', 'OutlookWidget.Provider')) {
+    Copy-Item -LiteralPath $authSource `
+        -Destination (Join-Path (Join-Path $layoutPath $projectName) 'authentication.json') -Force
+}
+
+# Validate the STAGED copies with the product's own loader.
+#
+# Checking for placeholder zeros was not enough, and the gap was not hypothetical: malformed JSON, a
+# missing property, or a non-GUID value all passed that check, got copied into the package, and then
+# failed at runtime as Malformed or Invalid - producing exactly the package the registration
+# documentation promised could not be built.
+#
+# The loader is invoked rather than reimplemented so the two cannot drift. Replicating "valid JSON,
+# both properties present, both non-empty GUIDs" in PowerShell would work today and silently diverge
+# the first time the loader gains a rule. This is possible because PowerShell 7 here runs on .NET 10,
+# matching the assembly's target framework, and it validates what actually ships rather than the
+# source file.
+$coreAssembly = Join-Path $layoutPath 'OutlookWidget.Provider\OutlookWidget.Core.dll'
+
+if (-not (Test-Path -LiteralPath $coreAssembly)) {
+    throw "Cannot validate authentication configuration: $coreAssembly is missing from the layout."
+}
+
+try {
+    Add-Type -LiteralPath $coreAssembly
+}
+catch {
+    # Fail rather than fall back to a weaker check. A validation step that quietly downgrades itself
+    # is worse than none, because the surrounding output still claims the configuration was verified.
+    throw @"
+Cannot load $coreAssembly to validate authentication configuration.
+
+  $($_.Exception.GetType().Name): $($_.Exception.Message)
+
+This host is PowerShell $($PSVersionTable.PSVersion) on .NET $([System.Environment]::Version); the
+assembly targets a newer framework. Packaging stops rather than shipping configuration it could not
+check.
+"@
+}
+
+foreach ($projectName in @('OutlookWidget.App', 'OutlookWidget.Provider')) {
+    $stagedDirectory = Join-Path $layoutPath $projectName
+    $result = [OutlookWidget.Core.Authentication.AuthenticationConfiguration]::Load($stagedDirectory, $null)
+
+    if ($result.Status.ToString() -ne 'Loaded') {
+        throw @"
+Authentication configuration is not usable: $($result.Status) for $projectName
+
+  Source: $authSource
+
+This is the product's own loader reporting on the copy that would have shipped, so a package built
+now would install and fail every sign-in. Expected two properties, tenantId and clientId, each a
+non-empty GUID:
+
+  { "tenantId": "<guid>", "clientId": "<guid>" }
+"@
+    }
+}
+
+Write-Output 'Authentication configuration staged beside both executables and validated by the product loader.'
+
+# ---------------------------------------------------------------------------
 # Assemble the rest of the layout
 # ---------------------------------------------------------------------------
 
@@ -316,7 +478,7 @@ foreach ($reference in ($referencedPaths | Sort-Object -Unique)) {
         throw @"
 The manifest references '$reference' but it is not in the layout: $resolved
 
-If it is an image, run scripts/New-PlaceholderAssets.ps1. If it is an executable, check the
+If it is an image, run scripts/New-Assets.ps1. If it is an executable, check the
 Executable attribute against the subdirectory names Publish-IntoLayout creates.
 "@
     }
@@ -403,6 +565,55 @@ All three must be the same GUID.
 }
 
 Write-Output "Provider CLSID: $comClassId (manifest, widget extension, and provider source agree)"
+
+# ---------------------------------------------------------------------------
+# Index the resources
+# ---------------------------------------------------------------------------
+
+# Without a resources.pri, Windows resolves the manifest's Assets\Square44x44Logo.png to that exact
+# file and every scale- and targetsize-qualified sibling is ignored. The icon then renders from a
+# single 44px bitmap on a high-DPI display and looks soft, and the unplated taskbar variant never
+# applies at all. MakePri indexes the qualifiers so the resource loader can pick the right one.
+#
+# This is the step a Visual Studio packaging project would run for us. Packaging directly with the
+# SDK tools means running it here.
+Write-Output ''
+Write-Output 'Indexing resources...'
+
+$priConfig = Join-Path $outputRoot 'priconfig.xml'
+$priOutput = Join-Path $layoutPath 'resources.pri'
+
+if (Test-Path -LiteralPath $priConfig) {
+    Remove-Item -LiteralPath $priConfig -Force
+}
+
+# /dq en-US matches the manifest's single declared Resource language. A default qualifier that
+# disagreed with the manifest would produce a package whose resources cannot be resolved.
+& $makePri createconfig /cf $priConfig /dq en-US /o | Out-Null
+
+if ($LASTEXITCODE -ne 0) {
+    throw "makepri createconfig failed with exit code $LASTEXITCODE."
+}
+
+# /pr is the project root that gets indexed, /mn the manifest that names the resources. Run from
+# the layout so the indexed paths are package-relative.
+& $makePri new /pr $layoutPath /cf $priConfig /of $priOutput /mn (Join-Path $layoutPath 'AppxManifest.xml') /o |
+    ForEach-Object { "  $_" }
+
+if ($LASTEXITCODE -ne 0) {
+    throw "makepri new failed with exit code $LASTEXITCODE."
+}
+
+if (-not (Test-Path -LiteralPath $priOutput)) {
+    throw "makepri reported success but produced no resources.pri at $priOutput."
+}
+
+Remove-Item -LiteralPath $priConfig -Force
+
+$qualified = @(Get-ChildItem -LiteralPath (Join-Path $layoutPath 'Assets') -Filter '*.scale-*.png' -ErrorAction SilentlyContinue).Count
+$targeted = @(Get-ChildItem -LiteralPath (Join-Path $layoutPath 'Assets') -Filter '*.targetsize-*.png' -ErrorAction SilentlyContinue).Count
+
+Write-Output "Indexed resources.pri ($qualified scale variant(s), $targeted target size(s))."
 
 # ---------------------------------------------------------------------------
 # Pack

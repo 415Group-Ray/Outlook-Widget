@@ -6,11 +6,11 @@ Planning date: **2026-07-27**
 
 Implementation status: **Phase 0 in progress; the native surface and packaging are proven.** Gates 1, 2, 3, 4, 5 (as superseded below), 6, and the native half of 7 have all passed on the reference machine, including cold activation, reboot survival, instance recovery, upgrade with a widget pinned, and clean provider exit on unpin. The section 18 fallback branch is therefore **not** taken. The coordination subsystem (Phase 1 slice 1) and the Windows Widgets provider are implemented, packaged, installed, and observed working in the Widgets Board.
 
-**Gates 9 and 11 have not passed**, and they are the native-surface gates still open. Gate 9 — provider silent-only acquisition with a zero parent handle — is not started. Gate 11 — cached-first refresh and cross-process invalidation across real Board activation and provider recycle — cannot be observed before authentication and Graph exist; its signalling half is real and measured, but the gate is not met. Gate 4 is partial: `CustomState` recovery is implemented but not yet verified on the device.
+**Gates 9 and 11 have not passed**, and they are the native-surface gates still open. Gate 9 — provider silent-only acquisition with a zero parent handle — is not started. Gate 11 — cached-first refresh and cross-process invalidation across real Board activation and provider recycle — cannot be observed before authentication and Graph exist; its signalling half is real and measured, but the gate is not met. Gate 4 is fully verified, including the `CustomState` round trip through the host.
 
 Gate 11 does not affect the fallback decision, because both surfaces consume the same coordination core. **Gate 9 does**: a provider that cannot acquire a token silently with a zero parent handle would render sign-in-required forever, since interactive authentication belongs only to the companion, whereas a tray/popover UI process could authenticate itself. The fallback proof is not being built, but that rests on gate 9 not failing rather than on evidence that it will not.
 
-**Every remaining Phase 0 gate depends on authentication.** Gates 8, 9, 10, and 12 wait on the Entra app registration; gate 11 waits on a real refresh, which waits on the same thing. `docs/phase0-evidence.md` is authoritative for what has actually been measured.
+**Every remaining Phase 0 gate depends on the authentication code**, and nothing depends on a portal task: the Entra app registration is **created** and its identifiers ship in the package. Gates 8, 9, 10, 11, and 12 need `InteractiveAuthService`, `SilentAuthService`, `GraphMailClient`, and the snapshot model — Phase 1 slice 2. Gate 8 comes first, because the provider can only acquire silently against a token the broker already holds. `docs/phase0-evidence.md` is authoritative for what has actually been measured.
 
 This plan describes a lightweight Windows 11 Outlook inbox widget for a single Microsoft 365 tenant. It incorporates the decisions approved during planning:
 
@@ -687,8 +687,9 @@ Reconfirm stable versions immediately before scaffolding. As of the planning dat
 - Windows 11 24H2 build 26100 or later for the initial supported/tested baseline.
 - New Outlook installed on at least one test PC.
 - Current Visual Studio 2022 with the WinUI application development workload.
-- Current stable Windows SDK.
+- Current stable Windows SDK, including `makeappx.exe`, `signtool.exe`, and `makepri.exe`. MakePri is required, not optional: it indexes the scale- and targetsize-qualified icon assets, and the package build stops without it.
 - .NET 10 LTS with the current security patch.
+- **PowerShell 7.6 or later**, which runs on .NET 10. This is a constraint on the host, not the SDK: the packaging script loads the built `OutlookWidget.Core` assembly to validate authentication configuration with the product's own loader, so the host runtime must be at least as new as the framework Core targets. PowerShell 7.0–7.4 run on .NET 3.1–8 and cannot load it even with a .NET 10 SDK present. Both the preflight and the build script check this, deriving the required version from Core's project file rather than hardcoding it.
 - Windows App SDK 2.3.1 stable; do not use Preview or Experimental packages.
 - Centrally pinned `Microsoft.Identity.Client` and `Microsoft.Identity.Client.Broker` packages.
 - Repository-scoped `nuget.config` containing only approved package feeds and package-source mapping where practical.
@@ -941,6 +942,7 @@ Phase 1's estimate assumes the accepted Phase 0 provider lifecycle and broker sk
 - Companion onboarding/settings/diagnostics.
 - Adaptive Card 1.5 templates and data binding.
 - Small, medium, large, counts-only, signed-out, loading, stale, and error states.
+- **Artwork: partly settled.** The widget picker screenshots were reviewed and accepted during Phase 0, and the accepted screenshot depicts the medium card's approved layout — so it is the design reference the medium template is expected to match rather than something to be replaced. The **app icon is not settled**: three designs were rejected and the icon is being designed outside this repository. What ships now is interim and Phase 2 owes the replacement. 415 Group branding remains declined; the open question is the design, not whether it carries a company mark.
 - Refresh and launch actions.
 - Accessibility and theme verification.
 

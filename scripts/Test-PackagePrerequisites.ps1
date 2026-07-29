@@ -321,33 +321,86 @@ else {
         -Detail 'vswhere.exe not found, so no Visual Studio installation was detected. MSIX packaging and the WinUI designer path need the VS workload; the Core library and its tests do not.'
 }
 
-# MakeAppx and SignTool ship with the Windows SDK. Without them there is no way
-# to produce or sign an MSIX, which is a hard stop for every packaging gate.
-$sdkBinRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
-$makeAppx = if (Test-Path -LiteralPath $sdkBinRoot) {
-    Get-ChildItem -LiteralPath $sdkBinRoot -Filter 'makeappx.exe' -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { $_.DirectoryName -match '\\x64$' } | Sort-Object FullName -Descending | Select-Object -First 1
-}
-else { $null }
+# The PowerShell host's own runtime, which is a packaging prerequisite and not an obvious one.
+#
+# Build-Package.ps1 validates the authentication configuration by loading the built Core assembly
+# with Add-Type, so the host runtime must be at least as new as the framework Core targets.
+# `#Requires -Version 7.0` cannot express this: PowerShell 7.0 through 7.4 run on .NET 3.1 to 8, and
+# only 7.5 and later are on .NET 9 or newer. So a supported PowerShell 7 host with a .NET 10 SDK
+# installed can still fail to load a net10.0 assembly - the SDK builds it, the host runs it. Without
+# this row the preflight would pass such a machine and every package build would stop.
+#
+# The required version is read from the project file rather than hardcoded, so it cannot go stale in
+# the direction of accepting a host that is too old.
+$coreProjectPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'src\OutlookWidget.Core\OutlookWidget.Core.csproj'
+$requiredRuntimeMajor = $null
 
-$signTool = if (Test-Path -LiteralPath $sdkBinRoot) {
-    Get-ChildItem -LiteralPath $sdkBinRoot -Filter 'signtool.exe' -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { $_.DirectoryName -match '\\x64$' } | Sort-Object FullName -Descending | Select-Object -First 1
-}
-else { $null }
+if (Test-Path -LiteralPath $coreProjectPath) {
+    [xml]$coreProjectXml = Get-Content -LiteralPath $coreProjectPath -Raw
+    $coreTfm = $coreProjectXml.Project.PropertyGroup.TargetFramework | Where-Object { $_ } | Select-Object -First 1
 
-if ($makeAppx -and $signTool) {
-    Add-Result -Name 'Windows SDK packaging tools' -Outcome 'Pass' -Category 'Tooling' `
-        -Detail "makeappx.exe found at $($makeAppx.FullName); signtool.exe found at $($signTool.FullName)."
+    if ($coreTfm -match '^net(?<major>\d+)\.') {
+        $requiredRuntimeMajor = [int]$Matches['major']
+    }
+}
+
+$hostRuntime = [System.Environment]::Version
+
+if (-not $requiredRuntimeMajor) {
+    Add-Result -Name 'PowerShell host runtime' -Outcome 'Warn' -Category 'Tooling' `
+        -Detail "Could not read OutlookWidget.Core's TargetFramework from $coreProjectPath, so the host runtime requirement could not be checked. Packaging verifies it again and will stop if the host is too old."
+}
+elseif ($hostRuntime.Major -ge $requiredRuntimeMajor) {
+    Add-Result -Name 'PowerShell host runtime' -Outcome 'Pass' -Category 'Tooling' `
+        -Detail "PowerShell $($PSVersionTable.PSVersion) on .NET $hostRuntime, which can load the net$requiredRuntimeMajor.0 Core assembly that packaging uses to validate authentication configuration."
 }
 else {
-    $missingTools = @(
-        if (-not $makeAppx) { 'makeappx.exe' }
-        if (-not $signTool) { 'signtool.exe' }
-    )
+    Add-Result -Name 'PowerShell host runtime' -Outcome 'Fail' -Category 'Tooling' `
+        -Detail "PowerShell $($PSVersionTable.PSVersion) runs on .NET $hostRuntime, but OutlookWidget.Core targets .NET $requiredRuntimeMajor. Packaging loads that assembly to validate authentication configuration and will stop here. An installed .NET $requiredRuntimeMajor SDK is not sufficient - the SDK builds the assembly, the host has to run it. Use PowerShell 7.6 or later, which runs on .NET 10."
+}
 
+# MakeAppx, SignTool and MakePri ship with the Windows SDK. Without them there is no way
+# to produce or sign an MSIX, which is a hard stop for every packaging gate.
+#
+# MakePri belongs in this list even though it is easy to think of as optional. Build-Package.ps1 runs
+# it to index the scale- and targetsize-qualified icon assets, and throws if it is absent - so a
+# preflight that checked only MakeAppx and SignTool would report a machine ready to package when the
+# build would in fact stop. Verifying the tools the build actually invokes is the whole point of the
+# probe, and the set is derived here rather than assumed.
+$sdkBinRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
+
+function Find-SdkToolOrNull {
+    param([Parameter(Mandatory)][string]$Name)
+
+    if (-not (Test-Path -LiteralPath $sdkBinRoot)) {
+        return $null
+    }
+
+    # Highest SDK version, x64 host - the same selection Build-Package.ps1 makes, so the probe cannot
+    # report a tool the build would not choose.
+    return Get-ChildItem -LiteralPath $sdkBinRoot -Filter $Name -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.DirectoryName -match '\\x64$' } |
+        Sort-Object FullName -Descending |
+        Select-Object -First 1
+}
+
+$requiredSdkTools = [ordered]@{
+    'makeappx.exe' = Find-SdkToolOrNull -Name 'makeappx.exe'
+    'signtool.exe' = Find-SdkToolOrNull -Name 'signtool.exe'
+    'makepri.exe'  = Find-SdkToolOrNull -Name 'makepri.exe'
+}
+
+$missingTools = @($requiredSdkTools.Keys | Where-Object { -not $requiredSdkTools[$_] })
+
+if ($missingTools.Count -eq 0) {
+    $found = ($requiredSdkTools.Keys | ForEach-Object { "$_ at $($requiredSdkTools[$_].FullName)" }) -join '; '
+
+    Add-Result -Name 'Windows SDK packaging tools' -Outcome 'Pass' -Category 'Tooling' `
+        -Detail "$found."
+}
+else {
     Add-Result -Name 'Windows SDK packaging tools' -Outcome 'Fail' -Category 'Tooling' `
-        -Detail "$($missingTools -join ' and ') not found under Windows Kits\10\bin. A signed MSIX cannot be produced on this machine until the Windows SDK packaging tools are installed."
+        -Detail "$($missingTools -join ', ') not found under Windows Kits\10\bin. A signed MSIX cannot be produced on this machine until the Windows SDK packaging tools are installed. MakePri is required because Build-Package.ps1 uses it to index the qualified icon assets; without it the icon renders from a single unscaled bitmap."
 }
 
 # ---------------------------------------------------------------------------

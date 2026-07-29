@@ -38,7 +38,7 @@
   <Identity
     Name="415Group.OutlookInboxWidget"
     Publisher="CN=&quot;415 Group, Inc.&quot;"
-    Version="0.2.4.0"
+    Version="0.3.3.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
@@ -141,6 +141,14 @@
             PublicFolder="Public">
             <uap3:Properties>
               <WidgetProvider>
+                <!--
+                  ProviderIcons is what the Add Widgets picker draws beside this app's name in its
+                  provider list, alongside Weather, Traffic, Phone Link and the rest. Worth knowing,
+                  because it is not obvious from the element name and it is the icon most users see
+                  first: every neighbour in that list is a glyph on transparency, so an icon with a
+                  filled background plate stands out as dated. StoreLogo serves here because it is
+                  now exactly that - a transparent envelope glyph with no tile.
+                -->
                 <ProviderIcons>
                   <Icon Path="Assets\StoreLogo.png" />
                 </ProviderIcons>
@@ -189,9 +197,16 @@
                     <!--
                       Both an Icon and a Screenshot are required by the widget host, not optional
                       polish: a definition without a screenshot does not appear in the Add Widgets
-                      picker, which would look exactly like a gate 2 failure. DarkMode and LightMode
-                      are omitted, so this single screenshot serves both themes until Phase 2
-                      supplies real artwork.
+                      picker, which would look exactly like a gate 2 failure.
+
+                      The screenshots are 300x304 with transparent rounded corners, which is what
+                      the picker documentation specifies. An earlier 480x480 opaque square was
+                      accepted by the picker and stretched into the 300x304 slot, so it looked
+                      wrong without failing anything.
+
+                      DarkMode and LightMode are optional; the picker falls back to the top-level
+                      Screenshot when the current theme has none. Supplying both costs two files
+                      and avoids a dark card sitting on a light picker surface.
                     -->
                     <ThemeResources>
                       <Icons>
@@ -202,6 +217,22 @@
                           Path="Assets\WidgetScreenshot.png"
                           DisplayAltText="The Outlook Inbox widget showing unread counts and recent messages." />
                       </Screenshots>
+
+                      <DarkMode>
+                        <Screenshots>
+                          <Screenshot
+                            Path="Assets\WidgetScreenshotDark.png"
+                            DisplayAltText="The Outlook Inbox widget showing unread counts and recent messages." />
+                        </Screenshots>
+                      </DarkMode>
+
+                      <LightMode>
+                        <Screenshots>
+                          <Screenshot
+                            Path="Assets\WidgetScreenshotLight.png"
+                            DisplayAltText="The Outlook Inbox widget showing unread counts and recent messages." />
+                        </Screenshots>
+                      </LightMode>
                     </ThemeResources>
                   </Definition>
                 </Definitions>

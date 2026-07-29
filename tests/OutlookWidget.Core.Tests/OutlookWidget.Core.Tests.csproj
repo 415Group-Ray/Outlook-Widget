@@ -16,6 +16,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\OutlookWidget.Core\OutlookWidget.Core.csproj" />
+
+    <!--
+      Packaging is referenced so the packaged-state guard is covered by real tests rather than by
+      source inspection. It shares this project's target framework, unlike the provider, so there is
+      no framework cost to referencing it.
+    -->
+    <ProjectReference Include="..\..\src\OutlookWidget.Packaging\OutlookWidget.Packaging.csproj" />
   </ItemGroup>
 
   <ItemGroup>

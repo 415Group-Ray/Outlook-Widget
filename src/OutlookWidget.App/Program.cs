@@ -64,66 +64,67 @@ internal static partial class Program
             lines.Add(string.Empty);
         }
 
-        string? packageFullName;
-        string? packageFamilyName;
+        // Both the unpackaged case and a failed query run through PackagedState, the same guarded
+        // composition the provider uses. This probe is allowed to *report* that it is unpackaged —
+        // that is half its purpose — but it must not be the place where a second, unguarded
+        // combination of "identity may be null" and "Resolve accepts null" gets written.
+        PackagedStateResult state = PackagedState.Locate();
 
-        try
+        if (state.Status == PackagedStateStatus.IdentityQueryFailed)
         {
-            packageFullName = PackageIdentity.TryGetFullName();
-            packageFamilyName = PackageIdentity.TryGetFamilyName();
-        }
-        catch (PackageIdentityException e)
-        {
-            // Reported rather than swallowed. An unpackaged process and a failed query lead to
-            // different state locations, and guessing the unpackaged one would put cached
-            // mailbox data outside the package store where uninstall cannot remove it.
-            lines.Add($"Package identity: QUERY FAILED — {e.Message}");
+            lines.Add("Package identity: QUERY FAILED.");
             lines.Add("State location cannot be determined safely. Nothing was read or written.");
             return string.Join(Environment.NewLine, lines);
         }
 
-        if (packageFullName is null)
+        if (state.Status == PackagedStateStatus.Unpackaged)
         {
             lines.Add("Package identity: NONE — running unpackaged.");
             lines.Add(
                 "If this appears after installing the MSIX, the app was launched from its build "
                 + "output rather than through the installed package.");
-        }
-        else
-        {
-            lines.Add("Package identity: present.");
-            lines.Add($"Package full name: {packageFullName}");
-            lines.Add($"Package family:    {packageFamilyName}");
+            lines.Add(string.Empty);
+            lines.Add("No coordination state path was resolved and nothing was created. The real "
+                      + "companion will refuse to run in this state for the same reason the provider "
+                      + "does: state outside the package store survives uninstall.");
+            return string.Join(Environment.NewLine, lines);
         }
 
+        string packageFamilyName = state.PackageFamilyName!;
+
+        lines.Add("Package identity: present.");
+
+        // The full name is diagnostic only. It carries the version, so it must never place state.
+        try
+        {
+            lines.Add($"Package full name: {PackageIdentity.TryGetFullName()}");
+        }
+        catch (PackageIdentityException)
+        {
+            lines.Add("Package full name: unavailable (family name resolved, so state is placed).");
+        }
+
+        lines.Add($"Package family:    {packageFamilyName}");
         lines.Add(string.Empty);
 
         // The family name, not LocalApplicationData, is what places packaged state. Measurement
         // on this machine showed LocalApplicationData is NOT redirected for a packaged full-trust
         // desktop app, so state located that way would survive uninstall — contradicting the
-        // product's own privacy claim. CoordinationPaths.Resolve places it explicitly instead.
-        CoordinationPaths paths = CoordinationPaths.Resolve(packageFamilyName);
+        // product's own privacy claim. CoordinationPaths places it explicitly instead.
+        CoordinationPaths paths = state.Paths!;
         lines.Add("Coordination state root:");
         lines.Add(paths.RootDirectory);
         lines.Add(string.Empty);
 
-        if (packageFamilyName is null)
-        {
-            lines.Add("Unpackaged, so this is the ordinary per-user path. Uninstall does not "
-                      + "apply, because there is no package.");
-        }
-        else
-        {
-            bool insidePackageStore = paths.RootDirectory.Contains(
-                Path.Combine("Packages", packageFamilyName),
-                StringComparison.OrdinalIgnoreCase);
+        bool insidePackageStore = paths.RootDirectory.Contains(
+            Path.Combine("Packages", packageFamilyName),
+            StringComparison.OrdinalIgnoreCase);
 
-            lines.Add(insidePackageStore
-                ? "Inside the package store, so uninstall removes it. This is what section 11 "
-                  + "promises about cached mailbox data."
-                : "WARNING: outside the package store. Cached mailbox data would survive "
-                  + "uninstall, contradicting the stated privacy behaviour.");
-        }
+        lines.Add(insidePackageStore
+            ? "Inside the package store, so uninstall removes it. This is what section 11 "
+              + "promises about cached mailbox data."
+            : "WARNING: outside the package store. Cached mailbox data would survive "
+              + "uninstall, contradicting the stated privacy behaviour.");
 
         lines.Add(string.Empty);
         lines.Add($"Bounds in force: mutex wait {CoordinationBounds.MutexWait.TotalSeconds:0}s, "

@@ -3,7 +3,8 @@
 One single-tenant registration, public client, no secret. A separate production registration
 is a multi-user concern and is created only if the tool is shared beyond the author.
 
-Status: **not yet created.** Gates 8, 9, 10, and 12 all wait on it.
+Status: **created.** The identifiers are configured and ship in the package. Gates 8, 9, 10, and 12
+now wait on the authentication code rather than on the registration.
 
 ## Settings
 
@@ -58,11 +59,54 @@ bug in the app. See [troubleshooting.md](troubleshooting.md).
 Tenant-wide admin consent belongs to the multi-user step if it ever happens. It is operational
 convenience, not evidence that the delegated permission intrinsically requires admin consent.
 
+## Where the identifiers live
+
+**Created.** The registration exists in the 415 Group tenant, single tenant, public client, no
+secret, delegated `Mail.ReadBasic` only.
+
+The client ID and tenant ID are identifiers rather than secrets — both appear in ordinary network
+requests — but they are **not committed**, because a committed development value is the one most
+likely to be aimed at the wrong environment by accident.
+
+| | |
+|---|---|
+| Real values | `src/OutlookWidget.Package/config/authentication.local.json` — git-ignored |
+| Template | `src/OutlookWidget.Package/config/authentication.template.json` — committed, placeholder zeros |
+| In the package | copied to `authentication.json` beside **both** executables |
+| Read by | `AuthenticationConfiguration.Load` in `OutlookWidget.Core` |
+
+`Build-Package.ps1` refuses to build when the local file is missing, when it still contains the
+placeholder zeros, or when it fails validation **by the product's own loader** — the script stages the
+file into the layout and then calls `AuthenticationConfiguration.Load` against the copies that would
+actually ship. So malformed JSON, a missing property, and a non-GUID value are all caught at build
+time rather than at first sign-in.
+
+The loader is invoked rather than reimplemented in PowerShell so the two cannot drift. An earlier
+version checked only for placeholder zeros, which let every other kind of unusable file through and
+made the claim below false. If the packaging host cannot load the assembly, packaging **stops**
+rather than falling back to a weaker check: a validation step that quietly downgrades itself is worse
+than none, because the surrounding output still says the configuration was verified.
+
+A package therefore cannot be produced that installs and then fails every sign-in for want of
+configuration.
+
+Two values are deliberately **not** configurable, and adding them to the file changes nothing
+because the loader has nowhere to put them:
+
+- **The scope.** `Mail.ReadBasic` is a compile-time constant. Section 6's permission decision is
+  reviewed once, not re-decided per deployment, so no file on the machine can widen what this
+  application may read.
+- **The authority.** Derived from `tenantId`, so no file can redirect sign-in to `common`,
+  `organizations`, or another tenant — which would quietly turn a single-tenant registration into a
+  multi-tenant one.
+
 ## Recording the result
 
-The client ID and tenant ID are identifiers rather than secrets, but they must not be
-committed. Supply them through environment-specific package configuration so a development
-value cannot be used against another environment by accident.
+Record in [phase0-evidence.md](phase0-evidence.md): that the registration was created, the exact
+permission granted, the redirect URI platform used, whether self-consent succeeded without an
+administrator, and the date.
 
-Record in [phase0-evidence.md](phase0-evidence.md): the tenant ID, the client ID, the exact
-permission granted, whether self-consent succeeded without an administrator, and the date.
+**Do not record the raw tenant or client ID there.** That file is committed, and an earlier version
+of this document asked for both — telling the reader to keep the identifiers out of Git and then to
+write them into a tracked file four lines later. The facts are what the evidence report needs; the
+values belong in the ignored configuration file.

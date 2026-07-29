@@ -117,6 +117,57 @@ public sealed class PackageManifestTests
     }
 
     [Fact]
+    public void The_widget_screenshots_are_the_size_the_picker_documentation_specifies()
+    {
+        // 300x304 with transparent corners. Documented, and a wrong size does not fail anything:
+        // the picker accepts the image and stretches it into its 300x304 slot, so a 480x480 opaque
+        // square renders as a plain block and looks like the provider failed to supply a preview.
+        //
+        // Read as bytes rather than with an imaging library, because the test project has no
+        // graphics dependency and a PNG's IHDR is at a fixed offset.
+        string assets = RepositorySources.PackageAssetsDirectory;
+
+        string[] screenshots = [.. Root().Descendants()
+            .Where(e => e.Name.LocalName == "Screenshot")
+            .Select(e => e.Attribute("Path")!.Value)
+            .Distinct(StringComparer.OrdinalIgnoreCase)];
+
+        Assert.NotEmpty(screenshots);
+
+        foreach (string reference in screenshots)
+        {
+            string path = Path.Combine(assets, reference[@"Assets\".Length..]);
+            (int width, int height) = ReadPngSize(path);
+
+            Assert.Equal((300, 304), (width, height));
+        }
+    }
+
+    /// <summary>
+    /// Reads a PNG's dimensions from its IHDR chunk.
+    /// </summary>
+    /// <remarks>
+    /// A PNG begins with an 8-byte signature, then a 4-byte length, then "IHDR", then width and
+    /// height as big-endian 32-bit integers — so both live at fixed offsets 16 and 20.
+    /// </remarks>
+    private static (int Width, int Height) ReadPngSize(string path)
+    {
+        byte[] header = new byte[24];
+
+        using (FileStream stream = File.OpenRead(path))
+        {
+            Assert.Equal(header.Length, stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false));
+        }
+
+        Assert.Equal("IHDR", System.Text.Encoding.ASCII.GetString(header, 12, 4));
+
+        int width = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(header.AsSpan(16, 4));
+        int height = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(header.AsSpan(20, 4));
+
+        return (width, height);
+    }
+
+    [Fact]
     public void Every_widget_definition_declares_an_icon_and_a_screenshot()
     {
         // Both are documented as required, and the screenshot is the one whose absence is actively
@@ -234,6 +285,10 @@ public sealed class PackageManifestTests
         // Asserted explicitly rather than just looped over, so a selector that quietly stops
         // matching fails here instead of passing an empty loop. The store logo appears twice in the
         // manifest — as Properties/Logo and as the provider icon — and collapses to one entry.
+        //
+        // Only the unqualified names appear here. The scale- and targetsize-qualified variants are
+        // never named in the manifest: the resource loader finds them from resources.pri, which is
+        // why Build-Package.ps1 runs makepri.
         Assert.Equal(
             [
                 @"Assets\Square150x150Logo.png",
@@ -241,6 +296,8 @@ public sealed class PackageManifestTests
                 @"Assets\StoreLogo.png",
                 @"Assets\WidgetIcon.png",
                 @"Assets\WidgetScreenshot.png",
+                @"Assets\WidgetScreenshotDark.png",
+                @"Assets\WidgetScreenshotLight.png",
             ],
             referenced.Order(StringComparer.Ordinal));
 
@@ -261,7 +318,7 @@ public sealed class PackageManifestTests
             missing.Count == 0,
             "The manifest references images that are not in the package assets: "
                 + string.Join(", ", missing)
-                + ". Run scripts/New-PlaceholderAssets.ps1.");
+                + ". Run scripts/New-Assets.ps1.");
     }
 
     [Fact]
