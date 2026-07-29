@@ -205,13 +205,13 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785336331.7662416,
-    "ast_hash": "bbe8482f81a4304f2546d10099ab15c8",
+    "mtime": 1785338061.1255221,
+    "ast_hash": "79aef7be5fed25901be77619e05c6cdb",
     "semantic_hash": ""
   },
   "TECHNICAL_PLAN.md": {
-    "mtime": 1785335752.441359,
-    "ast_hash": "fd55d48ff5c8b604ac4ceca2b4155584",
+    "mtime": 1785338048.9994743,
+    "ast_hash": "2ae01828be21b8d81f6951a8fea83f2b",
     "semantic_hash": ""
   },
   "docs/app-registration.md": {
@@ -220,8 +220,8 @@
     "semantic_hash": ""
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1785337360.3711135,
-    "ast_hash": "25f348395230a43ea206f65bb7c1e7b6",
+    "mtime": 1785338040.1580946,
+    "ast_hash": "378f94aada6d1927e5c63b56b0fb09e8",
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
@@ -230,8 +230,8 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1785337382.4186099,
-    "ast_hash": "cff3ee27894acba6995149ff4c5b6c27",
+    "mtime": 1785338055.432029,
+    "ast_hash": "1071bcfbc14029016b67636d9763421d",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -345,8 +345,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Authentication/AuthenticationOptions.cs": {
-    "mtime": 1785270209.8093002,
-    "ast_hash": "bee06875f6f0dc5b9fdd17bc2d16a63a",
+    "mtime": 1785337950.50358,
+    "ast_hash": "b59afa62fd21fa988c35f366e2609130",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Package/config/authentication.template.json": {
@@ -355,8 +355,8 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/AuthenticationConfigurationTests.cs": {
-    "mtime": 1785270579.4152026,
-    "ast_hash": "b11f78a58c2d221e6665a7945ca3a669",
+    "mtime": 1785337965.1354997,
+    "ast_hash": "209c886546d0855d1ef37c23e1f1cace",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Package/Assets/Square150x150Logo.scale-100.png": {
@@ -505,8 +505,8 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/PackagedStateTests.cs": {
-    "mtime": 1785337013.4526613,
-    "ast_hash": "7dab23dc840d249b9bbe136177552d11",
+    "mtime": 1785337985.6359522,
+    "ast_hash": "61bb2689f775073da3029c0d128804d2",
     "semantic_hash": ""
   }
 }

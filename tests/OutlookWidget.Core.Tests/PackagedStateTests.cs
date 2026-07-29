@@ -87,20 +87,28 @@ public sealed class PackagedStateTests
         // The ordering the defect got wrong: the previous code created directories before anything
         // could object, so a refusing process still left a footprint. Locate resolves nothing and
         // touches no filesystem, so there is nothing to clean up after a refusal.
-        string unpackagedRoot = CoordinationPaths.Resolve(packageFamilyName: null).RootDirectory;
-        string suppression = CoordinationPaths.Resolve(packageFamilyName: null).SuppressionDirectory;
+        //
+        // A UNIQUE scope, not the production "v1". The first version of this test asserted that the
+        // production unpackaged suppression directory was absent, which made it fail on any account
+        // where that directory already existed — including, with some irony, an account that had
+        // exercised the very defect this test documents. It was passing here only because the
+        // leftover directory had been cleaned up by hand minutes earlier. A scope that cannot
+        // pre-exist removes the dependency on machine state entirely.
+        string scope = "refusal-" + Guid.NewGuid().ToString("N");
+        string suppression = CoordinationPaths.Resolve(packageFamilyName: null, scope).SuppressionDirectory;
 
-        _ = PackagedState.Locate(() => null);
-        _ = PackagedState.Locate(() => throw new PackageIdentityException());
+        Assert.False(
+            Directory.Exists(suppression),
+            $"Precondition failed: {suppression} already exists, so this test could not distinguish "
+                + "a refusal that created state from pre-existing state.");
 
-        // Asserting on the suppression subdirectory rather than the root: the root is shared with
-        // the signing certificate export path that New-DevelopmentCertificate.ps1 writes, so its
-        // existence proves nothing either way. The suppression directory is created only by
-        // EnsureCreated.
+        _ = PackagedState.Locate(() => null, scope);
+        _ = PackagedState.Locate(() => throw new PackageIdentityException(), scope);
+
         Assert.False(
             Directory.Exists(suppression),
             $"A refused location created coordination state at {suppression}. Locate must not touch "
-                + $"the filesystem; only a resolved caller may call EnsureCreated. Root: {unpackagedRoot}");
+                + "the filesystem; only a resolved caller may call EnsureCreated.");
     }
 
     [Fact]

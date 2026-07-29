@@ -19,7 +19,8 @@ sign-in-required forever while a tray app could authenticate in its own UI proce
 
 The provider currently draws a placeholder card describing coordination state, because there is no
 authentication or Microsoft Graph access yet — **nothing here shows real mail.** That is the next
-phase, and it waits on an Entra app registration. See
+phase. The Entra app registration is already created and configured, so what remains is the
+authentication and Graph code rather than any setup step. See
 [docs/phase0-evidence.md](docs/phase0-evidence.md) for exactly what has and has not been proven, and
 [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
 

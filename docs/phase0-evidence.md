@@ -1,15 +1,15 @@
 # Phase 0 evidence report
 
 Status: **in progress.** **Every native-surface gate except 9 and 11 now passes.** Gates 2, 3, 5 (as
-superseded), 6, and the native half of 7 passed outright, and gate 4 passed in part; gate 1 passed in
-the universal group. The widget is discoverable, pinnable, renders at all three sizes, survives a
-reboot and a package upgrade with its instance restored, launches New Outlook and the companion from
-its actions, and its provider process exits when the widget is unpinned.
+superseded), 4, 6, and the native half of 7 all passed; gate 1 passed in the universal group. The
+widget is discoverable, pinnable, renders at all three sizes, survives a reboot and a package upgrade
+with its instance restored, restores its `CustomState` through the host, launches New Outlook and the
+companion from its actions, and its provider process exits when the widget is unpinned.
 
 **Two native-surface gates are still open, and both wait on authentication.**
 
 - **Gate 9** — provider silent-only acquisition with a zero parent handle. Not started; needs the
-  Entra registration and the broker skeleton.
+  authentication code: `SilentAuthService` and the broker construction.
 - **Gate 11** — cached-first refresh and cross-process invalidation across real Board activation and
   provider recycle. Its signalling half is now real, but neither a refresh nor a state commit is
   possible before authentication and Graph exist.
@@ -29,11 +29,11 @@ decision. It is not expected to fail, and it is not proven not to.
 Gate 5 was superseded after the Board was measured to allow only one instance per widget definition.
 Two rendering defects were found by the resize test and fixed in 0.2.1.0.
 
-**What remains all depends on authentication:** gates 8, 9, 10, and 12 wait on the Entra app
-registration, and gate 11 waits on a real refresh, which waits on the same thing. There is no
-outstanding *activation, lifecycle, rendering, launch, or packaging* question. Nothing below is a
-projection; each row records what was actually observed, and unproven items say so rather than being
-marked pass.
+**What remains all depends on the authentication code:** gates 8, 9, 10, 11, and 12. The Entra app
+registration itself is **created** and its identifiers ship in the package, so nothing waits on a
+portal task any more. There is no outstanding *activation, lifecycle, rendering, launch, or
+packaging* question. Nothing below is a projection; each row records what was actually observed, and
+unproven items say so rather than being marked pass.
 
 Reference machine: the author's own Entra-managed PC. Recorded 2026-07-28.
 
@@ -75,8 +75,8 @@ Gates are grouped per section 17, because the group determines what a failure me
 | Gate | Status | Evidence |
 |---|---|---|
 | 1 — signed MSIX installs; certificate can be trusted | **PASS** | Managed-device policy **does** permit trusting a certificate in `LocalMachine\TrustedPeople` on this PC, and sideload installation succeeded. Installed as `415Group.OutlookInboxWidget_0.1.0.0_x64__dgbvqhastx60y`, family `415Group.OutlookInboxWidget_dgbvqhastx60y`, signed by `CN="415 Group, Inc."`. `signtool verify /pa` succeeds once the certificate is trusted, and the RFC 3161 timestamp verifies against DigiCert. Developer Mode was **off** throughout, so it is not required for this workflow |
-| 8 — WAM sign-in with MFA/CA, self-consent to `Mail.ReadBasic` | **Not started** | Needs the Entra registration and the companion app |
-| 10 — `Mail.ReadBasic` returns exactly the approved properties | **Not started** | Needs the registration and a token |
+| 8 — WAM sign-in with MFA/CA, self-consent to `Mail.ReadBasic` | **Not started** | The registration exists and its identifiers ship in the package. Needs `InteractiveAuthService` and a real parent window in the companion |
+| 10 — `Mail.ReadBasic` returns exactly the approved properties | **Not started** | The registration exists. Needs `GraphMailClient` and a token, so it follows gate 8 |
 
 A failure in this group stops the product rather than triggering the tray fallback, because
 the fallback is also a packaged MSIX using the same certificate and the same delegated
@@ -91,7 +91,7 @@ permission.
 | 4 — `GetWidgetInfos()` restores all instances; final-instance exit | **PASS** | All three criteria observed. The widget rendered again after a reboot, which requires `RecoverEnabledInstances` to have rebuilt the instance map from `GetWidgetInfos()` before the class object was registered — the Board does not replay `CreateWidget` for an already-pinned widget, so a provider that started empty would have rendered nothing. That covers pinned IDs, definitions, and per-instance sizes. **The provider process exited when the widget was unpinned**, confirming `DeleteWidget` signalled on the transition to empty and `Main` revoked its registration and returned. And **`CustomState` recovery is confirmed**: the large card reports `delivered 0` rather than `delivered none`, so the generation the sink wrote into `CustomState` came back through `GetWidgetInfos()` on a later provider start. The first implementation wrote that value without ever reading it back, so it round-tripped nowhere; this is the observation that the round trip is now closed |
 | 5 — two instances at different sizes render independently | **Superseded; replacement PASSES** | **A second instance could not be pinned.** After pinning, the picker entry was greyed out and marked as added. The cause is not the manifest: the installed definition carries `AllowMultiple="true"` and declares all three sizes. The replacement gate — one instance rendering correctly at small, medium, and large — **passes**, with two rendering defects found and fixed along the way. See the gate 5 section below |
 | 6 — widget action launches the companion | **PASS** | Clicking **Open companion** on the pinned widget launched the companion, which displayed package identity `415Group.OutlookInboxWidget_0.2.0.0_x64__dgbvqhastx60y` and its coordination root inside the package store. Note that the companion did **not** report a launch argument, which is the correct outcome and is explained below: the documented shell-activation candidate succeeded, and that path carries no arguments |
-| 9 — provider silent-only acquisition with a zero parent handle | **Not started** | Needs the Entra registration and the broker skeleton. A source-level test now asserts the provider contains no `AcquireTokenInteractive`, which is the enforcement rather than the gate |
+| 9 — provider silent-only acquisition with a zero parent handle | **Not started** | The registration exists. Needs `SilentAuthService`, and a token in the broker cache from gate 8 first. A source-level test now asserts the provider contains no `AcquireTokenInteractive`, which is the enforcement rather than the gate |
 | 11 — cached-first refresh and cross-process invalidation | **Partly established; NOT passed** | The coordination subsystem passes 136 automated tests including genuine multi-process contention. Separately, and new: **the named events now exist.** Both `OutlookWidget-StateChanged-v1` and `OutlookWidget-SuppressDetails-v1` were confirmed present while the installed provider ran. Until `StateChangeListener` was written nothing created them, so `StateCommitCoordinator` and `DisclosureTombstoneStore` were opening a non-existent event and swallowing the failure — every cross-process signal in the product was a silent no-op. **The gate itself is not met:** it requires cached-first refresh and cross-process invalidation observed across real Board activation and provider recycle, and neither a refresh nor a state commit can happen until authentication and Graph exist. It cannot be closed in Phase 0's native work |
 
 **Two native-surface gates have not passed: 9 and 11.** Any status claim elsewhere must say "every

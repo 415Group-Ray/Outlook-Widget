@@ -1,5 +1,5 @@
 {
-  "0": "RefreshLeaseStore",
+  "0": "CoordinationFixture",
   "1": "OutlookWidget.Core (shared .NET library)",
   "2": ".RefreshAsync",
   "3": ".SeedState",
@@ -27,16 +27,14 @@
   "25": "Install-DevelopmentPackage.ps1",
   "26": "GlobalUsings.cs",
   "27": "AuthenticationConfigurationTests",
-  "28": "CoordinationFixture",
+  "28": "RecordingLogger",
   "29": ".Record",
   "30": "IOperationalLogger",
-  "31": "IDataProtector",
+  "31": "ProtectedCache.cs",
   "32": "ProviderFactory",
   "33": "ProviderCardTests",
   "34": "StateCommitCoordinator",
   "35": "DeliveryWorker",
   "36": "DeliveryState",
-  "37": "MutexHoldingPeer",
-  "38": "StateChangeListener",
-  "39": "FakeWidgetHost"
+  "37": ".Locate"
 }

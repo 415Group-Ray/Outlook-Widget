@@ -10,7 +10,7 @@ Implementation status: **Phase 0 in progress; the native surface and packaging a
 
 Gate 11 does not affect the fallback decision, because both surfaces consume the same coordination core. **Gate 9 does**: a provider that cannot acquire a token silently with a zero parent handle would render sign-in-required forever, since interactive authentication belongs only to the companion, whereas a tray/popover UI process could authenticate itself. The fallback proof is not being built, but that rests on gate 9 not failing rather than on evidence that it will not.
 
-**Every remaining Phase 0 gate depends on authentication.** Gates 8, 9, 10, and 12 wait on the Entra app registration; gate 11 waits on a real refresh, which waits on the same thing. `docs/phase0-evidence.md` is authoritative for what has actually been measured.
+**Every remaining Phase 0 gate depends on the authentication code**, and nothing depends on a portal task: the Entra app registration is **created** and its identifiers ship in the package. Gates 8, 9, 10, 11, and 12 need `InteractiveAuthService`, `SilentAuthService`, `GraphMailClient`, and the snapshot model — Phase 1 slice 2. Gate 8 comes first, because the provider can only acquire silently against a token the broker already holds. `docs/phase0-evidence.md` is authoritative for what has actually been measured.
 
 This plan describes a lightweight Windows 11 Outlook inbox widget for a single Microsoft 365 tenant. It incorporates the decisions approved during planning:
 

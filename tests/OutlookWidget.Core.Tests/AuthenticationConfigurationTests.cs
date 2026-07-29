@@ -97,6 +97,36 @@ public sealed class AuthenticationConfigurationTests : IDisposable
     }
 
     [Fact]
+    public void The_requested_scope_cannot_be_mutated_through_any_interface()
+    {
+        // Asserting the pristine value is not enough on its own. The scope is the single permission
+        // this application requests, and it gets handed to MSAL — so what matters is that no consumer
+        // can rewrite it in the process, not merely that it starts out correct.
+        //
+        // The previous declaration was IReadOnlyList<string> from a collection expression, which
+        // leaves the concrete type to the compiler. It happened to be immutable, but by compiler
+        // choice rather than by contract. ImmutableArray puts the guarantee in the type, and this
+        // asserts it there.
+        System.Collections.Immutable.ImmutableArray<string> scopes = AuthenticationOptions.Scopes;
+
+        // Not an array, so it cannot be cast to one and written through.
+        Assert.IsNotType<string[]>((object)scopes);
+
+        // ImmutableArray implements IList<T> and every mutating member throws, rather than silently
+        // succeeding on a copy.
+        IList<string> asList = scopes;
+
+        Assert.True(asList.IsReadOnly);
+        Assert.Throws<NotSupportedException>(() => asList[0] = "Mail.Read");
+        Assert.Throws<NotSupportedException>(() => asList.Add("Mail.Read"));
+        Assert.Throws<NotSupportedException>(() => asList.Clear());
+        Assert.Throws<NotSupportedException>(() => asList.Remove("Mail.ReadBasic"));
+
+        // And the value survived every attempt.
+        Assert.Equal(["Mail.ReadBasic"], AuthenticationOptions.Scopes);
+    }
+
+    [Fact]
     public void A_configuration_file_cannot_widen_the_requested_scope()
     {
         // The load path has nowhere to put a scope, so a file asking for Mail.Read, application

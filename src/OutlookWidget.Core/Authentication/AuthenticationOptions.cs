@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using OutlookWidget.Core.Diagnostics;
@@ -40,12 +41,24 @@ public sealed record AuthenticationOptions
     /// The only Graph permission this application ever requests.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <c>Mail.ReadBasic</c> and nothing else. It excludes message bodies, body previews,
     /// attachments, and extended properties at the API boundary, which is stronger than requesting
     /// a broader scope and choosing not to read those fields. <c>Mail.Read</c> must never appear
-    /// here, and no configuration path may add to this array.
+    /// here, and no configuration path may add to it.
+    /// </para>
+    /// <para>
+    /// <b><see cref="ImmutableArray{T}"/> rather than <see cref="IReadOnlyList{T}"/>, and the
+    /// difference is not cosmetic.</b> A collection expression assigned to an interface leaves the
+    /// concrete type to the compiler. Today Roslyn emits a synthesized read-only list here — checked
+    /// rather than assumed: attempting to assign through <see cref="IList{T}"/> throws and
+    /// <c>IsReadOnly</c> reports true — so the value was not in fact mutable. But it was immutable by
+    /// compiler choice, not by contract, and a future compiler emitting a plain array for the same
+    /// expression would silently make the one permission this application requests writable at
+    /// runtime. <c>ImmutableArray</c> moves that guarantee into the type, where it can be asserted.
+    /// </para>
     /// </remarks>
-    public static IReadOnlyList<string> Scopes { get; } = ["Mail.ReadBasic"];
+    public static ImmutableArray<string> Scopes { get; } = ["Mail.ReadBasic"];
 
     /// <summary>
     /// The single-tenant authority. Built from <see cref="TenantId"/> rather than read from

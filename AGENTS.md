@@ -29,7 +29,10 @@ instead; that loses the pin for no reason.
 The cross-process coordination core is implemented and tested. The widget provider has **no
 authentication and no Microsoft Graph access**, so it renders a placeholder card describing
 coordination state rather than mail. The current companion is a packaging probe, not the finished
-WinUI experience. Remaining Phase 0 gates (8, 9, 10, 12) all wait on the Entra app registration.
+WinUI experience. The Entra app registration is **created** and its identifiers ship in the package,
+so the remaining Phase 0 gates (8, 9, 10, 11, 12) wait on the authentication code rather than on any
+portal task. Gate 8 comes first: the provider can only acquire silently against a token the broker
+already holds.
 
 ## Sources of truth
 
