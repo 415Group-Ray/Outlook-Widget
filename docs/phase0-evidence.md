@@ -28,7 +28,7 @@ token was acquired on 0.3.7.0. **Self-consent fails** on this tenant: the Micros
 policy refused it and an administrator had to grant consent for the registration. The gate asks two
 questions and they got different answers, so it is not a PASS and not a FAIL.
 
-Gate 9 is implemented with a readout and **still not measured**; gates 10 and 12 still need
+**Gate 9 passes** — see its row below. Gates 10 and 12 still need
 `GraphMailClient`, and gate 11 needs a real refresh. The Entra app registration is **created** and its identifiers ship in the package, so
 nothing waits on a portal task any more. There is no outstanding *activation, lifecycle, rendering,
 launch, or packaging* question. Nothing below is a projection; each row records what was actually
@@ -245,6 +245,40 @@ Worth generalising, because it is the same shape as the clipped button and the m
 cancellation: **a check that cannot fail is not evidence.** That sentence would have printed on every
 successful sign-in on every tenant regardless of how consent was obtained.
 
+## Measured: the companion's sign-in signal reaches a running provider
+
+Verified on 0.3.10.0, and stated narrowly because only part of the loop was exercised.
+
+**What was measured.** The provider was activated by `CoCreateInstance` on its CLSID from an ordinary
+PowerShell session, and both named events — `OutlookWidget-StateChanged-v1` and
+`OutlookWidget-SuppressDetails-v1` — were confirmed present, which only happens if its
+`StateChangeListener` constructed. The companion was then launched and its sign-in triggered, and its
+report ended with:
+
+> A running provider was notified and will re-acquire, so a pinned widget converges without being
+> unpinned.
+
+That sentence prints only when `StateChangeSignal.Raise` returns true, meaning `OpenExisting` found the
+event and set it. So the cross-process signal crosses from companion to a live listener — which is the
+half that did not exist before and the half whose absence caused the convergence defect.
+
+**What was not measured.** The visible transition from a sign-in-required card to an authenticated one.
+A token was already cached, so silent acquisition succeeded and there was no failed state to recover
+from — the reported expiry was unchanged from the earlier sign-in, confirming the token came from cache
+rather than a fresh prompt. Forcing a genuine failure is awkward on this machine: deleting the shared
+cache would likely still succeed via the `OperatingSystemAccount` fallback, because the Windows account
+here *is* the mailbox account.
+
+So: the signal path is measured, the probe-and-deliver reaction is implementation covered by tests, and
+the end-to-end visual transition is not yet observed. It should be recorded when a natural
+sign-in-required state next occurs — most likely the first time a token expires beyond what the broker
+will silently renew.
+
+**Operational note worth keeping.** The companion's report can be read without a screen capture by
+sending `WM_GETTEXT` to its report control — enumerate the main window's children for the `Edit` class.
+That returns only this application's own text. Capturing the screen by window rectangle is not a
+substitute: the window may not be foreground, and the capture then contains whatever is on top of it.
+
 ## Measured: the tenant blocks self-consent, and the setting that does it looks permissive
 
 **Gate 8's self-consent criterion fails on this tenant.** Pressing Sign in reached Entra and returned
@@ -403,22 +437,25 @@ script fails if any key file appears under the repository root.
 
 ## What is still blocking, and what unblocks it
 
-**One card read.** This section previously listed three manual steps; the first two are done. Gate 8 has
-been measured and split — brokered sign-in passes, self-consent fails on this tenant — and admin consent
-was granted for the registration, so a token is in the broker and the shared cache is populated.
+**Graph access.** Nothing about authentication or the native surface is outstanding any more. Gates 1
+through 9 are settled — 8 as a split, the rest as passes — and what remains needs a Microsoft Graph
+client that does not exist yet:
 
-**The single remaining step for gate 9:** open the Widgets Board with **Outlook Inbox** pinned and read
-the card. The large size ends its diagnostic line with `silent auth <status>`; the medium and large
-detail line says the same in words. `silent auth Acquired` is the gate. Anything else is a failure, and
-`BrokerUnavailable` is the one that reopens the section 18 surface decision.
+- **Gates 10 and 12** need `GraphMailClient`: the approved-properties read and the optional Focused
+  count.
+- **Gate 11** needs a real refresh to invalidate, so it follows 10.
 
-Two operational notes for that read, both measured:
+This section previously listed the manual steps for gates 8 and 9. All of them are done, and the
+measurements are recorded above rather than as instructions here.
+
+Two operational notes worth keeping, because they apply to any future card read:
 
 - The provider's lifetime is demand-driven rather than pin-driven, so it may not be running even with a
   widget pinned. Opening the Board activates it.
-- The probe runs **once per provider process**, on a background task started after
-  `CoRegisterClassObject`. A card can legitimately read `silent auth pending` for a moment; if it stays
-  there, the acquisition has not returned rather than having failed.
+- The probe runs on a background task started after `CoRegisterClassObject`, so a card can legitimately
+  read `silent auth pending` for a moment; if it stays there, the acquisition has not returned rather
+  than having failed. It is **no longer once per process** — the provider re-probes on the state-changed
+  signal, which is what makes a sign-in from a pinned widget converge without unpinning.
 
 **Reinstalling requires a manifest version bump every time.** `Build-Package.ps1` reads
 `Identity/Version` and does not increment it, so rebuilding after a code change without bumping produces
@@ -438,10 +475,11 @@ processes, so without a *shared* cache the provider would enumerate no accounts 
 sign-in-required immediately after a successful companion sign-in — and the obvious reading of that
 would have been that the zero parent handle failed, which is the opposite of true.
 
-**The file now exists:** `msal-v1.bin`, 3510 bytes, in the coordination root inside the package store,
-written by the companion's sign-in. That the mechanism *works end to end* is still what gate 9's card
-read establishes; what is settled is that the cache is created and correctly placed, so a gate 9 failure
-can be attributed to the handle rather than to a missing cache.
+**The file exists and the mechanism is proven end to end.** `msal-v1.bin`, 3510 bytes, in the
+coordination root inside the package store, written by the companion's sign-in — and then read by the
+*provider*, a different process, which acquired a token from it with a zero parent handle. That is gate
+9's pass, and it is simultaneously the measurement that retires this documentation argument: the cache
+is created, correctly placed, and actually consumed cross-process.
 
 The registration could not have been avoided by prompting the user. Consent *is* already a user
 prompt — self-consent to `Mail.ReadBasic` at first sign-in, no administrator step — but the
@@ -657,7 +695,7 @@ Three separate observations, kept separate because they prove different things:
 | 0.2.1.0 → **0.2.2.0**, a real version upgrade | No — already exited | Succeeded with the widget still pinned |
 | 0.2.2.0 → **0.2.3.0**, a real version upgrade | **Yes** | Succeeded with `-ForceApplicationShutdown`; the script's pre-install notice fired correctly, the pin survived, and the widget still renders afterwards |
 | 0.3.3.0 → 0.3.3.0, same version, **different contents** | Yes | **Failed** with `0x80073CFB`, and failed identically elevated. A rebuilt payload under an unchanged version is refused outright. This is a *different* failure from the first row and has a different fix — bump the manifest version, do not uninstall. See the troubleshooting guide |
-| 0.3.3.0 → 0.3.4.0 → 0.3.5.0 → 0.3.6.0 → 0.3.7.0 → **0.3.8.0**, six consecutive version upgrades | **Yes** each time | All succeeded with `-SkipCertificateTrust -ForceApplicationShutdown` from a **non-elevated** session, confirming the certificate stays trusted across upgrades and that elevation is a first-install requirement only. The widget pin survived every one |
+| 0.3.3.0 through **0.3.10.0**, eight consecutive version upgrades | **Yes** each time | All succeeded with `-SkipCertificateTrust -ForceApplicationShutdown` from a **non-elevated** session, confirming the certificate stays trusted across upgrades and that elevation is a first-install requirement only. The widget pin survived every one |
 
 The 0.2.1.0 → 0.2.2.0 upgrade had one limitation worth stating: the provider had already exited from
 the previous force-shutdown and the Board had not re-activated it, so the in-use path was not
@@ -941,8 +979,9 @@ implementation and the coordination layer had never run inside a real provider p
 the installed provider. The integration that was unproven is proven; what remains unproven is the
 Widgets Board's behaviour toward it, which is a different thing and is recorded as such above.
 
-The broker skeleton still does not exist, and gate 9 remains not started. That half of the
-assumption is unchanged.
+**That assumption is now fully retired.** The broker skeleton exists too — `BrokerClient`,
+`SilentAuthService`, and the provider's `SilentAuthProbe` — and gate 9 passes, so neither half of the
+slice 1 estimate's assumption is still outstanding.
 
 ## A second deviation: one project the plan's folder structure does not list
 

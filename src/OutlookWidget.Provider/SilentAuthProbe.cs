@@ -45,15 +45,32 @@ internal sealed class SilentAuthProbe : IDisposable
     private readonly CancellationTokenSource _shutdown = new();
 
     /// <summary>
-    /// Guards against overlapping probes. Set to 1 while one is in flight.
+    /// Guards against overlapping probes. Set to 1 while a drainer is running.
+    /// </summary>
+    private int _running;
+
+    /// <summary>
+    /// Depth-one pending marker: a request that arrives while a probe is in flight is remembered
+    /// rather than dropped.
     /// </summary>
     /// <remarks>
-    /// A dropped concurrent request is not a lost update: state on disk is authoritative, and the probe
-    /// in flight reads the broker after the request that was dropped was made. The one case that could
-    /// matter — a sign-in completing microseconds after a probe read the cache — is covered because the
-    /// companion signals after the cache is written, so the next signal produces the next probe.
+    /// <para>
+    /// <b>This exists because dropping the request reintroduced the exact bug the re-probe was added to
+    /// fix, and an earlier comment here argued — wrongly — that dropping was safe.</b> The claim was
+    /// that the probe in flight reads the broker after the dropped request was made. It does not, in the
+    /// interleaving that matters: a probe reads the account list, the companion then completes sign-in
+    /// and signals, that signal is dropped because the probe has not finished, and the probe publishes
+    /// the <c>InteractionRequired</c> it computed from the pre-sign-in state. Nothing is left pending, so
+    /// the card asks for a sign-in that has already happened until another signal or a provider recycle
+    /// — which is the original defect, narrowed to a race.
+    /// </para>
+    /// <para>
+    /// Depth one is sufficient for the same reason it is in the delivery worker: probes are idempotent
+    /// and each one re-reads current state, so N queued requests and one queued request produce the same
+    /// answer. What matters is never dropping the *last* one.
+    /// </para>
     /// </remarks>
-    private int _running;
+    private int _pending;
 
     /// <summary>The MSAL client, built once and reused across probes.</summary>
     private IPublicClientApplication? _client;
@@ -94,23 +111,64 @@ internal sealed class SilentAuthProbe : IDisposable
             return;
         }
 
-        if (Interlocked.Exchange(ref _running, 1) == 1)
+        // Marked before the runner is claimed, never after. A request is recorded even when this call
+        // loses the race to start the drainer, which is what makes the losing call safe to return from.
+        Volatile.Write(ref _pending, 1);
+
+        // Exactly one drainer. A caller that loses here has already left its marker, and whoever holds
+        // the runner will see it.
+        if (Interlocked.CompareExchange(ref _running, 1, 0) != 0)
         {
             return;
         }
 
-        _ = Task.Run(RunAsync);
+        _ = Task.Run(DrainAsync);
     }
 
     /// <summary>
-    /// Runs one probe to completion, publishes the status, and asks for a delivery pass.
+    /// Runs probes until no request is outstanding.
     /// </summary>
     /// <remarks>
     /// Never throws. This runs unobserved on a thread-pool thread in a background COM server; an
     /// escaping exception would take down a provider the user did not start and leave the host showing
     /// stale content with nothing to explain it.
     /// </remarks>
-    private async Task RunAsync()
+    private async Task DrainAsync()
+    {
+        try
+        {
+            while (Interlocked.Exchange(ref _pending, 0) == 1)
+            {
+                if (_shutdown.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                await RunOnceAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref _running, 0);
+
+            // A request that arrived between this loop's final pending read and the release above found
+            // the runner taken and returned, leaving its marker with nobody to act on it. Closing that
+            // window is this drainer's job.
+            //
+            // Re-requesting rather than looping again keeps the claim/release protocol in one place, and
+            // it is safe: RequestProbe starts a drainer only if it wins the runner, and if another
+            // thread has already won it that thread's loop will observe the marker.
+            if (Volatile.Read(ref _pending) == 1
+                && !_disposed
+                && !_shutdown.IsCancellationRequested)
+            {
+                RequestProbe();
+            }
+        }
+    }
+
+    /// <summary>Runs one probe, publishes the status, and asks for a delivery pass.</summary>
+    private async Task RunOnceAsync()
     {
         try
         {
@@ -130,10 +188,6 @@ internal sealed class SilentAuthProbe : IDisposable
         catch (ObjectDisposedException)
         {
             // The provider is shutting down. Nothing to report and nowhere to report it.
-        }
-        finally
-        {
-            Volatile.Write(ref _running, 0);
         }
     }
 

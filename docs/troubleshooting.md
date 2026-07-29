@@ -136,15 +136,24 @@ running state, so the card is the readout. At the **large** size the diagnostic 
 `ApprovalRequired`, `BrokerUnavailable`, `NoConfiguration`, `Cancelled`, or `Failed`, and `pending`
 before the attempt finishes. The medium and large detail line says the same thing in words.
 
-The attempt runs once per provider process, on a background task started after COM registration. If
-the status reads `pending` and stays there, the acquisition has not returned — not that it failed.
+The attempt runs on a background task started after COM registration, and again whenever committed
+state or authentication state changes. If the status reads `pending` and stays there, the acquisition
+has not returned — not that it failed.
 
 ### The companion signed in successfully, but the widget still says sign-in required
 
-Distinguish two causes, because they look identical and one of them is not a sign-in problem:
+**This should now resolve itself within moments.** The companion raises the state-changed event after a
+successful sign-in and the provider re-acquires in response, so a pinned widget converges without being
+unpinned. The companion's window says which happened: *"A running provider was notified and will
+re-acquire"* when a provider was listening, or that none was — normal when the companion was opened from
+Start rather than from the widget, since a provider probes on its own start anyway.
 
-1. **The provider has not re-attempted since the sign-in.** The attempt runs once per provider
-   process. Closing and reopening the Widgets Board re-activates the provider and runs it again.
+If it does **not** resolve, distinguish two causes, because they look identical and one of them is not a
+sign-in problem:
+
+1. **No provider was listening and none has started since.** Opening the Widgets Board activates the
+   provider, which probes on start. The provider's lifetime is demand-driven rather than pin-driven, so
+   it can legitimately not be running even with a widget pinned.
 2. **The two processes are not sharing MSAL's token cache.** WAM keeps the refresh token
    device-bound inside the broker, but MSAL keeps the *account metadata* in its own cache — and
    without that cache the provider enumerates no accounts and reports interaction-required no matter
