@@ -8,19 +8,32 @@
     size and scale Windows looks for, plus the widget picker screenshot at the exact size the
     Widgets Board documentation requires.
 
-    THESE ARE THE v1 ASSETS, NOT PLACEHOLDERS
+    WHAT IS SETTLED AND WHAT IS NOT
 
-    Reviewed and accepted on 2026-07-28, with an explicit decision that 415 Group branding is not
-    wanted. The generated look is the shipping look, and this script is the source of truth for it:
-    the PNGs are build output that happens to be committed, so change the drawing code rather than
-    editing an image. This file was named New-PlaceholderAssets.ps1 while the output was flat
-    single-colour squares; keeping that name now would misdescribe what it produces.
+    Reviewed on 2026-07-28. The outcome was split, and the two halves must not be conflated:
 
-    The widget screenshot is worth one further note. It illustrates the approved medium card -
-    unread count plus the newest messages - which the provider does not render yet, because
-    authentication and Graph arrive in Phase 1 slice 2. Having been accepted, it is now the design
-    reference the medium card is expected to match, not merely a preview image. Sample senders and
-    subjects are fictional and no mailbox data was involved in producing it.
+      - The WIDGET PICKER SCREENSHOTS are accepted. They illustrate the approved medium card -
+        unread count plus the newest messages - which the provider does not render yet, because
+        authentication and Graph arrive in Phase 1 slice 2. Having been accepted, the screenshot is
+        the design reference the medium card is expected to match, not merely a preview image.
+        Sample senders and subjects are fictional and no mailbox data was involved.
+
+      - The APP ICON is NOT accepted. Two designs were rejected: a white envelope on a filled blue
+        tile, which looked dated beside the glyph-on-transparency icons around it in the widget
+        picker, and a flatter transparent envelope. A third attempt, an open envelope with a card
+        rising out of it, was also rejected and is not in this file. The icon is being designed
+        separately and will be supplied later. What ships now is interim.
+
+    415 Group branding remains declined; that part of the decision holds. The open question is the
+    icon's design, not whether it carries a company mark.
+
+    This script is still the source of truth for whatever it generates: the PNGs are build output
+    that happens to be committed, so change the drawing code rather than editing an image. If the
+    replacement icon arrives as finished artwork rather than as a design to draw, the icon functions
+    here give way to a resize-and-emit step and the size and variant plumbing stays.
+
+    The file was named New-PlaceholderAssets.ps1 while the output was flat single-colour squares.
+    The name changed because that output was replaced, not because everything it emits is final.
 
     WHY THIS NOW USES GDI+, HAVING PREVIOUSLY ARGUED AGAINST AN IMAGING LIBRARY
 
@@ -432,5 +445,6 @@ Save-Asset -Name 'WidgetScreenshotLight.png' -Bitmap (New-WidgetScreenshot -Them
 Write-Output "Wrote $written asset(s), kept $kept existing."
 Write-Output "Assets in $OutputDirectory"
 Write-Output ''
-Write-Output 'These are the accepted v1 assets. 415 Group branding was considered and declined, so'
-Write-Output 'this script is the source of truth for the look: change the drawing code, not the PNGs.'
+Write-Output 'Picker screenshots: accepted. App icon: INTERIM - not accepted, being designed separately.'
+Write-Output '415 Group branding remains declined; the open question is the design.'
+Write-Output 'This script is the source of truth for what it draws: change the code, not the PNGs.'

@@ -559,20 +559,38 @@ taskbar size is seen most often and both become noise there. Colours avoid white
 since the icon has to read on a dark taskbar and a light Start flyout alike — which is what the
 white-on-blue tile got away with only by supplying its own background.
 
-### Decision: the generated assets are the v1 artwork
+### Decision: screenshots accepted, app icon not
 
-Reviewed and accepted on 2026-07-28, with 415 Group branding **considered and declined**. This
-closes an item the plan had deferred rather than leaving it open: Phase 2 no longer owes an artwork
-pass, and `scripts/New-Assets.ps1` — renamed from `New-PlaceholderAssets.ps1`, which now
-misdescribed its output — is the source of truth for the look. The committed PNGs are build output
-that happens to be tracked, so the drawing code changes, not the images.
+Reviewed on 2026-07-28. The outcome was split, and an earlier version of this section recorded it as
+a clean acceptance of everything — which was wrong within hours and is corrected here rather than
+left to mislead.
 
-One consequence worth stating, because it turns a preview into an obligation. The accepted picker
+**The widget picker screenshots are accepted.** That turns a preview into an obligation: the
 screenshot depicts the approved medium card — unread count plus the newest messages — which the
-provider **does not render yet**. Having been accepted as shipping artwork, it is now the design
+provider **does not render yet**. Having been accepted as shipping artwork it is the design
 reference the medium card is expected to match when Phase 2 builds it, not merely an illustration.
 Until then the package advertises a card more finished than the one it draws, which is normal for a
 store preview and worth knowing rather than discovering.
+
+**The app icon is not accepted.** Three designs were rejected in sequence:
+
+| Attempt | Rejected because |
+|---|---|
+| White envelope on a filled blue tile | Looked dated beside the glyph-on-transparency icons around it in the picker's provider list |
+| Flatter gradient envelope on transparency | Not liked; no specific fault recorded |
+| Open envelope with a card rising out of it | Not liked; discarded before packaging |
+
+The icon is being designed outside this repository and will be supplied later. **What ships now is
+interim** — the second attempt, which is what the installed 0.3.2.0 package carries. Phase 2 owes
+the replacement, so section 18 no longer claims otherwise.
+
+415 Group branding remains **declined**; that half of the decision holds. The open question is the
+icon's design, not whether it carries a company mark.
+
+Worth naming the pattern rather than just the outcome: three of these iterations were spent
+discovering that an icon can only be judged in place, next to its neighbours, at the size it is
+actually drawn. Dimensions, transparency, and resource indexing were all verifiable from
+documentation and all correct; none of that had any bearing on whether the thing looked right.
 
 ## Observed characteristic: provider lifetime is demand-driven, not pin-driven
 

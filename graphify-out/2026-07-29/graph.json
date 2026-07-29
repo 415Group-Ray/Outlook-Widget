@@ -267,7 +267,7 @@
       "label": "New-RoundedPath()",
       "file_type": "code",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L104",
+      "source_location": "L115",
       "_origin": "ast",
       "id": "scripts_new_assets_new_roundedpath",
       "community": 16,
@@ -278,7 +278,7 @@
       "label": "New-Canvas()",
       "file_type": "code",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L133",
+      "source_location": "L144",
       "_origin": "ast",
       "id": "scripts_new_assets_new_canvas",
       "community": 16,
@@ -286,32 +286,32 @@
       "norm_label": "new-canvas()"
     },
     {
-      "label": "Add-EnvelopeGlyph()",
+      "label": "New-GradientBrush()",
       "file_type": "code",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L147",
+      "source_location": "L158",
       "_origin": "ast",
-      "id": "scripts_new_assets_add_envelopeglyph",
+      "id": "scripts_new_assets_new_gradientbrush",
       "community": 16,
       "community_name": "New-Assets.ps1",
-      "norm_label": "add-envelopeglyph()"
+      "norm_label": "new-gradientbrush()"
     },
     {
-      "label": "New-IconTile()",
+      "label": "New-AppIcon()",
       "file_type": "code",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L214",
+      "source_location": "L176",
       "_origin": "ast",
-      "id": "scripts_new_assets_new_icontile",
+      "id": "scripts_new_assets_new_appicon",
       "community": 16,
       "community_name": "New-Assets.ps1",
-      "norm_label": "new-icontile()"
+      "norm_label": "new-appicon()"
     },
     {
       "label": "New-WidgetScreenshot()",
       "file_type": "code",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L255",
+      "source_location": "L262",
       "_origin": "ast",
       "id": "scripts_new_assets_new_widgetscreenshot",
       "community": 16,
@@ -322,7 +322,7 @@
       "label": "Save-Asset()",
       "file_type": "code",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L371",
+      "source_location": "L378",
       "_origin": "ast",
       "id": "scripts_new_assets_save_asset",
       "community": 16,
@@ -1410,8 +1410,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_delivery_iwidgetdeliverysink_outlookwidget_core_delivery_deliverystate",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "deliverystate"
     },
     {
@@ -1444,8 +1444,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_delivery_iwidgetdeliverysink_outlookwidget_core_delivery_iwidgetdeliverysink_deliver",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": ".deliver()"
     },
     {
@@ -1650,8 +1650,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_launching_outlooklauncher_outlookwidget_core_launching_outlooklaunchstrategy",
-      "community": 7,
-      "community_name": "WidgetProvider",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "outlooklaunchstrategy"
     },
     {
@@ -1667,8 +1667,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_launching_outlooklauncher_outlookwidget_core_launching_outlooklaunchresult",
-      "community": 7,
-      "community_name": "WidgetProvider",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "outlooklaunchresult"
     },
     {
@@ -1684,8 +1684,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_launching_outlooklauncher_outlookwidget_core_launching_outlooklauncher",
-      "community": 7,
-      "community_name": "WidgetProvider",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "outlooklauncher"
     },
     {
@@ -1695,8 +1695,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_launching_outlooklauncher_cs_string",
-      "community": 7,
-      "community_name": "WidgetProvider",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "string"
     },
     {
@@ -1706,8 +1706,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_launching_outlooklauncher_cs_func",
-      "community": 7,
-      "community_name": "WidgetProvider",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "func"
     },
     {
@@ -1723,8 +1723,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_launching_outlooklauncher_outlookwidget_core_launching_outlooklauncher_launch",
-      "community": 7,
-      "community_name": "WidgetProvider",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": ".launch()"
     },
     {
@@ -1740,8 +1740,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_launching_outlooklauncher_outlookwidget_core_launching_outlooklauncher_candidates",
-      "community": 7,
-      "community_name": "WidgetProvider",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": ".candidates()"
     },
     {
@@ -1751,8 +1751,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_launching_outlooklauncher_cs_ienumerable",
-      "community": 7,
-      "community_name": "WidgetProvider",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "ienumerable"
     },
     {
@@ -1762,8 +1762,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "strategy",
-      "community": 7,
-      "community_name": "WidgetProvider",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "strategy"
     },
     {
@@ -1773,8 +1773,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_core_launching_outlooklauncher_cs_processstartinfo",
-      "community": 7,
-      "community_name": "WidgetProvider",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "processstartinfo"
     },
     {
@@ -1784,8 +1784,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "startinfo",
-      "community": 7,
-      "community_name": "WidgetProvider",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": "startinfo"
     },
     {
@@ -1801,8 +1801,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_core_launching_outlooklauncher_outlookwidget_core_launching_outlooklauncher_defaultstart",
-      "community": 7,
-      "community_name": "WidgetProvider",
+      "community": 4,
+      "community_name": "OutlookWidget.Core.Refresh",
       "norm_label": ".defaultstart()"
     },
     {
@@ -4048,8 +4048,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_provider_cards_skeletoncard_outlookwidget_provider_cards_skeletoncard",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "skeletoncard"
     },
     {
@@ -4059,8 +4059,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_outlookwidget_provider_cards_skeletoncard_cs_jsonserializeroptions",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "jsonserializeroptions"
     },
     {
@@ -4076,8 +4076,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_provider_cards_skeletoncard_outlookwidget_provider_cards_skeletoncard_data",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": ".data()"
     },
     {
@@ -4087,8 +4087,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "widgetinstance",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "widgetinstance"
     },
     {
@@ -4104,8 +4104,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_provider_cards_skeletoncard_outlookwidget_provider_cards_skeletoncard_describe",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": ".describe()"
     },
     {
@@ -4115,8 +4115,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "headline",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "headline"
     },
     {
@@ -4126,8 +4126,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "detail",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "detail"
     },
     {
@@ -4143,8 +4143,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_provider_cards_skeletoncard_outlookwidget_provider_cards_skeletoncard_diagnostic",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": ".diagnostic()"
     },
     {
@@ -4154,8 +4154,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "instance",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "instance"
     },
     {
@@ -4165,8 +4165,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "state",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "state"
     },
     {
@@ -4176,8 +4176,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "widgetid",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "widgetid"
     },
     {
@@ -4194,8 +4194,8 @@
       },
       "_origin": "ast",
       "id": "src_outlookwidget_provider_cards_skeletoncard_outlookwidget_provider_cards_skeletoncarddata",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": "skeletoncarddata"
     },
     {
@@ -9252,8 +9252,8 @@
       },
       "_origin": "ast",
       "id": "tests_outlookwidget_core_tests_testinfrastructure_fakewidgethost_outlookwidget_core_tests_testinfrastructure_fakewidgethost_deliver",
-      "community": 0,
-      "community_name": "DeliveryState",
+      "community": 7,
+      "community_name": "WidgetProvider",
       "norm_label": ".deliver()"
     },
     {
@@ -12000,18 +12000,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L147",
+      "source_location": "L176",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets",
-      "target": "scripts_new_assets_add_envelopeglyph",
+      "target": "scripts_new_assets_new_appicon",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L133",
+      "source_location": "L144",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets",
@@ -12022,18 +12022,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L214",
+      "source_location": "L158",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets",
-      "target": "scripts_new_assets_new_icontile",
+      "target": "scripts_new_assets_new_gradientbrush",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L104",
+      "source_location": "L115",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets",
@@ -12044,7 +12044,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L255",
+      "source_location": "L262",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets",
@@ -12055,7 +12055,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L371",
+      "source_location": "L378",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets",
@@ -12066,10 +12066,10 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L167",
+      "source_location": "L211",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "scripts_new_assets_add_envelopeglyph",
+      "source": "scripts_new_assets_new_appicon",
       "target": "scripts_new_assets_new_roundedpath",
       "confidence_score": 1.0
     },
@@ -12077,18 +12077,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L234",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets_new_icontile",
-      "target": "scripts_new_assets_new_roundedpath",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L278",
+      "source_location": "L285",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets_new_widgetscreenshot",
@@ -12099,10 +12088,10 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L224",
+      "source_location": "L191",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "scripts_new_assets_new_icontile",
+      "source": "scripts_new_assets_new_appicon",
       "target": "scripts_new_assets_new_canvas",
       "confidence_score": 1.0
     },
@@ -12110,7 +12099,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L270",
+      "source_location": "L277",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets_new_widgetscreenshot",
@@ -12121,22 +12110,22 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L249",
+      "source_location": "L212",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "scripts_new_assets_new_icontile",
-      "target": "scripts_new_assets_add_envelopeglyph",
+      "source": "scripts_new_assets_new_appicon",
+      "target": "scripts_new_assets_new_gradientbrush",
       "confidence_score": 1.0
     },
     {
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L302",
+      "source_location": "L309",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets_new_widgetscreenshot",
-      "target": "scripts_new_assets_new_icontile",
+      "target": "scripts_new_assets_new_appicon",
       "confidence_score": 1.0
     },
     {
@@ -32871,5 +32860,5 @@
       "source_file": "docs/phase0-evidence.md"
     }
   ],
-  "built_at_commit": "037a89632a3bd9cb8517315148d524f915f81642"
+  "built_at_commit": "20781578ac3ba9f4b644648104c0a436e632c57e"
 }

@@ -941,7 +941,7 @@ Phase 1's estimate assumes the accepted Phase 0 provider lifecycle and broker sk
 - Companion onboarding/settings/diagnostics.
 - Adaptive Card 1.5 templates and data binding.
 - Small, medium, large, counts-only, signed-out, loading, stale, and error states.
-- **No artwork pass.** Icon and widget picker assets were reviewed and accepted during Phase 0, with 415 Group branding considered and declined; `scripts/New-Assets.ps1` generates them and is the source of truth for the look. The accepted picker screenshot depicts the medium card's approved layout, so it is the design reference the medium template is expected to match rather than something to be replaced.
+- **Artwork: partly settled.** The widget picker screenshots were reviewed and accepted during Phase 0, and the accepted screenshot depicts the medium card's approved layout — so it is the design reference the medium template is expected to match rather than something to be replaced. The **app icon is not settled**: three designs were rejected and the icon is being designed outside this repository. What ships now is interim and Phase 2 owes the replacement. 415 Group branding remains declined; the open question is the design, not whether it carries a company mark.
 - Refresh and launch actions.
 - Accessibility and theme verification.
 
