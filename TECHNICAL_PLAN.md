@@ -687,8 +687,9 @@ Reconfirm stable versions immediately before scaffolding. As of the planning dat
 - Windows 11 24H2 build 26100 or later for the initial supported/tested baseline.
 - New Outlook installed on at least one test PC.
 - Current Visual Studio 2022 with the WinUI application development workload.
-- Current stable Windows SDK.
+- Current stable Windows SDK, including `makeappx.exe`, `signtool.exe`, and `makepri.exe`. MakePri is required, not optional: it indexes the scale- and targetsize-qualified icon assets, and the package build stops without it.
 - .NET 10 LTS with the current security patch.
+- **PowerShell 7.6 or later**, which runs on .NET 10. This is a constraint on the host, not the SDK: the packaging script loads the built `OutlookWidget.Core` assembly to validate authentication configuration with the product's own loader, so the host runtime must be at least as new as the framework Core targets. PowerShell 7.0–7.4 run on .NET 3.1–8 and cannot load it even with a .NET 10 SDK present. Both the preflight and the build script check this, deriving the required version from Core's project file rather than hardcoding it.
 - Windows App SDK 2.3.1 stable; do not use Preview or Experimental packages.
 - Centrally pinned `Microsoft.Identity.Client` and `Microsoft.Identity.Client.Broker` packages.
 - Repository-scoped `nuget.config` containing only approved package feeds and package-source mapping where practical.

@@ -60,6 +60,68 @@ $outputRoot = Join-Path $repoRoot 'src\OutlookWidget.Package\AppPackages'
 $layoutPath = Join-Path $outputRoot 'layout'
 
 # ---------------------------------------------------------------------------
+# Host runtime
+# ---------------------------------------------------------------------------
+
+<#
+.SYNOPSIS
+    The .NET major version OutlookWidget.Core targets, read from its project file.
+
+.DESCRIPTION
+    Derived rather than hardcoded. This value gates whether the packaging host can load the
+    product's own assembly to validate authentication configuration, so a hardcoded 10 would go
+    stale the moment the project moved to a newer framework - and it would go stale silently, in
+    the direction of accepting a host that cannot actually load the assembly.
+#>
+function Get-CoreRuntimeMajor {
+    $coreProject = Join-Path $repoRoot 'src\OutlookWidget.Core\OutlookWidget.Core.csproj'
+
+    if (-not (Test-Path -LiteralPath $coreProject)) {
+        throw "Cannot determine the required host runtime: $coreProject does not exist."
+    }
+
+    [xml]$coreXml = Get-Content -LiteralPath $coreProject -Raw
+    $tfm = $coreXml.Project.PropertyGroup.TargetFramework | Where-Object { $_ } | Select-Object -First 1
+
+    if ($tfm -notmatch '^net(?<major>\d+)\.') {
+        throw "Cannot parse a .NET major version from OutlookWidget.Core's TargetFramework '$tfm'."
+    }
+
+    return [int]$Matches['major']
+}
+
+# Checked BEFORE publishing anything, because the alternative is a full publish followed by a
+# failure that a two-second check could have reported.
+#
+# The configuration validation later in this script loads the built Core assembly with Add-Type, so
+# the host's runtime must be at least as new as the framework Core targets. PowerShell's own
+# `#Requires -Version 7.0` cannot express this: PowerShell 7.0 through 7.4 run on .NET 3.1 to 8, and
+# only 7.5 and later are on .NET 9 or newer. So a perfectly supported PowerShell 7 host with an
+# installed .NET 10 SDK can still be unable to load a net10.0 assembly - the SDK builds it, the host
+# runs it.
+$requiredRuntimeMajor = Get-CoreRuntimeMajor
+$hostRuntimeMajor = [System.Environment]::Version.Major
+
+if ($hostRuntimeMajor -lt $requiredRuntimeMajor) {
+    throw @"
+This PowerShell host cannot package the app.
+
+  PowerShell:            $($PSVersionTable.PSVersion)
+  Host .NET runtime:     $([System.Environment]::Version)
+  OutlookWidget.Core:    targets .NET $requiredRuntimeMajor
+
+Packaging validates the authentication configuration by loading the product's own loader, which
+needs a host runtime at least as new as the assembly. An installed .NET $requiredRuntimeMajor SDK is
+not sufficient: the SDK builds the assembly, the host has to run it.
+
+Use PowerShell 7.6 or later, which runs on .NET 10. Check with:
+  `$PSVersionTable.PSVersion; [System.Environment]::Version
+"@
+}
+
+Write-Output "Host: PowerShell $($PSVersionTable.PSVersion) on .NET $([System.Environment]::Version) (Core targets .NET $requiredRuntimeMajor)"
+
+# ---------------------------------------------------------------------------
 # Locate the SDK tools
 # ---------------------------------------------------------------------------
 

@@ -6,7 +6,7 @@
   "4": "OutlookWidget.Core.Refresh",
   "5": "DisclosureTombstoneStore",
   "6": "Outlook Inbox Widget",
-  "7": "WidgetProvider",
+  "7": "DeliveryWorker",
   "8": ".Current",
   "9": "PackageIdentity",
   "10": ".Start",
@@ -34,7 +34,7 @@
   "32": "ProviderFactory",
   "33": "ProviderCardTests",
   "34": "StateCommitCoordinator",
-  "35": "DeliveryWorker",
+  "35": "RefreshLeaseStore",
   "36": "DeliveryState",
   "37": ".Locate"
 }

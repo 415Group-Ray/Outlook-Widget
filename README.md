@@ -123,6 +123,14 @@ supplies `makeappx.exe`, `signtool.exe`, and `makepri.exe`. `Test-PackagePrerequ
 for all three; MakePri indexes the scale- and targetsize-qualified icon assets, and without it the
 package build stops.
 
+Packaging also needs **PowerShell 7.6 or later**, because it runs on .NET 10. This is a requirement on
+the *host*, not on the SDK: `Build-Package.ps1` loads the built `OutlookWidget.Core` assembly to
+validate the authentication configuration with the product's own loader, so the host runtime must be
+at least as new as the framework Core targets. PowerShell 7.0 through 7.4 run on .NET 3.1 to 8 and
+cannot load it, even with a .NET 10 SDK installed — the SDK builds the assembly, the host has to run
+it. The preflight and the build script both check this, and the required version is read from Core's
+project file rather than hardcoded.
+
 ```bash
 dotnet test
 ```

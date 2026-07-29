@@ -56,7 +56,8 @@ pwsh -File scripts/Test-PackagePrerequisites.ps1
 | New Outlook | `Microsoft.OutlookForWindows` **1.2026.713.100**, family `Microsoft.OutlookForWindows_8wekyb3d8bbwe` |
 | .NET SDK | 10.0.302 (installed during this session; the machine previously had runtimes only) |
 | Visual Studio | **Not installed**, and not needed. Packaging is done directly with the Windows SDK tools |
-| Windows SDK | **10.0.26100** (installed during this session). `makeappx.exe` and `signtool.exe` both resolve under `Windows Kits\10\bin\10.0.26100.0\x64` |
+| Windows SDK | **10.0.26100** (installed during this session). `makeappx.exe`, `signtool.exe`, and `makepri.exe` all resolve under `Windows Kits\10\bin\10.0.26100.0\x64` |
+| PowerShell host | **7.6.4 on .NET 10.0.10.** Recorded because it is a packaging prerequisite rather than incidental: the build script loads the built `net10.0-windows` Core assembly to validate authentication configuration, so the host runtime must be at least as new as the framework Core targets. PowerShell 7.0–7.4 run on .NET 3.1–8 and could not, even with the .NET 10 SDK installed |
 | Developer Mode | Off (`AllowDevelopmentWithoutDevLicense` absent). A properly signed, trusted MSIX installed without it, confirming it is not required for this workflow |
 | Elevation | Available. Used once, for the certificate import |
 | `LocalMachine\TrustedPeople` | Writable. The development certificate imported successfully — see gate 1 |

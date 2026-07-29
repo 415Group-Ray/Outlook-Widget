@@ -321,6 +321,44 @@ else {
         -Detail 'vswhere.exe not found, so no Visual Studio installation was detected. MSIX packaging and the WinUI designer path need the VS workload; the Core library and its tests do not.'
 }
 
+# The PowerShell host's own runtime, which is a packaging prerequisite and not an obvious one.
+#
+# Build-Package.ps1 validates the authentication configuration by loading the built Core assembly
+# with Add-Type, so the host runtime must be at least as new as the framework Core targets.
+# `#Requires -Version 7.0` cannot express this: PowerShell 7.0 through 7.4 run on .NET 3.1 to 8, and
+# only 7.5 and later are on .NET 9 or newer. So a supported PowerShell 7 host with a .NET 10 SDK
+# installed can still fail to load a net10.0 assembly - the SDK builds it, the host runs it. Without
+# this row the preflight would pass such a machine and every package build would stop.
+#
+# The required version is read from the project file rather than hardcoded, so it cannot go stale in
+# the direction of accepting a host that is too old.
+$coreProjectPath = Join-Path (Split-Path -Parent $PSScriptRoot) 'src\OutlookWidget.Core\OutlookWidget.Core.csproj'
+$requiredRuntimeMajor = $null
+
+if (Test-Path -LiteralPath $coreProjectPath) {
+    [xml]$coreProjectXml = Get-Content -LiteralPath $coreProjectPath -Raw
+    $coreTfm = $coreProjectXml.Project.PropertyGroup.TargetFramework | Where-Object { $_ } | Select-Object -First 1
+
+    if ($coreTfm -match '^net(?<major>\d+)\.') {
+        $requiredRuntimeMajor = [int]$Matches['major']
+    }
+}
+
+$hostRuntime = [System.Environment]::Version
+
+if (-not $requiredRuntimeMajor) {
+    Add-Result -Name 'PowerShell host runtime' -Outcome 'Warn' -Category 'Tooling' `
+        -Detail "Could not read OutlookWidget.Core's TargetFramework from $coreProjectPath, so the host runtime requirement could not be checked. Packaging verifies it again and will stop if the host is too old."
+}
+elseif ($hostRuntime.Major -ge $requiredRuntimeMajor) {
+    Add-Result -Name 'PowerShell host runtime' -Outcome 'Pass' -Category 'Tooling' `
+        -Detail "PowerShell $($PSVersionTable.PSVersion) on .NET $hostRuntime, which can load the net$requiredRuntimeMajor.0 Core assembly that packaging uses to validate authentication configuration."
+}
+else {
+    Add-Result -Name 'PowerShell host runtime' -Outcome 'Fail' -Category 'Tooling' `
+        -Detail "PowerShell $($PSVersionTable.PSVersion) runs on .NET $hostRuntime, but OutlookWidget.Core targets .NET $requiredRuntimeMajor. Packaging loads that assembly to validate authentication configuration and will stop here. An installed .NET $requiredRuntimeMajor SDK is not sufficient - the SDK builds the assembly, the host has to run it. Use PowerShell 7.6 or later, which runs on .NET 10."
+}
+
 # MakeAppx, SignTool and MakePri ship with the Windows SDK. Without them there is no way
 # to produce or sign an MSIX, which is a hard stop for every packaging gate.
 #
