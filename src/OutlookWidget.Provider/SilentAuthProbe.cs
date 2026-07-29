@@ -212,14 +212,29 @@ internal sealed class SilentAuthProbe : IDisposable
             TokenAcquisitionStatus status =
                 (await silent.AcquireAsync(_shutdown.Token).ConfigureAwait(false)).Status;
 
+            AuthenticationOptions options = _configuration.Options!;
+
+            // A successful acquisition retires any approval-required record for this registration, and
+            // this is the only place that can notice.
+            //
+            // The store's remarks used to argue staleness was self-correcting because Refine never
+            // overrides Acquired. That holds only while the token keeps working. Once an administrator
+            // grants consent the provider simply succeeds — and the companion, whose success path is the
+            // only other place that clears, may never run interactively again. The record then survives
+            // indefinitely, and the next *unrelated* InteractionRequired — a Conditional Access
+            // re-authentication, a removed account — would be relabelled as still needing an
+            // administrator. A resolved consent decision must not outlive its resolution.
+            if (status == TokenAcquisitionStatus.Acquired
+                && AuthorizationStateStore.TryRead(_paths, options) is not null)
+            {
+                AuthorizationStateStore.Clear(_paths, _logger);
+            }
+
             // Silent acquisition cannot distinguish "sign in" from "an administrator must approve": its
             // classifier maps consent failures to InteractionRequired on purpose, because self-consent
             // may still be available and this process cannot find out. Only the companion learns the
             // difference, by being refused interactively, and it records it for exactly this read.
-            //
-            // Refine rather than replace: an acquired token is never overridden, which is what keeps a
-            // stale record harmless.
-            return AuthorizationStateStore.Refine(status, _paths, _configuration.Options!);
+            return AuthorizationStateStore.Refine(status, _paths, options);
         }
         catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
         {

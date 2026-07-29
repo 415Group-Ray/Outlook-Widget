@@ -93,6 +93,33 @@ public sealed class AuthorizationStateStoreTests
     }
 
     [Fact]
+    public void A_resolved_consent_decision_must_not_outlive_its_resolution()
+    {
+        // Refine never overriding Acquired is necessary and was not sufficient, which is why the provider
+        // now clears on success. Once an administrator grants consent the provider simply succeeds
+        // silently, and the companion's success path -- the only other place that clears -- may never run
+        // interactively again. The record would then survive indefinitely and relabel the next
+        // *unrelated* interaction-required, such as a Conditional Access re-authentication or a removed
+        // account, as still needing an administrator.
+        //
+        // This asserts the sequence rather than a single call: refusal recorded, consent granted and the
+        // record cleared, then a later unrelated interaction-required stays interaction-required.
+        using var fixture = new CoordinationFixture();
+
+        AuthorizationStateStore.Write(
+            fixture.Paths, Registration, TokenAcquisitionStatus.ApprovalRequired, When);
+
+        // What the provider does on observing a successful silent acquisition.
+        Assert.NotNull(AuthorizationStateStore.TryRead(fixture.Paths, Registration));
+        AuthorizationStateStore.Clear(fixture.Paths);
+
+        Assert.Equal(
+            TokenAcquisitionStatus.InteractionRequired,
+            AuthorizationStateStore.Refine(
+                TokenAcquisitionStatus.InteractionRequired, fixture.Paths, Registration));
+    }
+
+    [Fact]
     public void Refinement_never_overrides_an_acquired_token()
     {
         // This is what makes a stale record harmless and why the store needs no expiry. If an

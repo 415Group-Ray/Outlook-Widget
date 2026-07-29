@@ -59,22 +59,36 @@ Distinguish four causes before changing anything:
   package was blocked."** The full text is more useful than the code: *the provided package has the
   same identity as an already-installed package but the contents are different.*
 
-  **This should no longer happen, and if it does the version derivation is what to look at.**
-  `Build-Package.ps1` now stamps Build and Revision automatically — Build from git commit height,
-  Revision from a per-commit build counter in `AppPackages\.package-version.json` — so every build
-  produces a higher version than the last.
+  **This should no longer happen, and there is nothing to edit if it does.**
+  `Build-Package.ps1` stamps Build and Revision itself — Build from git commit height, Revision from a
+  per-commit build counter in `src\OutlookWidget.Package\.package-version.json` — and also raises the
+  revision past whatever is already installed. Every build therefore produces a higher version than the
+  last, without anyone remembering to bump anything.
+
+  **Do not edit `Package.appxmanifest` to recover.** Its Build and Revision digits are placeholders that
+  packaging overwrites, so changing them accomplishes nothing; changing Major or Minor is a durable
+  identity decision, not a workaround for a failed install.
 
   Causes worth checking if you see this code anyway:
 
-  - **The state file was deleted while the commit height stayed the same.** Revision restarts at 0 and
-    can collide with a package already installed from the same commit. Build again: the counter now
-    advances past it.
+  - **A stale package was installed out of order,** for instance by passing an explicit older `.msix` to
+    the install script. Build again and install the newest.
+  - **The counter was deleted *and* nothing is installed to compare against** — for example packaging on
+    one machine for another. Build again; the counter now advances.
   - **History was rewritten,** so commit height went down. The script refuses this with a named error
-    rather than producing a downgrade, and the message says to delete the state file.
-  - **A stale package was installed out of order,** for instance by passing an explicit older `.msix`.
+    rather than producing a downgrade.
 
   The fix is never to uninstall to force it through: uninstalling loses widget pins and package-local
   cache and settings, which is a real cost for a problem another build solves.
+
+- **"Derived version … does not exceed the installed …"** from `Build-Package.ps1`, rather than from
+  deployment. This is the same conflict caught early and deliberately: the current branch's commit height
+  is at or below the branch the installed package came from, which happens at a fork point or in a fresh
+  clone of a shorter branch. No revision can fix it, because Build is compared before Revision.
+
+  The message lists the options — build from the branch with the greater height, raise Minor as a
+  deliberate decision, or remove the installed package accepting the loss of pins. It fails at build time
+  precisely so the third option is not the one you discover first.
 
   Background on why this is automated at all, because it is not obvious: **any commit changes every
   assembly in the package.** The .NET SDK embeds the git commit SHA in each assembly's informational
@@ -85,10 +99,6 @@ Distinguish four causes before changing anything:
 
   `Deterministic=true` does not prevent this and is not meant to: it makes a rebuild of the *same*
   commit reproducible, not builds across commits.
-
-  **The fix is to increment `Version` in `Package.appxmanifest` and rebuild.** Do not remove the
-  installed package to force it through: uninstalling loses widget pins and package-local cache and
-  settings, which is a real cost for a problem a version bump solves.
 
   It is worth stating what this is *not*, because the failure arrives with a list of plausible
   neighbours and none of them apply:

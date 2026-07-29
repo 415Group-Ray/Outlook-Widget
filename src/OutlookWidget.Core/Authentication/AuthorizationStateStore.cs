@@ -29,10 +29,20 @@ namespace OutlookWidget.Core.Authentication;
 /// sensitive lives here. It is inside the package store, so uninstall removes it like everything else.
 /// </para>
 /// <para>
-/// <b>Staleness is self-correcting, which is why there is no expiry.</b> If an administrator grants
-/// consent afterwards, silent acquisition starts succeeding, and a caller only consults this record when
-/// silent acquisition did <em>not</em> succeed. A stale record therefore cannot override a working token.
-/// The companion also clears it explicitly on a successful acquisition.
+/// <b>The record is cleared on success rather than expired, and both writers matter.</b> An earlier
+/// version of this argued staleness was self-correcting, because <see cref="Refine"/> never overrides a
+/// successful acquisition. That is true and was not enough. Once an administrator grants consent the
+/// provider simply succeeds silently, and the companion — whose success path also clears — may never run
+/// interactively again, so the record could survive indefinitely. The next *unrelated*
+/// <see cref="TokenAcquisitionStatus.InteractionRequired"/>, such as a Conditional Access
+/// re-authentication or a removed account, would then be relabelled as still needing an administrator.
+/// </para>
+/// <para>
+/// So the provider clears it too, on observing <see cref="TokenAcquisitionStatus.Acquired"/> with a
+/// record present. That makes the provider a writer of this one record, which is a narrow departure from
+/// the usual division of labour where the companion commits state — justified because the provider is the
+/// only process that observes consent starting to work, and an expiry would be an arbitrary number
+/// standing in for an observation that is available.
 /// </para>
 /// </remarks>
 public static class AuthorizationStateStore

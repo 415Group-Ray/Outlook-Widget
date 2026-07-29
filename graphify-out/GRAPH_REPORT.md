@@ -1,16 +1,16 @@
 # Graph Report - Outlook Widget  (2026-07-29)
 
 ## Corpus Check
-- 82 files · ~118,209 words
+- 82 files · ~119,190 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 966 nodes · 2148 edges · 42 communities (38 shown, 4 thin omitted)
+- 967 nodes · 2156 edges · 42 communities (39 shown, 3 thin omitted)
 - Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 256 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `79bcdfcb`
+- Built from commit: `28152d77`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -24,7 +24,7 @@
 - Outlook Inbox Widget
 - WidgetProvider
 - .Current
-- CoordinationFixture
+- .Record
 - .Start
 - CoordinationStaticAnalysisTests
 - PackageManifestTests
@@ -37,20 +37,20 @@
 - Disclosure Tombstones
 - Final Convergence Privacy Guarantee
 - AuthenticationConfigurationTests
-- RecordingLogger
-- .Record
+- CoordinationFixture
+- ProtectedCache
 - CoordinationPaths
 - PackageIdentity
 - ProviderFactory
 - ProviderCardTests
 - DeliveryWorker
-- .SignInAsync
+- .Locate
 - SkeletonCard
 - StateCommitCoordinator
 - CompanionWindow
 - ProtectedCache.cs
 - .Raise
-- IOperationalLogger
+- MutationLock
 
 ## God Nodes (most connected - your core abstractions)
 1. `CompanionWindow` - 31 edges
@@ -89,7 +89,7 @@
 - **Load-bearing coordination invariants** — readme_mutationlock_ref_struct, readme_mandatory_mutex_timeout, readme_single_flight_expiring_record, readme_provider_only_updatewidget, readme_one_suppression_file_per_operation, readme_cross_process_concurrency_suite [EXTRACTED 1.00]
 - **MSIX signing, publisher identity, and packaging chain** — docs_phase0_evidence_signing_decisions, docs_phase0_evidence_publisher_subject_quoting, docs_phase0_evidence_build_package_ps1, docs_phase0_evidence_msbuild_comma_path_constraint, docs_phase0_evidence_gate_1_signed_msix_install, docs_troubleshooting_install_failures [INFERRED 0.85]
 
-## Communities (42 total, 4 thin omitted)
+## Communities (42 total, 3 thin omitted)
 
 ### Community 0 - "AuthenticationOutcomeTests"
 Cohesion: 0.08
@@ -108,8 +108,8 @@ Cohesion: 0.11
 Nodes (13): Fact, Func, TimeSpan, DeliveryWorkerTests, Fact, ProtectedCacheTests, int, IReadOnlyList (+5 more)
 
 ### Community 4 - "OutlookWidget.Core.Refresh"
-Cohesion: 0.10
-Nodes (15): OutlookWidget.Core.Tests.TestInfrastructure, OutlookWidget.Core.Tests, OutlookWidget.Core.Authentication, OutlookWidget.Provider, OutlookWidget.Packaging, OutlookWidget.Core.Diagnostics, OutlookWidget.Core.Refresh, OutlookWidget.Core.Delivery (+7 more)
+Cohesion: 0.09
+Nodes (16): OutlookWidget.Core.Tests.TestInfrastructure, OutlookWidget.Core.Tests, OutlookWidget.Core.Authentication, OutlookWidget.Provider, OutlookWidget.Packaging, OutlookWidget.Core.Diagnostics, OutlookWidget.Core.Refresh, OutlookWidget.Core.Delivery (+8 more)
 
 ### Community 5 - "DisclosureTombstoneStore"
 Cohesion: 0.08
@@ -127,9 +127,9 @@ Nodes (27): IWidgetProvider, Func, IEnumerable, ProcessStartInfo, string, Outloo
 Cohesion: 0.09
 Nodes (19): TimeSpan, BootSessionStamp, DateTimeOffset, ISystemClock, SystemClock, Guid, JsonSerializerOptions, LeaseRecord (+11 more)
 
-### Community 9 - "CoordinationFixture"
+### Community 9 - ".Record"
 Cohesion: 0.15
-Nodes (10): EventWaitHandle, IDisposable, Action, bool, CancellationTokenSource, long, Thread, StateChangeListener (+2 more)
+Nodes (10): EventWaitHandle, TimeSpan, IOperationalLogger, NullOperationalLogger, Action, bool, CancellationTokenSource, long (+2 more)
 
 ### Community 10 - ".Start"
 Cohesion: 0.13
@@ -168,20 +168,20 @@ Cohesion: 0.67
 Nodes (3): Cross-Process Coordination, Expiring Refresh Lease, Stable Package Identity
 
 ### Community 27 - "AuthenticationConfigurationTests"
-Cohesion: 0.10
-Nodes (16): Guid, JsonSerializerOptions, string, AuthenticationConfiguration, ConfigurationFile, Guid, int, IntPtr (+8 more)
+Cohesion: 0.16
+Nodes (10): Guid, JsonSerializerOptions, string, AuthenticationConfiguration, ConfigurationFile, Fact, InlineData, string (+2 more)
 
-### Community 28 - "RecordingLogger"
-Cohesion: 0.17
-Nodes (11): Count, Id, Outcome, OperationalEventId, OperationalOutcome, TimeSpan, NullOperationalLogger, IReadOnlyList (+3 more)
+### Community 28 - "CoordinationFixture"
+Cohesion: 0.15
+Nodes (12): Count, Id, Outcome, OperationalEventId, OperationalOutcome, TimeSpan, IReadOnlyList, List (+4 more)
 
-### Community 29 - ".Record"
-Cohesion: 0.22
-Nodes (6): byte, int, CacheCommitResult, ProtectedCache, TimeSpan, SuppressMessage
+### Community 29 - "ProtectedCache"
+Cohesion: 0.27
+Nodes (5): byte, int, CacheCommitResult, ProtectedCache, SuppressMessage
 
 ### Community 30 - "CoordinationPaths"
-Cohesion: 0.08
-Nodes (27): ImmutableArray, AuthenticationOptions, DateTimeOffset, Guid, JsonSerializerOptions, AuthorizationRecord, AuthorizationStateStore, Func (+19 more)
+Cohesion: 0.07
+Nodes (34): ImmutableArray, IPublicClientApplication, Task, Program, AuthenticationConfigurationResult, AuthenticationConfigurationStatus, AuthenticationOptions, DateTimeOffset (+26 more)
 
 ### Community 31 - "PackageIdentity"
 Cohesion: 0.21
@@ -195,13 +195,13 @@ Nodes (7): PreserveSig, Func, Guid, int, IntPtr, IClassFactory, ProviderFactory
 Cohesion: 0.22
 Nodes (8): SemaphoreSlim, bool, CancellationTokenSource, Lock, long, Thread, DeliveryWorker, IWidgetDeliverySink
 
-### Community 35 - ".SignInAsync"
-Cohesion: 0.10
-Nodes (15): IPublicClientApplication, Task, Program, AuthenticationConfigurationResult, Func, PackagedState, PackagedStateResult, PackagedStateStatus (+7 more)
+### Community 35 - ".Locate"
+Cohesion: 0.12
+Nodes (13): Func, Guid, int, IntPtr, LibraryImport, uint, Program, Fact (+5 more)
 
 ### Community 36 - "SkeletonCard"
-Cohesion: 0.17
-Nodes (11): Detail, Headline, Instance, AuthenticationConfigurationStatus, DeliveryState, JsonSerializerOptions, SkeletonCard, SkeletonCardData (+3 more)
+Cohesion: 0.19
+Nodes (10): Detail, Headline, Instance, DeliveryState, JsonSerializerOptions, SkeletonCard, SkeletonCardData, State (+2 more)
 
 ### Community 37 - "StateCommitCoordinator"
 Cohesion: 0.32
@@ -215,9 +215,13 @@ Nodes (16): MarshalAs, MSG, RECT, Func, int, IntPtr, LibraryImport, string (+8 m
 Cohesion: 0.16
 Nodes (6): CacheCommitStatus, CacheReadResult, CacheReadStatus, CurrentUserDataProtector, IDataProtector, FailingProtector
 
-### Community 41 - "IOperationalLogger"
-Cohesion: 0.29
-Nodes (8): Mutex, IOperationalLogger, bool, CancellationToken, int, MutationLock, MutationLockOutcome, MutationMutex
+### Community 40 - ".Raise"
+Cohesion: 0.48
+Nodes (3): StateChangeSignal, Fact, StateChangeSignalTests
+
+### Community 41 - "MutationLock"
+Cohesion: 0.27
+Nodes (8): IDisposable, Mutex, bool, CancellationToken, int, MutationLock, MutationLockOutcome, MutationMutex
 
 ## Ambiguous Edges - Review These
 - `Tray/Popover Fallback Surface` → `Widgets Policy Preflight (AllowNewsAndInterests)`  [AMBIGUOUS]
@@ -226,22 +230,22 @@ Nodes (8): Mutex, IOperationalLogger, bool, CancellationToken, int, MutationLock
 ## Knowledge Gaps
 - **37 isolated node(s):** `net10.0-windows`, `Microsoft.Identity.Client`, `Microsoft.NET.Sdk`, `ConfigurationFile`, `CacheReadStatus` (+32 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `Tray/Popover Fallback Surface` and `Widgets Policy Preflight (AllowNewsAndInterests)`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `IOperationalLogger` connect `IOperationalLogger` to `AuthenticationOutcomeTests`, `DeliveryWorker`, `.RefreshAsync`, `DisclosureTombstoneStore`, `StateCommitCoordinator`, `WidgetProvider`, `.Current`, `CoordinationFixture`, `AuthenticationConfigurationTests`, `RecordingLogger`, `.Record`, `CoordinationPaths`?**
-  _High betweenness centrality (0.089) - this node is a cross-community bridge._
-- **Why does `OutlookWidget.Core.Refresh` connect `OutlookWidget.Core.Refresh` to `.RefreshAsync`, `DisclosureTombstoneStore`, `StateCommitCoordinator`, `ProtectedCache.cs`, `.Current`, `IOperationalLogger`, `CoordinationStaticAnalysisTests`?**
+- **Why does `IOperationalLogger` connect `.Record` to `AuthenticationOutcomeTests`, `DeliveryWorker`, `.RefreshAsync`, `DisclosureTombstoneStore`, `StateCommitCoordinator`, `WidgetProvider`, `.Current`, `MutationLock`, `AuthenticationConfigurationTests`, `CoordinationFixture`, `ProtectedCache`, `CoordinationPaths`?**
+  _High betweenness centrality (0.090) - this node is a cross-community bridge._
+- **Why does `OutlookWidget.Core.Refresh` connect `OutlookWidget.Core.Refresh` to `.RefreshAsync`, `DisclosureTombstoneStore`, `StateCommitCoordinator`, `ProtectedCache.cs`, `.Current`, `MutationLock`, `CoordinationStaticAnalysisTests`?**
   _High betweenness centrality (0.076) - this node is a cross-community bridge._
 - **Why does `OutlookWidget.Core.Tests.TestInfrastructure` connect `OutlookWidget.Core.Refresh` to `CoordinationStaticAnalysisTests`, `.Start`, `.SeedState`?**
   _High betweenness centrality (0.054) - this node is a cross-community bridge._
 - **What connects `net10.0-windows`, `Microsoft.Identity.Client`, `Microsoft.NET.Sdk` to the rest of the system?**
   _37 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `AuthenticationOutcomeTests` be split into smaller, more focused modules?**
-  _Cohesion score 0.08127721335268505 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07896575821104122 - nodes in this community are weakly interconnected._
 - **Should `OutlookWidget.Core (shared .NET library)` be split into smaller, more focused modules?**
   _Cohesion score 0.05081585081585081 - nodes in this community are weakly interconnected._

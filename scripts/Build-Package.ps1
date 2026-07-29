@@ -278,6 +278,8 @@ Fix it with:  git fetch --unshallow
     #
     # Asking the machine what is installed makes the counter clone-independent for the case that actually
     # matters. It only ever raises the revision, so building for a different machine is unaffected.
+    $installedVersion = $null
+
     try {
         $installed = Get-AppxPackage -Name $IdentityName -ErrorAction Stop |
             Sort-Object -Property { [version]$_.Version } -Descending |
@@ -302,8 +304,30 @@ Fix it with:  git fetch --unshallow
 
     $resolved = "$major.$minor.$build.$revision"
 
-    # Refuse to go backwards. MSIX will not install a lower version over a higher one, and discovering
-    # that at install time costs a remove-and-reinstall, which loses widget pins.
+    # Compare the WHOLE resolved version against what is installed, not just the revision.
+    #
+    # The revision adjustment above only fires when the installed Build equals this one. A branch whose
+    # commit height is LOWER than the installed package — a fork point, or a fresh clone of a shorter
+    # branch — skips it entirely and derives a version MSIX will refuse as a downgrade. No revision can
+    # rescue that, because Build is compared before Revision: 0.3.20.999 is still below 0.3.30.0.
+    #
+    # So this stops rather than producing an unusable package. Failing here names the cause; failing at
+    # install time names the package, and the tempting remedy there is to uninstall, which loses the pin.
+    if ($installedVersion -and [version]$resolved -le $installedVersion) {
+        throw @"
+Derived version $resolved does not exceed the installed $installedVersion, so the package could not be
+installed over it.
+
+This normally means the current branch's commit height is below the branch the installed package was
+built from. Options, in order of preference:
+
+  1. Build from the branch with the greater height, or merge it in.
+  2. Raise Minor in Package.appxmanifest -- a deliberate identity decision, not a workaround.
+  3. Remove the installed package first, accepting that this loses widget pins and package-local state.
+"@
+    }
+
+    # Refuse to go backwards relative to this machine's own build history, for the same reason.
     if (Test-Path -LiteralPath $statePath) {
         try {
             $previous = (Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json).version

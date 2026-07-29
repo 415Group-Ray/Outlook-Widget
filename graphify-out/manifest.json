@@ -10,8 +10,8 @@
     "semantic_hash": ""
   },
   "scripts/Build-Package.ps1": {
-    "mtime": 1785357442.9096625,
-    "ast_hash": "7e74da8c0239c093a8f5a4c601209796",
+    "mtime": 1785358157.9840832,
+    "ast_hash": "f308f41aad79330b484cbd6522058f8f",
     "semantic_hash": ""
   },
   "scripts/Install-DevelopmentPackage.ps1": {
@@ -220,13 +220,13 @@
     "semantic_hash": ""
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1785357671.8526337,
-    "ast_hash": "0d5cb9b97aa8e362d77a8e3ff8b12118",
+    "mtime": 1785358299.8239124,
+    "ast_hash": "8deb02b35eb444195241275a38932df8",
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
-    "mtime": 1785354262.9206693,
-    "ast_hash": "2ac8ac377976ffe4b88896af815ed8cf",
+    "mtime": 1785358183.0485282,
+    "ast_hash": "075de06358220b1140eaf61bfe94acd6",
     "semantic_hash": ""
   },
   "AGENTS.md": {
@@ -285,8 +285,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Provider/Cards/SkeletonCard.cs": {
-    "mtime": 1785350337.132898,
-    "ast_hash": "20989a8dd160bb6b1353ca8e3be18fb8",
+    "mtime": 1785358102.8752573,
+    "ast_hash": "d169e97c175c28cb73733384997b6c43",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Provider/Cards/WidgetVerbs.cs": {
@@ -550,8 +550,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Provider/SilentAuthProbe.cs": {
-    "mtime": 1785357411.4988616,
-    "ast_hash": "3f9595ff774bf6893eba7262ce5def84",
+    "mtime": 1785358116.1653156,
+    "ast_hash": "7282cd29107de4483b51499525667203",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/StateChangeSignalTests.cs": {
@@ -560,13 +560,13 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs": {
-    "mtime": 1785357403.0241287,
-    "ast_hash": "0a32c7a71516c63ab75b901d9bd8b01e",
+    "mtime": 1785358127.9955735,
+    "ast_hash": "df349f1755d7b542e5a58bd83c2b4ab8",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/AuthorizationStateStoreTests.cs": {
-    "mtime": 1785357501.896068,
-    "ast_hash": "9b70e8383fc5a28bf527990eeec27d30",
+    "mtime": 1785358196.5761864,
+    "ast_hash": "45443f834ee4dc546fe322ab73389cf1",
     "semantic_hash": ""
   }
 }

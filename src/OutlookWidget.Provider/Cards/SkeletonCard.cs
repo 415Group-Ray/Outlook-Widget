@@ -175,10 +175,25 @@ internal static class SkeletonCard
 
         bool disclosureReduced = state.Mode != DisclosureMode.Full;
 
-        // Anything other than a token — but not the pending case, which is not yet a problem and
-        // resolves itself within moments of provider start.
-        bool authNeedsAttention =
-            SilentAuthStatus is not null and not TokenAcquisitionStatus.Acquired;
+        // An authentication state the companion can actually address — not merely any non-success.
+        //
+        // Excluded: null (pending, not yet a problem, resolves within moments of provider start) and
+        // Failed, whose remedy is the next refresh rather than opening anything. Including Failed was a
+        // defect with a cost beyond a useless button: needsCompanion suppresses mail actions at the small
+        // size, so a transient network error removed **Open Outlook** — which needs no token at all — and
+        // replaced it with a companion trip that would report nothing actionable.
+        //
+        // Included, deliberately, even though signing in cannot fix them: BrokerUnavailable,
+        // NoConfiguration, and ApprovalRequired. The companion is where diagnostics live, which is what
+        // section 3 means by a broker-unavailable card carrying "an action to open the companion", and
+        // what the section 8 state table means by "companion diagnostics". The button is labelled Open
+        // companion rather than Sign in, so it promises a place to look rather than a fix.
+        bool authNeedsAttention = SilentAuthStatus is
+            TokenAcquisitionStatus.InteractionRequired
+            or TokenAcquisitionStatus.Cancelled
+            or TokenAcquisitionStatus.ApprovalRequired
+            or TokenAcquisitionStatus.BrokerUnavailable
+            or TokenAcquisitionStatus.NoConfiguration;
 
         // The companion is the only way out of a suppressed or unusable state, so it is offered
         // whenever the card cannot show real content.

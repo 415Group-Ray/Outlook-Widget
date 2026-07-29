@@ -344,6 +344,20 @@ Two changes, because the file was the wrong authority:
 Verified against the exact scenario: with `0.3.17.0` installed and the counter deleted, the next build
 derived **`0.3.17.1`** rather than repeating `0.3.17.0`.
 
+**A third round found that raising the revision is not always possible**, and the script now stops
+instead. The revision adjustment only applies when the installed Build equals the derived one; a branch
+whose commit height is *lower* than the installed package — a fork point, or a fresh clone of a shorter
+branch — skipped it and produced a version MSIX refuses. No revision can rescue that, because Build is
+compared before Revision: `0.3.20.999` is still below `0.3.30.0`. The whole resolved version is now
+compared against the installed one and the build fails with the options named, so the remedy that loses
+widget pins is not the one discovered first. Verified by temporarily lowering the manifest's minor
+against the installed 0.3.17.0:
+
+```
+Derived version 0.2.18.1 does not exceed the installed 0.3.17.0, so the package could not be
+installed over it.
+```
+
 The tracked manifest is left alone deliberately: the version stops appearing in every diff, and the
 packaged value stays derived rather than remembered. The layout manifest is stamped by a substitution
 scoped to the `Identity` element, and the script then asserts both that the stamp landed and that the
