@@ -639,22 +639,30 @@ Keep volatile outputs such as `bin/`, `obj/`, `.vs/`, `AppPackages/`, and test r
 
 If a build or MSIX packaging operation encounters a sharing violation plausibly caused by OneDrive, record it, pause synchronization, and retry the same operation. Relocating the clone or redirecting outputs outside the project is a fallback only after the problem recurs, and must include an explicit Codex/Claude workspace-permission check before adoption. The signing private key remains outside both the repository and OneDrive as specified in section 15.
 
+Entries marked *planned* do not exist yet; everything else is what the repository actually
+contains. The solution is an XML `.slnx` rather than a classic `.sln`.
+
 ```text
-OutlookWidget.sln
+OutlookWidget.slnx
 Directory.Build.props
 Directory.Packages.props
 nuget.config
 .editorconfig
+.gitattributes
 .gitignore
 README.md
+TECHNICAL_PLAN.md
+AGENTS.md
+CLAUDE.md
 src/
   OutlookWidget.App/
-    Views/
-    ViewModels/
-    Services/
-    Assets/
-    InteractiveAuthService.cs
+    Program.cs
     CompanionWindow.cs
+    InteractiveAuthService.cs
+    Views/            planned — Phase 2 WinUI conversion
+    ViewModels/       planned — Phase 2 WinUI conversion
+    Services/         planned — Phase 2 WinUI conversion
+    Assets/           planned — Phase 2 WinUI conversion
   OutlookWidget.Provider/
     Program.cs
     WidgetProvider.cs
@@ -662,32 +670,45 @@ src/
     WidgetDeliverySink.cs
     WidgetInstanceRegistry.cs
     CompanionLauncher.cs
+    SilentAuthProbe.cs
     Cards/
   OutlookWidget.Packaging/
     PackageIdentity.cs
     PackagedState.cs
   OutlookWidget.Core/
     Authentication/
-    Graph/
     Caching/
-    Models/
     Refresh/
+    Delivery/
     Launching/
     Diagnostics/
+    Graph/            planned — GraphMailClient
+    Models/           planned — snapshot models
   OutlookWidget.Package/
     Package.appxmanifest
+    .package-version.json
     Assets/
+    config/
 tests/
   OutlookWidget.Core.Tests/
-  OutlookWidget.IntegrationTests/
+  OutlookWidget.IntegrationTests/   planned
 docs/
   app-registration.md
   troubleshooting.md
+  phase0-evidence.md
 scripts/
   Test-PackagePrerequisites.ps1
+  New-DevelopmentCertificate.ps1
+  New-Assets.ps1
+  Build-Package.ps1
   Install-DevelopmentPackage.ps1
   Test-OutlookLaunch.ps1
+graphify-out/
 ```
+
+`src/OutlookWidget.Package/.package-version.json` sits beside the package *project* rather than
+inside `AppPackages/`, which is build output and exists to be deletable. See section 15 and the
+evidence report.
 
 `OutlookWidget.Packaging` was added during Phase 0 and is not a surface. It holds only the MSIX package-identity interop, because both executables need the package family name and the core must not acquire it: `CoordinationPaths.Resolve` takes that name as a parameter precisely so the core stays surface-agnostic and free of any knowledge that MSIX exists. Duplicating the interop in the companion and the provider would honour that rule and create a worse problem. See the Phase 0 evidence report for the alternatives considered.
 
@@ -717,14 +738,14 @@ Reconfirm stable versions immediately before scaffolding. As of the planning dat
 
 - Windows 11 24H2 build 26100 or later for the initial supported/tested baseline.
 - New Outlook installed on at least one test PC.
-- Current Visual Studio 2022 with the WinUI application development workload.
+- ~~Current Visual Studio 2022 with the WinUI application development workload.~~ **Not required, measured during Phase 0.** Every build, package, sign, and install step is driven by the scripts in `scripts/` using the .NET SDK and the Windows SDK tools directly, and the reference machine has no Visual Studio installation at all. It stays listed because Phase 2's WinUI conversion may want the workload for the XAML designer; the preflight therefore reports its absence as a warning rather than a failure.
 - Current stable Windows SDK, including `makeappx.exe`, `signtool.exe`, and `makepri.exe`. MakePri is required, not optional: it indexes the scale- and targetsize-qualified icon assets, and the package build stops without it.
 - .NET 10 LTS with the current security patch.
 - **PowerShell 7.6 or later**, which runs on .NET 10. This is a constraint on the host, not the SDK: the packaging script loads the built `OutlookWidget.Core` assembly to validate authentication configuration with the product's own loader, so the host runtime must be at least as new as the framework Core targets. PowerShell 7.0–7.4 run on .NET 3.1–8 and cannot load it even with a .NET 10 SDK present. Both the preflight and the build script check this, deriving the required version from Core's project file rather than hardcoding it.
 - Windows App SDK 2.3.1 stable; do not use Preview or Experimental packages.
 - Centrally pinned `Microsoft.Identity.Client`, `Microsoft.Identity.Client.Broker`, and `Microsoft.Identity.Client.Extensions.Msal` packages, all at one matching version. The extension carries the cross-platform token cache the two processes share; see section 12 for why it is required rather than optional, and why a hand-rolled DPAPI file was rejected.
 - Repository-scoped `nuget.config` containing only approved package feeds and package-source mapping where practical.
-- Developer Mode on development PCs.
+- ~~Developer Mode on development PCs.~~ **Not required, measured during Phase 0.** A properly signed MSIX whose certificate is trusted in `LocalMachine\TrustedPeople` installed with Developer Mode off (`AllowDevelopmentWithoutDevLicense` absent), so this workflow does not depend on it.
 - Access to create the Entra app registration in the tenant.
 - A mailbox with Focused Inbox enabled and enough read/unread messages for query verification. The author's own mailbox is acceptable for a single-user tool.
 - A second account for switch testing. If no second account is available, sign-out and sign-in with the same account validates logout, cache clearing, and reacquisition only — it does **not** exercise account switching or cross-account cache isolation, because there is no second identity for data to leak between. In that case record account switching as untested rather than verified, and treat §4's "never merge data from two accounts" rule as unproven until a second account exists.
@@ -744,7 +765,7 @@ Current-version sources:
 5. Deploy the signed development package rather than relying on an unpackaged run.
 6. Launch the companion normally and attach its debugger.
 7. Pin the widget through the Widgets Board.
-8. Configure Visual Studio to debug the installed provider when the Widgets host activates it.
+8. Attach a debugger to the installed provider when the Widgets host activates it. Visual Studio's packaged-app debugging is one way and is not installed here; the provider's own readout — the large card's diagnostic line — plus attaching to the running `OutlookWidget.Provider` process is what Phase 0 actually used.
 9. Use a test mailbox and verify Graph responses through the app’s sanitized diagnostics; do not save raw mailbox responses.
 10. Run focused unit/integration tests after each component change.
 11. Run the complete test suite and package-install test before each milestone review.

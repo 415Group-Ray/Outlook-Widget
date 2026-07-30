@@ -14,15 +14,16 @@
 
       - The WIDGET PICKER SCREENSHOTS are accepted. They illustrate the approved medium card -
         unread count plus the newest messages - which the provider does not render yet, because
-        authentication and Graph arrive in Phase 1 slice 2. Having been accepted, the screenshot is
+        Graph access arrives with the next core slice. Having been accepted, the screenshot is
         the design reference the medium card is expected to match, not merely a preview image.
         Sample senders and subjects are fictional and no mailbox data was involved.
 
-      - The APP ICON is NOT accepted. Two designs were rejected: a white envelope on a filled blue
-        tile, which looked dated beside the glyph-on-transparency icons around it in the widget
-        picker, and a flatter transparent envelope. A third attempt, an open envelope with a card
-        rising out of it, was also rejected and is not in this file. The icon is being designed
-        separately and will be supplied later. What ships now is interim.
+      - The APP ICON is NOT accepted. Three designs were rejected: a white envelope on a filled
+        blue tile, which looked dated beside the glyph-on-transparency icons around it in the widget
+        picker; a flatter transparent envelope, which is what this file still draws and what ships
+        as the interim icon; and an open envelope with a card rising out of it, which was discarded
+        before packaging and is not in this file. The icon is being designed separately and will be
+        supplied later.
 
     415 Group branding remains declined; that part of the decision holds. The open question is the
     icon's design, not whether it carries a company mark.
@@ -279,7 +280,8 @@ function New-WidgetScreenshot {
         300x304 with transparent rounded corners, per the picker documentation, showing the medium
         size card. The content is an ILLUSTRATION of the approved medium layout - unread count plus
         the newest messages - not a capture of the current build, which still renders a
-        coordination-state placeholder because authentication does not exist yet. Sample senders and
+        coordination- and authentication-state placeholder because Graph access does not exist yet.
+        Sample senders and
         subjects are obviously fictional; no mailbox data is involved in producing this file.
     #>
     param([Parameter(Mandatory)][ValidateSet('Dark', 'Light')][string]$Theme)

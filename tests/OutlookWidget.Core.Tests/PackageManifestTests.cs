@@ -198,7 +198,8 @@ public sealed class PackageManifestTests
     {
         // Omitting Capabilities defaults to large only. The card uses $when conditions on
         // $host.widgetSize for small and medium, so a large-only registration would leave those
-        // branches unreachable and gate 5 — two instances at different sizes — unexercisable.
+        // branches unreachable and gate 5's replacement — one instance resized to small, medium,
+        // and large — unexercisable.
         XElement definition = Root().Descendants()
             .Single(e => e.Name.LocalName == "Definition"
                          && e.Attribute("Id")!.Value == "InboxWidget");
@@ -210,7 +211,10 @@ public sealed class PackageManifestTests
 
         Assert.Equal(["large", "medium", "small"], sizes);
 
-        // Multiple instances of one definition is what gates 4 and 5 pin twice.
+        // AllowMultiple is asserted even though Phase 0 measured that this host declines a second
+        // instance. The provider permits multiple instances and keys size and active state per
+        // widget ID, so the declaration is truthful and must not be flipped to false to match an
+        // observed host limitation. See docs/phase0-evidence.md on the superseded gate 5.
         Assert.Equal("true", definition.Attribute("AllowMultiple")?.Value);
     }
 

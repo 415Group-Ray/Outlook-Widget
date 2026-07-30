@@ -180,11 +180,18 @@
                   <!--
                     One definition with AllowMultiple, rather than several definitions.
 
-                    Gate 4 requires GetWidgetInfos() to restore every instance and gate 5 requires
-                    two instances at different sizes to render independently; both are exercised by
-                    pinning this one definition twice. Extra definitions would add manifest surface
-                    without testing anything the provider does differently, because size and active
-                    state are per instance rather than per definition.
+                    AllowMultiple stays true even though Phase 0 measured that this host does not
+                    honour it: once the widget is pinned, the picker entry is greyed out and marked
+                    as added, so a second instance cannot be pinned and gate 5 was superseded by a
+                    single-instance resize check. The declaration is what the schema documents for a
+                    provider that permits multiple instances, which this one does — size and active
+                    state are per instance rather than per definition — and the host constraint is
+                    the host's.
+
+                    Extra definitions would add manifest surface without testing anything the
+                    provider does differently, and a definition shipped only to restore
+                    multi-instance test coverage would then have to be supported or removed later.
+                    See docs/phase0-evidence.md.
 
                     All three sizes are declared. Omitting Capabilities entirely would default to
                     large only, and the card's $when conditions on $host.widgetSize would then never

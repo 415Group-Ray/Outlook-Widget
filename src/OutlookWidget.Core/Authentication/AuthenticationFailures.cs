@@ -61,10 +61,16 @@ public static class AuthenticationFailures
     private const string AuthenticationCanceled = "authentication_canceled";
 
     /// <summary>
-    /// Entra codes for the consent states. Heuristic, and gate 8 is what confirms or corrects them:
-    /// 65001 is "the user or administrator has not consented", 90094 is "admin consent required", and
-    /// 65004 is "the user declined the consent prompt".
+    /// Entra codes for the consent states: 65001 is "the user or administrator has not consented",
+    /// 90094 is "admin consent required", and 65004 is "the user declined the consent prompt".
     /// </summary>
+    /// <remarks>
+    /// These were a heuristic awaiting gate 8, and gate 8 corrected them rather than confirming them.
+    /// The reference tenant's Microsoft-managed consent policy blocked self-consent while surfacing
+    /// <em>none</em> of these numbers, so matching on them alone under-reports. That is why
+    /// <see cref="AccessDenied"/> and <see cref="ConsentRequired"/> exist beside them, and why the
+    /// approval state is claimed only on a definite signal. See docs/phase0-evidence.md.
+    /// </remarks>
     private static readonly string[] AdminConsentCodes = ["AADSTS90094", "AADSTS65001"];
 
     private const string UserDeclinedConsentCode = "AADSTS65004";

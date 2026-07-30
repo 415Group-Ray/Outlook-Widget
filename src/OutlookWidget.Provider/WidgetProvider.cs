@@ -29,7 +29,11 @@ namespace OutlookWidget.Provider;
 /// <para>
 /// <b>Per instance, never global.</b> Size and active state are properties of one pinned widget.
 /// A provider that tracked either process-wide would render two instances at whichever size was
-/// last reported, which is exactly the failure gate 5 tests for.
+/// last reported. That is the failure gate 5 was written to catch; the Widgets Board was measured
+/// to permit only one instance per definition, so the gate was superseded by a single-instance
+/// resize check and this requirement is currently unobservable through two simultaneous instances.
+/// It is kept rather than relaxed, because the constraint is the host's and per-instance keying
+/// costs nothing.
 /// </para>
 /// <para>
 /// <b>Phase 0 scope.</b> There is no Graph call and no refresh transaction here yet: a refresh action
