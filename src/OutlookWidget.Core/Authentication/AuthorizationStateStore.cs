@@ -23,10 +23,18 @@ namespace OutlookWidget.Core.Authentication;
 /// forbids, arrived at through a cross-process gap rather than a classification bug.
 /// </para>
 /// <para>
-/// <b>Deliberately not DPAPI-protected, unlike the snapshot.</b> The record holds one enum member and a
-/// timestamp. There is no mailbox content, no account, no tenant, and no token in it, so encrypting it
-/// would imply a protection requirement that does not exist and suggest to a later reader that something
-/// sensitive lives here. It is inside the package store, so uninstall removes it like everything else.
+/// <b>Deliberately not DPAPI-protected, unlike the snapshot.</b> The record holds four things: a status
+/// enum, a timestamp, and the tenant and client IDs of the registration it belongs to — the last two in
+/// the clear. There is no mailbox content, no account, and no token in it.
+/// </para>
+/// <para>
+/// The identifiers are disclosed here rather than described away, because an earlier version of this
+/// paragraph said the record contained no tenant at all and was wrong the moment the registration scoping
+/// was added. They are not secrets: they appear in network traffic, and <c>authentication.json</c> already
+/// ships both beside the two executables in this same package, so the record adds no exposure that the
+/// package did not already have. Encrypting it would imply a protection requirement that does not exist
+/// and suggest to a later reader that something sensitive lives here. It is inside the package store, so
+/// uninstall removes it like everything else.
 /// </para>
 /// <para>
 /// <b>The record is cleared on success rather than expired, and both writers matter.</b> An earlier

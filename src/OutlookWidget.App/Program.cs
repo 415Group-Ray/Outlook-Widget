@@ -80,12 +80,40 @@ internal static class Program
         CoordinationPaths paths = state.Paths!;
         paths.EnsureCreated();
 
-        _client ??= await BrokerClient
-            .CreateAsync(configuration.Options!, paths, () => CompanionWindow.Handle)
-            .ConfigureAwait(false);
+        TokenAcquisitionResult result;
+        string? failureDetail;
 
-        var service = new InteractiveAuthService(_client);
-        TokenAcquisitionResult result = await service.SignInAsync().ConfigureAwait(false);
+        try
+        {
+            _client ??= await BrokerClient
+                .CreateAsync(configuration.Options!, paths, () => CompanionWindow.Handle)
+                .ConfigureAwait(false);
+
+            var service = new InteractiveAuthService(_client);
+            result = await service.SignInAsync().ConfigureAwait(false);
+            failureDetail = service.LastFailure;
+        }
+        catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
+        {
+            // Building the client can fail before InteractiveAuthService exists — a broker whose native
+            // runtime will not initialise, or an unreadable shared token cache — so nothing downstream has
+            // classified it. Left unhandled it escaped to CompanionWindow's outer catch and displayed
+            // "Sign-in failed unexpectedly: <type>", which cannot tell a broker problem from anything else.
+            //
+            // The provider already got this right: SilentAuthProbe wraps its own client construction and
+            // classifies it. The companion is the user-facing process and was the one without it.
+            TokenAcquisitionStatus status =
+                AuthenticationFailures.Classify(e, AuthenticationPhase.Interactive);
+
+            result = TokenAcquisitionResult.Unavailable(status);
+            failureDetail = AuthenticationFailures.Describe(e);
+
+            // Deliberately returns here rather than falling through to the publish block below. Nothing
+            // was attempted against the tenant, so there is no authorization outcome to record and no
+            // change for a provider to hear about — and the record must never be written for a failure
+            // that is not a consent decision.
+            return Describe(result, paths, failureDetail, providerNotified: false);
+        }
 
         // Record a terminal authorization outcome before signalling, so a provider woken by the signal
         // finds the record already written rather than racing it.
@@ -119,7 +147,7 @@ internal static class Program
 
         bool providerNotified = published && StateChangeSignal.Raise(paths);
 
-        return Describe(result, paths, service.LastFailure, providerNotified);
+        return Describe(result, paths, failureDetail, providerNotified);
     }
 
     /// <summary>

@@ -245,7 +245,7 @@
       "label": "Test-IsManagedCertificate()",
       "file_type": "code",
       "source_file": "scripts/Build-Package.ps1",
-      "source_location": "L410",
+      "source_location": "L412",
       "_origin": "ast",
       "id": "scripts_build_package_test_ismanagedcertificate",
       "community": 22,
@@ -256,7 +256,7 @@
       "label": "Publish-IntoLayout()",
       "file_type": "code",
       "source_file": "scripts/Build-Package.ps1",
-      "source_location": "L481",
+      "source_location": "L483",
       "_origin": "ast",
       "id": "scripts_build_package_publish_intolayout",
       "community": 22,
@@ -1231,7 +1231,7 @@
       "label": ".Describe()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L133",
+      "source_location": "L161",
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
@@ -1248,7 +1248,7 @@
       "label": ".BuildIdentityReport()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L247",
+      "source_location": "L275",
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
@@ -1585,7 +1585,7 @@
       "label": "AuthorizationStateStore",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L48",
+      "source_location": "L56",
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
@@ -1613,7 +1613,7 @@
       "label": ".Write()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L79",
+      "source_location": "L87",
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
@@ -1641,7 +1641,7 @@
       "label": ".Clear()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L121",
+      "source_location": "L129",
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
@@ -1658,7 +1658,7 @@
       "label": ".TryRead()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L146",
+      "source_location": "L154",
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
@@ -1675,7 +1675,7 @@
       "label": ".Refine()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L195",
+      "source_location": "L203",
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
@@ -1692,7 +1692,7 @@
       "label": "AuthorizationRecord",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L209",
+      "source_location": "L217",
       "metadata": {
         "is_nested_type": true,
         "namespace": "OutlookWidget.Core.Authentication",
@@ -14782,7 +14782,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/Build-Package.ps1",
-      "source_location": "L481",
+      "source_location": "L483",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_build_package",
@@ -14804,7 +14804,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/Build-Package.ps1",
-      "source_location": "L410",
+      "source_location": "L412",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_build_package",
@@ -16707,7 +16707,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L88",
+      "source_location": "L93",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_app_program_outlookwidget_app_program_signinasync",
@@ -16811,7 +16811,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L247",
+      "source_location": "L275",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_app_program_outlookwidget_app_program",
@@ -16822,7 +16822,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L133",
+      "source_location": "L161",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_app_program_outlookwidget_app_program",
@@ -16934,12 +16934,36 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L122",
+      "source_location": "L115",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_app_program_outlookwidget_app_program_signinasync",
       "target": "src_outlookwidget_app_program_outlookwidget_app_program_describe",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/OutlookWidget.App/Program.cs",
+      "source_location": "L106",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_outlookwidget_app_program_outlookwidget_app_program_signinasync",
+      "target": "src_outlookwidget_core_authentication_authenticationfailures_outlookwidget_core_authentication_authenticationfailures_classify"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/OutlookWidget.App/Program.cs",
+      "source_location": "L109",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_outlookwidget_app_program_outlookwidget_app_program_signinasync",
+      "target": "src_outlookwidget_core_authentication_authenticationfailures_outlookwidget_core_authentication_authenticationfailures_describe"
     },
     {
       "relation": "references",
@@ -16962,7 +16986,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L100",
+      "source_location": "L128",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_app_program_outlookwidget_app_program_signinasync",
@@ -16974,7 +16998,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L104",
+      "source_location": "L132",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_app_program_outlookwidget_app_program_signinasync",
@@ -16986,11 +17010,23 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L83",
+      "source_location": "L88",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_app_program_outlookwidget_app_program_signinasync",
       "target": "src_outlookwidget_core_authentication_brokerclient_outlookwidget_core_authentication_brokerclient_createasync"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/OutlookWidget.App/Program.cs",
+      "source_location": "L108",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "src_outlookwidget_app_program_outlookwidget_app_program_signinasync",
+      "target": "src_outlookwidget_core_authentication_tokenacquisition_outlookwidget_core_authentication_tokenacquisitionresult_unavailable"
     },
     {
       "relation": "calls",
@@ -17010,7 +17046,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L120",
+      "source_location": "L148",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_app_program_outlookwidget_app_program_signinasync",
@@ -17035,7 +17071,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L133",
+      "source_location": "L161",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -17050,7 +17086,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L133",
+      "source_location": "L161",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -17065,7 +17101,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L247",
+      "source_location": "L275",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -17080,7 +17116,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L247",
+      "source_location": "L275",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -17097,7 +17133,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/OutlookWidget.App/Program.cs",
-      "source_location": "L300",
+      "source_location": "L328",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_app_program_outlookwidget_app_program_buildidentityreport",
@@ -17798,7 +17834,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L195",
+      "source_location": "L203",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -17813,7 +17849,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L146",
+      "source_location": "L154",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -17828,7 +17864,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L79",
+      "source_location": "L87",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -18190,7 +18226,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L48",
+      "source_location": "L56",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_authentication_authorizationstatestore",
@@ -18201,7 +18237,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L50",
+      "source_location": "L58",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -18216,7 +18252,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L209",
+      "source_location": "L217",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_authentication_authorizationstatestore_outlookwidget_core_authentication_authorizationstatestore",
@@ -18227,7 +18263,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L121",
+      "source_location": "L129",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_authentication_authorizationstatestore_outlookwidget_core_authentication_authorizationstatestore",
@@ -18238,7 +18274,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L195",
+      "source_location": "L203",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_authentication_authorizationstatestore_outlookwidget_core_authentication_authorizationstatestore",
@@ -18249,7 +18285,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L146",
+      "source_location": "L154",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_authentication_authorizationstatestore_outlookwidget_core_authentication_authorizationstatestore",
@@ -18260,7 +18296,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L79",
+      "source_location": "L87",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_authentication_authorizationstatestore_outlookwidget_core_authentication_authorizationstatestore",
@@ -18271,7 +18307,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L79",
+      "source_location": "L87",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -18286,7 +18322,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L79",
+      "source_location": "L87",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -18301,7 +18337,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L79",
+      "source_location": "L87",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -18316,7 +18352,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L79",
+      "source_location": "L87",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -18427,7 +18463,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L213",
+      "source_location": "L221",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -18442,7 +18478,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L121",
+      "source_location": "L129",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -18457,7 +18493,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L121",
+      "source_location": "L129",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -18509,7 +18545,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L204",
+      "source_location": "L212",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_authentication_authorizationstatestore_outlookwidget_core_authentication_authorizationstatestore_refine",
@@ -18520,7 +18556,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L146",
+      "source_location": "L154",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -18535,7 +18571,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L146",
+      "source_location": "L154",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -18646,7 +18682,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L195",
+      "source_location": "L203",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -18661,7 +18697,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L195",
+      "source_location": "L203",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -18760,7 +18796,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthorizationStateStore.cs",
-      "source_location": "L222",
+      "source_location": "L230",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -41959,5 +41995,5 @@
       "source_file": "docs/phase0-evidence.md"
     }
   ],
-  "built_at_commit": "acdc18d87ee4dbc358a0cea357893ef17434b49d"
+  "built_at_commit": "dc95715cf56b798db4446ee527d5d1e70c582774"
 }
