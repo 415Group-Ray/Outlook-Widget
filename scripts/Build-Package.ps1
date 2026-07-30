@@ -278,6 +278,13 @@ Fix it with:  git fetch --unshallow
     #
     # Asking the machine what is installed makes the counter clone-independent for the case that actually
     # matters. It only ever raises the revision, so building for a different machine is unaffected.
+    # Absence and failure are different answers, and treating them alike defeated the guard below.
+    #
+    # `Get-AppxPackage -Name` is a filter: a name that matches nothing returns an EMPTY RESULT rather than
+    # an error, verified rather than assumed. So a thrown error never means "not installed" — it means the
+    # question could not be asked. Swallowing it left $installedVersion null, the complete-version guard
+    # was skipped, and with a missing or reset counter the script could emit a version that cannot
+    # upgrade. Absence is representable; ignorance is not, so ignorance stops the build.
     $installedVersion = $null
 
     try {
@@ -285,6 +292,7 @@ Fix it with:  git fetch --unshallow
             Sort-Object -Property { [version]$_.Version } -Descending |
             Select-Object -First 1
 
+        # Empty is the normal not-installed case and leaves $installedVersion null legitimately.
         if ($installed) {
             $installedVersion = [version]$installed.Version
 
@@ -293,9 +301,19 @@ Fix it with:  git fetch --unshallow
             }
         }
     }
+    catch [System.Management.Automation.CommandNotFoundException] {
+        # Separated because the remedy is completely different from a failed query, and the generic
+        # message would send someone hunting a package problem that does not exist.
+        throw @'
+Get-AppxPackage is not available, so the installed package version cannot be checked and the derived
+version could be one that will not install.
+
+This script is Windows-only by construction -- it also needs makeappx, signtool and makepri -- so this
+usually means it is running on the wrong platform or a PowerShell edition without the Appx cmdlets.
+'@
+    }
     catch {
-        # Nothing installed, or the cmdlet is unavailable. The state file remains the only input, which
-        # is correct rather than degraded: there is no installed package to exceed.
+        throw "Cannot determine the installed package version, so the derived version cannot be checked against it: $($_.Exception.Message)"
     }
 
     if ($build -gt 65535 -or $revision -gt 65535) {

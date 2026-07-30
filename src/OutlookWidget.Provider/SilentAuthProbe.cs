@@ -75,6 +75,16 @@ internal sealed class SilentAuthProbe : IDisposable
     /// <summary>The MSAL client, built once and reused across probes.</summary>
     private IPublicClientApplication? _client;
 
+    /// <summary>
+    /// The drainer, so shutdown can wait on it instead of polling.
+    /// </summary>
+    /// <remarks>
+    /// Reassigned each time a drainer starts, and read by <see cref="Dispose"/>. A read that sees a
+    /// slightly older task is harmless: <see cref="Dispose"/> has already cancelled, so any successor
+    /// exits at its next loop check.
+    /// </remarks>
+    private Task? _drain;
+
     private bool _disposed;
 
     public SilentAuthProbe(
@@ -122,7 +132,8 @@ internal sealed class SilentAuthProbe : IDisposable
             return;
         }
 
-        _ = Task.Run(DrainAsync);
+        // Kept so Dispose can wait on it rather than polling a flag.
+        _drain = Task.Run(DrainAsync);
     }
 
     /// <summary>
@@ -247,12 +258,35 @@ internal sealed class SilentAuthProbe : IDisposable
     }
 
     /// <summary>
+    /// How long shutdown waits for a probe in flight.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>A shutdown bound, not a refresh bound.</b> This used to reuse
+    /// <c>CoordinationBounds.AsyncDeadline</c> — 20 seconds, the ceiling for an entire refresh
+    /// transaction, which has no business governing process exit. Worse, it regressed shutdown precisely
+    /// when things were unhealthy: <c>BrokerClient.CreateAsync</c> takes no cancellation token,
+    /// because <c>MsalCacheHelper.CreateAsync</c> does not accept one, so a wedged broker or token cache
+    /// meant the full 20 seconds elapsed before <c>Main</c> could return after the last widget was
+    /// unpinned.
+    /// </para>
+    /// <para>
+    /// Two seconds matches <c>StateChangeListener</c>, which joins its worker on the same reasoning. An
+    /// unfinished probe has nothing left to deliver to — the delivery worker is being disposed
+    /// immediately after this — so abandoning it costs nothing, while delaying exit is user-visible.
+    /// </para>
+    /// </remarks>
+    private static readonly TimeSpan ShutdownDrain = TimeSpan.FromSeconds(2);
+
+    /// <summary>
     /// Cancels any probe in flight and waits a bounded time for it to finish.
     /// </summary>
     /// <remarks>
-    /// Bounded per invariant 2. Called before the delivery worker is disposed, so a probe cannot request
-    /// a pass against a disposed worker; a probe still running after the deadline is abandoned rather
-    /// than allowed to hold the process open after its last widget was removed.
+    /// Bounded per invariant 2, and it <em>waits</em> rather than spinning: the previous
+    /// <c>SpinWait.SpinUntil</c> occupied the calling thread polling a flag
+    /// through a deadline it should not have been using. Called before the delivery worker is disposed, so
+    /// a probe cannot request a pass against a disposed worker; one still running afterwards is abandoned
+    /// rather than allowed to hold the process open after its last widget was removed.
     /// </remarks>
     public void Dispose()
     {
@@ -264,9 +298,20 @@ internal sealed class SilentAuthProbe : IDisposable
         _disposed = true;
         _shutdown.Cancel();
 
-        SpinWait.SpinUntil(
-            () => Volatile.Read(ref _running) == 0,
-            Core.Refresh.CoordinationBounds.AsyncDeadline);
+        Task? drain = _drain;
+
+        if (drain is not null)
+        {
+            try
+            {
+                drain.Wait(ShutdownDrain);
+            }
+            catch (Exception)
+            {
+                // The drainer handles its own failures, and anything surfacing here is already terminal
+                // for a process that is exiting. Shutdown must never throw.
+            }
+        }
 
         _shutdown.Dispose();
     }

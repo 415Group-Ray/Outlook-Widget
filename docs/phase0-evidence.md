@@ -287,7 +287,9 @@ manifest as a deliberate decision; the Build and Revision digits there are place
 **not** modify the tracked file.
 
 - **Build** is the git commit height.
-- **Revision** counts builds within one commit, from `AppPackages\.package-version.json`.
+- **Revision** counts builds within one commit, from
+  `src\OutlookWidget.Package\.package-version.json`, and is raised past the installed package when that
+  is higher. It started out in `AppPackages` and moved out of it for the reason recorded below.
 
 **Both parts are needed and neither alone works.** Commit height does not change when rebuilding a dirty
 tree, which is the normal development loop. A bare counter would not be meaningful across clones.
