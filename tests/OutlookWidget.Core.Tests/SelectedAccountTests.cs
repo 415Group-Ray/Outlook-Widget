@@ -58,9 +58,33 @@ public sealed class SelectedAccountTests : IDisposable
     {
         var store = new SelectedAccountStore(Paths, Registration);
 
-        store.Write("object-id.tenant-id");
-
+        Assert.True(store.Write("object-id.tenant-id"));
         Assert.Equal(Recorded("object-id.tenant-id"), store.Read());
+    }
+
+    [Fact]
+    public void The_record_is_protected_on_disk()
+    {
+        // Section 4 step 6 requires the selected home-account and tenant identifiers to live in
+        // DPAPI-protected state. Asserting on the bytes rather than trusting the call: the identifier
+        // must not be readable in the file, which is the whole of what "protected" buys here.
+        new SelectedAccountStore(Paths, Registration).Write("object-id.tenant-id");
+
+        byte[] raw = File.ReadAllBytes(Paths.SelectedAccountFilePath);
+
+        Assert.DoesNotContain(
+            "object-id.tenant-id",
+            System.Text.Encoding.UTF8.GetString(raw),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_blob_that_will_not_unprotect_is_unreadable_rather_than_absent()
+    {
+        Directory.CreateDirectory(_root);
+        File.WriteAllBytes(Paths.SelectedAccountFilePath, [0x01, 0x02, 0x03, 0x04]);
+
+        Assert.Equal(Unreadable, new SelectedAccountStore(Paths, Registration).Read());
     }
 
     [Fact]
@@ -82,16 +106,33 @@ public sealed class SelectedAccountTests : IDisposable
         Assert.Equal(Absent, new SelectedAccountStore(Paths, Registration).Read());
     }
 
+    /// <summary>
+    /// A store whose protection is a no-op, so a test can plant an exact payload.
+    /// </summary>
+    /// <remarks>
+    /// Needed once the record became DPAPI-protected: writing plaintext JSON to the file now fails to
+    /// unprotect, so a content-shape test would pass on the <em>encryption</em> failing rather than on
+    /// the content check it claims to exercise — right answer, wrong reason, and it would keep passing
+    /// if the content checks were deleted.
+    /// </remarks>
+    private SelectedAccountStore PlaintextStore(AuthenticationOptions options) =>
+        new(Paths, options, logger: null, PassThroughProtector.Instance);
+
+    private void PlantPlaintext(string json)
+    {
+        Directory.CreateDirectory(_root);
+        File.WriteAllBytes(Paths.SelectedAccountFilePath, System.Text.Encoding.UTF8.GetBytes(json));
+    }
+
     [Fact]
     public void A_corrupt_record_is_unreadable_rather_than_absent()
     {
         // The finding this distinction exists for. Reporting corruption as "no selection" sends the
         // caller down the first-cached-account fallback, which on a multi-account machine reads a
         // different mailbox and looks exactly like success.
-        Directory.CreateDirectory(_root);
-        File.WriteAllText(Paths.SelectedAccountFilePath, "{ not json");
+        PlantPlaintext("{ not json");
 
-        Assert.Equal(Unreadable, new SelectedAccountStore(Paths, Registration).Read());
+        Assert.Equal(Unreadable, PlaintextStore(Registration).Read());
     }
 
     [Fact]
@@ -99,21 +140,29 @@ public sealed class SelectedAccountTests : IDisposable
     {
         // Ours, and malformed. A half-written file is the likeliest way to reach this, and it fails
         // closed for the same reason a corrupt one does.
-        Directory.CreateDirectory(_root);
-        File.WriteAllText(
-            Paths.SelectedAccountFilePath,
+        PlantPlaintext(
             $$"""{"homeAccountId":"","tenantId":"{{Registration.TenantId}}","clientId":"{{Registration.ClientId}}"}""");
 
-        Assert.Equal(Unreadable, new SelectedAccountStore(Paths, Registration).Read());
+        Assert.Equal(Unreadable, PlaintextStore(Registration).Read());
     }
 
     [Fact]
     public void A_json_null_document_is_unreadable()
     {
-        Directory.CreateDirectory(_root);
-        File.WriteAllText(Paths.SelectedAccountFilePath, "null");
+        PlantPlaintext("null");
 
-        Assert.Equal(Unreadable, new SelectedAccountStore(Paths, Registration).Read());
+        Assert.Equal(Unreadable, PlaintextStore(Registration).Read());
+    }
+
+    [Fact]
+    public void A_readable_record_for_another_registration_is_absent()
+    {
+        // Reached through the content check rather than through a decryption failure, which is the
+        // distinction the plaintext store exists to preserve.
+        PlantPlaintext(
+            $$"""{"homeAccountId":"a.b","tenantId":"{{OtherRegistration.TenantId}}","clientId":"{{OtherRegistration.ClientId}}"}""");
+
+        Assert.Equal(Absent, PlaintextStore(Registration).Read());
     }
 
     [Fact]
@@ -141,14 +190,38 @@ public sealed class SelectedAccountTests : IDisposable
     }
 
     [Fact]
-    public void With_no_recorded_selection_the_first_cached_account_is_still_used()
+    public void With_no_recorded_selection_and_exactly_one_cached_account_that_account_is_used()
     {
-        // The prior behaviour, preserved for a fresh install and for state written before the
-        // selection existed. It is a guess about intent, which is why it is now the last resort.
+        // The fallback survives only where there is nothing to be wrong about: first-and-only is the
+        // account. A fresh install on a single-account machine must still work without a prompt.
+        IAccount only = new StubAccount("only.tenant");
+
+        Assert.Same(only, SilentAuthService.Select([only], Absent));
+    }
+
+    [Fact]
+    public void With_no_recorded_selection_and_more_than_one_cached_account_it_refuses()
+    {
+        // The gap a failed write leaves. The companion can report a successful sign-in having been
+        // unable to persist the selection, and what it meant to leave behind is simply not there —
+        // indistinguishable from a fresh install. Refusing on ambiguity closes that without needing to
+        // know which happened, and closes the same gap for state written before the record existed.
         IAccount first = new StubAccount("first.tenant");
         IAccount second = new StubAccount("second.tenant");
 
-        Assert.Same(first, SilentAuthService.Select([first, second], Absent));
+        Assert.Null(SilentAuthService.Select([first, second], Absent));
+    }
+
+    [Fact]
+    public void A_failed_write_reports_false_rather_than_claiming_success()
+    {
+        // A directory that cannot be created, because the path is occupied by a file. The point is
+        // that Write says so: silently absorbing it is what made a failed write look like a fresh
+        // install in the first place.
+        Directory.CreateDirectory(Path.GetDirectoryName(_root)!);
+        File.WriteAllText(_root, "not a directory");
+
+        Assert.False(new SelectedAccountStore(Paths, Registration).Write("object-id.tenant-id"));
     }
 
     [Fact]
@@ -212,6 +285,16 @@ public sealed class SelectedAccountTests : IDisposable
         // about intent, and a recorded selection means intent is known — guessing over it would be a
         // regression dressed as resilience.
         Assert.Null(SilentAuthService.Select([], Recorded("chosen.tenant")));
+    }
+
+    /// <summary>Protection that protects nothing, so a test can plant an exact payload.</summary>
+    private sealed class PassThroughProtector : IDataProtector
+    {
+        public static PassThroughProtector Instance { get; } = new();
+
+        public byte[] Protect(byte[] payload, byte[] entropy) => payload;
+
+        public byte[] Unprotect(byte[] payload, byte[] entropy) => payload;
     }
 
     /// <summary>The three properties of <see cref="IAccount"/>, and no MSAL machinery.</summary>

@@ -227,7 +227,19 @@ public sealed class SilentAuthService
             return null;
         }
 
-        return accounts.Count > 0 ? accounts[0] : PublicClientApplication.OperatingSystemAccount;
+        // No selection recorded. The fallback is only safe while there is nothing to be wrong about:
+        // with one cached account, first-and-only is the account. With more than one it is a guess,
+        // and this is where a *failed write* becomes indistinguishable from a fresh install — the
+        // companion can report a successful sign-in having been unable to persist the selection, and
+        // the record it meant to leave is simply not there. Refusing on ambiguity closes that without
+        // needing to know which of the two happened, and closes the identical gap for state written
+        // before the selection existed.
+        if (accounts.Count > 1)
+        {
+            return null;
+        }
+
+        return accounts.Count == 1 ? accounts[0] : PublicClientApplication.OperatingSystemAccount;
     }
 
     /// <summary>

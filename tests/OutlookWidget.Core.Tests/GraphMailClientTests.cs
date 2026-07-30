@@ -193,6 +193,31 @@ public sealed class GraphMailClientTests
         Assert.Null(result.Readout);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.TooManyRequests, HttpStatusCode.Unauthorized, GraphMailStatus.Unauthorized)]
+    [InlineData(HttpStatusCode.Unauthorized, HttpStatusCode.TooManyRequests, GraphMailStatus.Unauthorized)]
+    [InlineData(HttpStatusCode.InternalServerError, HttpStatusCode.Forbidden, GraphMailStatus.Forbidden)]
+    [InlineData(HttpStatusCode.ServiceUnavailable, HttpStatusCode.InternalServerError, GraphMailStatus.Throttled)]
+    public async Task When_both_required_requests_fail_the_more_actionable_remedy_wins(
+        HttpStatusCode folderStatus,
+        HttpStatusCode messagesStatus,
+        GraphMailStatus expected)
+    {
+        // Order used to decide this, because the folder response was named first. That is arbitrary
+        // and it was wrong: a 401 on one and a 429 on the other reported Throttled, so the caller
+        // would back off holding a token that will never work again. The first two cases are that
+        // pair in both orders, which is the assertion that position no longer matters.
+        var handler = new StubGraphHandler()
+            .Status(MessagesRoute, messagesStatus)
+            .Status(FolderRoute, folderStatus);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, result.Status);
+    }
+
     [Fact]
     public async Task A_throttled_response_carries_its_retry_after()
     {

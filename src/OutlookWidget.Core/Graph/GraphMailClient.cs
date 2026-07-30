@@ -169,12 +169,15 @@ public sealed class GraphMailClient : IDisposable
             return GraphMailResult.Failure(GraphMailStatus.Cancelled);
         }
 
-        // The first required failure decides the outcome. Reporting the folder's before the message
-        // read's is arbitrary and does not matter: both carry a category and a status code, and a
-        // caller's response to either is the same.
-        GraphResponse? failed = folder.Status != GraphMailStatus.Success ? folder
-            : messages.Status != GraphMailStatus.Success ? messages
-            : null;
+        // When both required requests fail differently, the one with the more specific remedy wins.
+        //
+        // This used to take the folder's failure because it was named first, which is arbitrary and
+        // was wrong rather than merely untidy: a 401 on one request and a 429 on the other would
+        // report Throttled, and the caller would back off holding a token that will never work again.
+        // Reacquiring on a 401 is cheap and, if the service is genuinely throttling too, the next
+        // attempt surfaces that. The reverse order strands the user behind an expired token for as
+        // long as the backoff lasts.
+        GraphResponse? failed = MoreActionable(folder, messages);
 
         if (failed is not null)
         {
@@ -290,6 +293,61 @@ public sealed class GraphMailClient : IDisposable
             return new GraphResponse(GraphMailStatus.NetworkFailure, null, null, null);
         }
     }
+
+    /// <summary>
+    /// The failure a caller should act on when the two required requests disagree.
+    /// </summary>
+    /// <remarks>
+    /// Answers <see langword="null"/> when neither failed. The ranking below is by <em>remedy</em>
+    /// rather than by severity, because that is what a caller does with the answer.
+    /// </remarks>
+    private static GraphResponse? MoreActionable(GraphResponse first, GraphResponse second)
+    {
+        bool firstFailed = first.Status != GraphMailStatus.Success;
+        bool secondFailed = second.Status != GraphMailStatus.Success;
+
+        if (!firstFailed)
+        {
+            return secondFailed ? second : null;
+        }
+
+        if (!secondFailed)
+        {
+            return first;
+        }
+
+        return RemedyRank(second.Status) < RemedyRank(first.Status) ? second : first;
+    }
+
+    /// <summary>
+    /// How specific a status's remedy is. Lower wins.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="GraphMailStatus.Unauthorized"/> first: it is the only status whose remedy the caller
+    /// must not defer, because every retry with the same token repeats it. Then
+    /// <see cref="GraphMailStatus.Forbidden"/>, which is the most terminal thing a mailbox read can
+    /// say and needs surfacing rather than retrying. Then
+    /// <see cref="GraphMailStatus.Throttled"/>, which carries explicit service guidance.
+    /// </para>
+    /// <para>
+    /// The rest rank by how much they narrow the problem: a malformed payload is a contract fault
+    /// worth seeing, a network failure and a timeout are transient and near-identical to a caller,
+    /// and <see cref="GraphMailStatus.ServiceFailure"/> is last because it is the bucket everything
+    /// unrecognised falls into and says the least.
+    /// </para>
+    /// </remarks>
+    private static int RemedyRank(GraphMailStatus status) => status switch
+    {
+        GraphMailStatus.Unauthorized => 0,
+        GraphMailStatus.Forbidden => 1,
+        GraphMailStatus.Throttled => 2,
+        GraphMailStatus.InvalidResponse => 3,
+        GraphMailStatus.NetworkFailure => 4,
+        GraphMailStatus.TimedOut => 5,
+        GraphMailStatus.Cancelled => 6,
+        _ => 7,
+    };
 
     /// <summary>
     /// Maps an HTTP status onto a product state.

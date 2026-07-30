@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Diagnostics;
@@ -55,13 +56,18 @@ public readonly record struct SelectedAccountResult(
 /// reason.
 /// </para>
 /// <para>
-/// <b>Deliberately not DPAPI-protected, and the distinction from the snapshot is the point.</b> This
-/// holds an opaque MSAL home-account identifier — a directory object ID and a tenant ID — plus the
-/// registration it is scoped to. There is no mailbox content, no user principal name, no display
-/// name, and no token. The snapshot protects the same identifier only because it rides alongside
-/// senders and subject lines, which is the thing that needed protecting. Encrypting this file would
-/// imply a protection requirement that does not exist and tell a later reader that something
-/// sensitive lives here. It is inside the package store, so uninstall removes it.
+/// <b>What it holds:</b> an opaque MSAL home-account identifier — a directory object ID and a tenant
+/// ID — plus the registration it is scoped to. There is no mailbox content, no user principal name,
+/// no display name, and no token.
+/// </para>
+/// <para>
+/// <b>DPAPI-protected, because section 4 step 6 requires it.</b> An earlier version of this file was
+/// not, and argued that an opaque directory object ID needs no protection — which is probably true and
+/// is beside the point. The plan is the approved source of truth and states that the selected
+/// home-account and tenant identifiers are recorded in DPAPI-protected state, so a deviation would
+/// have needed an approved scope decision rather than a paragraph of reasoning in a code comment. The
+/// protection costs a few lines and removes a contradiction between two sources that both govern this
+/// file. It is inside the package store, so uninstall removes it either way.
 /// </para>
 /// </remarks>
 public sealed class SelectedAccountStore
@@ -71,32 +77,57 @@ public sealed class SelectedAccountStore
         PropertyNameCaseInsensitive = true,
     };
 
+    /// <summary>
+    /// Additional DPAPI entropy, distinct from the snapshot's.
+    /// </summary>
+    /// <remarks>
+    /// Not a secret — it ships in the binary — but it binds the ciphertext to this specific use, so a
+    /// blob from elsewhere in the user's profile cannot be substituted and silently unprotected here.
+    /// Deliberately not the same value <c>ProtectedCache</c> uses: sharing it would make a snapshot and
+    /// a selection record interchangeable to the decryptor.
+    /// </remarks>
+    private static readonly byte[] Entropy = "OutlookWidget.SelectedAccount.v1"u8.ToArray();
+
     private readonly CoordinationPaths _paths;
     private readonly AuthenticationOptions _options;
     private readonly IOperationalLogger _logger;
+    private readonly IDataProtector _protector;
 
     public SelectedAccountStore(
         CoordinationPaths paths,
         AuthenticationOptions options,
         IOperationalLogger? logger = null)
+        : this(paths, options, logger, CurrentUserDataProtector.Instance)
+    {
+    }
+
+    internal SelectedAccountStore(
+        CoordinationPaths paths,
+        AuthenticationOptions options,
+        IOperationalLogger? logger,
+        IDataProtector protector)
     {
         ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(protector);
 
         _paths = paths;
         _options = options;
         _logger = logger ?? NullOperationalLogger.Instance;
+        _protector = protector;
     }
 
     /// <summary>
     /// Records the account an interactive sign-in selected.
     /// </summary>
-    /// <remarks>
-    /// A write failure is swallowed into an operational category rather than failing the sign-in the
-    /// user just completed. The cost of losing it is that silent acquisition falls back to the
-    /// first-account behaviour, which is the state the product was already in — worse, not wrong.
-    /// </remarks>
-    public void Write(string homeAccountId)
+    /// <returns>
+    /// Whether the selection was persisted. <see langword="false"/> matters: a failed write is
+    /// indistinguishable on disk from a fresh install, so the caller cannot treat the selection as
+    /// recorded. See <c>SilentAuthService.Select</c>, which is where that gap is actually closed —
+    /// it refuses to guess whenever no selection is present and more than one account is cached,
+    /// which covers a failed write and a genuinely fresh install alike.
+    /// </returns>
+    public bool Write(string homeAccountId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(homeAccountId);
 
@@ -104,7 +135,7 @@ public sealed class SelectedAccountStore
         {
             Directory.CreateDirectory(_paths.RootDirectory);
 
-            string json = JsonSerializer.Serialize(
+            byte[] json = JsonSerializer.SerializeToUtf8Bytes(
                 new AccountRecord
                 {
                     HomeAccountId = homeAccountId,
@@ -112,11 +143,15 @@ public sealed class SelectedAccountStore
                     ClientId = _options.ClientId,
                 });
 
-            File.WriteAllText(_paths.SelectedAccountFilePath, json);
+            File.WriteAllBytes(_paths.SelectedAccountFilePath, _protector.Protect(json, Entropy));
+            return true;
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        catch (Exception e) when (e is IOException
+                                     or UnauthorizedAccessException
+                                     or CryptographicException)
         {
             _logger.Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Failed);
+            return false;
         }
     }
 
@@ -151,9 +186,11 @@ public sealed class SelectedAccountStore
     {
         try
         {
-            AccountRecord? record = JsonSerializer.Deserialize<AccountRecord>(
-                File.ReadAllText(_paths.SelectedAccountFilePath),
-                ReadOptions);
+            byte[] json = _protector.Unprotect(
+                File.ReadAllBytes(_paths.SelectedAccountFilePath),
+                Entropy);
+
+            AccountRecord? record = JsonSerializer.Deserialize<AccountRecord>(json, ReadOptions);
 
             if (record is null)
             {
@@ -178,8 +215,12 @@ public sealed class SelectedAccountStore
         catch (Exception e) when (e is IOException
                                      or UnauthorizedAccessException
                                      or JsonException
-                                     or ArgumentException)
+                                     or ArgumentException
+                                     or CryptographicException)
         {
+            // CryptographicException belongs here rather than anywhere gentler: a blob that will not
+            // unprotect is a record that exists and cannot be trusted, which is precisely the
+            // fail-closed case.
             _logger.Record(OperationalEventId.CacheReadFailed, OperationalOutcome.Failed);
             return new SelectedAccountResult(SelectedAccountStatus.Unreadable, null);
         }

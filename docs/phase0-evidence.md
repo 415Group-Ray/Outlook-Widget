@@ -634,9 +634,13 @@ selection agree by construction and a green run proves nothing about the differe
 unit tests cover the selection rule against real `IAccount` values, which is the part that is ours.
 What is unobserved is the write path on a real WAM sign-in: whether `AuthenticationResult.Account`
 carries a `HomeAccountId` through the broker on this tenant. If it does not, the file is never written,
-the fallback silently stands, and nothing surfaces it. **Confirm `account-v1.json` exists in the
+the fallback silently stands. That is now bounded rather than silent — with more than one cached
+account the missing record refuses instead of guessing — but on this single-account machine the
+fallback still runs and still lands on the right mailbox, so a broken write would look exactly like a
+working one. **Confirm `account-v1.bin` exists in the
 package store after the next companion sign-in** — that is a one-look check and it is the only evidence
-this works.
+this works. Existence is all that can be checked by eye: the record is DPAPI-protected, per section 4
+step 6, so its contents are not readable in a text editor.
 
 This section previously listed the manual steps for gates 8 and 9. All of them are done, and the
 measurements are recorded above rather than as instructions here.

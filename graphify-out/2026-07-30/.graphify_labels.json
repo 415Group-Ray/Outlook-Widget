@@ -6,7 +6,7 @@
   "4": "OutlookWidget.Core.Refresh",
   "5": "DisclosureTombstoneStore",
   "6": "Outlook Inbox Widget",
-  "7": "WidgetProvider",
+  "7": "DeliveryWorker",
   "8": ".Current",
   "9": "AuthenticationConfigurationTests",
   "10": ".Start",
@@ -35,14 +35,13 @@
   "33": "ProviderCardTests",
   "34": ".ReadAsync",
   "35": "MailboxSnapshot",
-  "36": "SkeletonCard",
+  "36": "OutlookLauncher",
   "37": "StateCommitCoordinator",
   "38": "CompanionWindow",
-  "39": "IDataProtector",
+  "39": "CompanionLauncher",
   "40": "StubGraphHandler",
   "41": "IOperationalLogger",
   "42": "PackageIdentity",
   "43": ".Raise",
-  "44": ".Record",
-  "45": "DeliveryWorker"
+  "44": ".Record"
 }
