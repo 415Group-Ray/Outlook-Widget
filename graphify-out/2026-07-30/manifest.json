@@ -10,8 +10,8 @@
     "semantic_hash": ""
   },
   "scripts/Build-Package.ps1": {
-    "mtime": 1785358157.9840832,
-    "ast_hash": "f308f41aad79330b484cbd6522058f8f",
+    "mtime": 1785358758.6160007,
+    "ast_hash": "2f57721181ec57066bedbf545d63c3dc",
     "semantic_hash": ""
   },
   "scripts/Install-DevelopmentPackage.ps1": {
@@ -220,8 +220,8 @@
     "semantic_hash": ""
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1785358299.8239124,
-    "ast_hash": "8deb02b35eb444195241275a38932df8",
+    "mtime": 1785358741.9529753,
+    "ast_hash": "8d94866655ec0980a080d34e7586fcf3",
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
@@ -550,8 +550,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Provider/SilentAuthProbe.cs": {
-    "mtime": 1785358116.1653156,
-    "ast_hash": "7282cd29107de4483b51499525667203",
+    "mtime": 1785358913.724507,
+    "ast_hash": "193e4d5dafeb02a20f4b6c6b7981a1bb",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/StateChangeSignalTests.cs": {

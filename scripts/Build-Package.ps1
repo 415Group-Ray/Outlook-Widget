@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+﻿#Requires -Version 7.0
 <#
 .SYNOPSIS
     Builds and signs the MSIX package.
@@ -194,7 +194,14 @@ function Resolve-PackageVersion {
     param(
         [Parameter(Mandatory)] [string] $BaseVersion,
         [Parameter(Mandatory)] [string] $StateDirectory,
-        [Parameter(Mandatory)] [string] $IdentityName
+        [Parameter(Mandatory)] [string] $IdentityName,
+
+        # Every git query is scoped to this with -C, never to the ambient working directory. Invoked
+        # from inside a different repository, the unscoped commands answered about *that* repository:
+        # its shallow status and its commit height, stamped into this package with no error raised.
+        # Passed rather than read from the enclosing scope for the same reason $IdentityName is —
+        # dynamic scoping makes the dependency invisible at the call site.
+        [Parameter(Mandatory)] [string] $RepositoryRoot
     )
 
     $parts = $BaseVersion.Split('.')
@@ -217,7 +224,7 @@ function Resolve-PackageVersion {
     # clone does not have, and the failure surfaces at install time as a version error naming the
     # package rather than the clone.
 
-    $insideWorkTree = & git rev-parse --is-inside-work-tree 2>$null
+    $insideWorkTree = & git -C $RepositoryRoot rev-parse --is-inside-work-tree 2>$null
 
     if ($LASTEXITCODE -ne 0 -or $insideWorkTree -ne 'true') {
         throw 'Not inside a git work tree, so the package version cannot be derived. Build from a clone of the repository.'
@@ -225,7 +232,7 @@ function Resolve-PackageVersion {
 
     # Shallow is rejected rather than worked around. Deepening the clone here would silently change the
     # caller's repository, and guessing a floor would produce a version with no relationship to history.
-    $isShallow = & git rev-parse --is-shallow-repository 2>$null
+    $isShallow = & git -C $RepositoryRoot rev-parse --is-shallow-repository 2>$null
 
     if ($LASTEXITCODE -ne 0) {
         throw 'Cannot determine whether this repository is shallow, so the package version cannot be derived safely.'
@@ -240,7 +247,7 @@ Fix it with:  git fetch --unshallow
 '@
     }
 
-    $height = & git rev-list --count HEAD 2>$null
+    $height = & git -C $RepositoryRoot rev-list --count HEAD 2>$null
 
     if ($LASTEXITCODE -ne 0 -or -not ($height -match '^\d+$')) {
         throw 'Cannot determine the git commit height, so the package version cannot be derived.'
@@ -382,7 +389,8 @@ built from. Options, in order of preference:
 $identityVersion = Resolve-PackageVersion `
     -BaseVersion $baseVersion `
     -StateDirectory $packageProject `
-    -IdentityName $identityName
+    -IdentityName $identityName `
+    -RepositoryRoot $repoRoot
 
 Write-Output ''
 Write-Output "Package identity: $identityName / $manifestPublisher / $identityVersion"

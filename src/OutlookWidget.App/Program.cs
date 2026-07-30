@@ -186,12 +186,21 @@ internal static class Program
                           + "the authorization state section 8 requires to be distinguishable from a "
                           + "Graph 403 — it is not a retryable failure.");
                 lines.Add(string.Empty);
-                lines.Add("Measured on this tenant: the user-consent setting is \"Let Microsoft "
-                          + "manage your consent settings\" with mail-client consent enabled, which "
-                          + "permits user consent to mail permissions only for a fixed list of "
-                          + "Microsoft-chosen applications. A registration of one's own is not on it "
-                          + "and cannot be added, so self-consent is unavailable here regardless of "
-                          + "how permissive the setting reads.");
+
+                // Tenant-neutral on purpose. This text runs against whatever tenant the build is
+                // configured for, and a policy that blocks self-consent can be any of several — user
+                // consent disabled outright, restricted to verified publishers, or a Microsoft-managed
+                // policy with its own allowlist. Naming one of them here would be a confident wrong
+                // diagnosis on every tenant that used a different one. The reference tenant's specific
+                // setting is a measurement and belongs in docs/phase0-evidence.md, not in shipped copy.
+                lines.Add("Which policy is responsible is worth checking rather than assuming: a "
+                          + "permission not marked as requiring admin consent can still be withheld by "
+                          + "the tenant's user-consent settings, and the registration's own \"admin "
+                          + "consent required\" column reports the organization default rather than the "
+                          + "effective policy.");
+                lines.Add(string.Empty);
+                lines.Add("An administrator can grant consent for this registration in Entra ID under "
+                          + "Enterprise applications, or approve a request raised from the dialog.");
                 break;
 
             case TokenAcquisitionStatus.BrokerUnavailable:

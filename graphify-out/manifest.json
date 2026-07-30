@@ -10,8 +10,8 @@
     "semantic_hash": ""
   },
   "scripts/Build-Package.ps1": {
-    "mtime": 1785358758.6160007,
-    "ast_hash": "2f57721181ec57066bedbf545d63c3dc",
+    "mtime": 1785418733.604365,
+    "ast_hash": "62b8238b59da1564f5e90827ed23d0a8",
     "semantic_hash": ""
   },
   "scripts/Install-DevelopmentPackage.ps1": {
@@ -40,8 +40,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.App/Program.cs": {
-    "mtime": 1785357409.6350627,
-    "ast_hash": "4e4e99c7c6c8d91d4a7585e06a323e76",
+    "mtime": 1785418746.3327904,
+    "ast_hash": "f93dd37393ab933bc453884d7bce14b1",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Caching/CoordinationPaths.cs": {
@@ -220,8 +220,8 @@
     "semantic_hash": ""
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1785358741.9529753,
-    "ast_hash": "8d94866655ec0980a080d34e7586fcf3",
+    "mtime": 1785418865.104164,
+    "ast_hash": "2386b7c243c83ddb1bab1f8cd798e9ae",
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
@@ -285,8 +285,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Provider/Cards/SkeletonCard.cs": {
-    "mtime": 1785358102.8752573,
-    "ast_hash": "d169e97c175c28cb73733384997b6c43",
+    "mtime": 1785418773.321408,
+    "ast_hash": "6550d93907db203f395a2a2df9aca6dd",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Provider/Cards/WidgetVerbs.cs": {

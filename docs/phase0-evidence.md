@@ -360,8 +360,32 @@ Derived version 0.2.18.1 does not exceed the installed 0.3.17.0, so the package 
 installed over it.
 ```
 
+**Every git query is scoped with `-C` to the repository root, not to the ambient working directory.** The
+unscoped commands answered about whatever repository the caller happened to be standing in: run from
+inside a *different* clone, that repository's shallow status and commit height would have been stamped
+into this package with no error raised. Scoping also makes the script location-independent — verified by
+packaging from `%TEMP%`, which previously failed the work-tree check and now derives correctly.
+
 The tracked manifest is left alone deliberately: the version stops appearing in every diff, and the
-packaged value stays derived rather than remembered. The layout manifest is stamped by a substitution
+packaged value stays derived rather than remembered.
+
+## A recurring mistake worth naming: reference-tenant detail in portable text
+
+Three separate findings in this PR were the same error — a measurement from the reference tenant written
+into text that runs everywhere:
+
+1. The plan's assumption that self-consent works, falsified.
+2. Its replacement, "treat an administrator step as likely", which overcorrected into general deployment
+   guidance and would have encouraged pre-granting consent.
+3. The companion's approval-required copy, which named the reference tenant's specific consent setting and
+   Microsoft's fixed client list — shown to **any** tenant returning `ApprovalRequired`, most of which
+   would have been blocked by a different policy. A confident wrong diagnosis.
+
+The rule that resolves all three: **this report is where tenant-specific measurements belong; shipped copy
+and the plan get the mechanism.** For consent the mechanism is that a permission not marked as requiring
+admin consent can still be withheld by tenant policy, and that the registration's own "admin consent
+required" column shows the organization default rather than the effective policy. That is true anywhere.
+Which policy did it, and on which tenant, is evidence. The layout manifest is stamped by a substitution
 scoped to the `Identity` element, and the script then asserts both that the stamp landed and that the
 framework dependency's `MinVersion` did not move — the two failure modes a careless regex would produce,
 one of which a test already guards.

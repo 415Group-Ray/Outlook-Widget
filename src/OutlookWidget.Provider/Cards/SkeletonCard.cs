@@ -245,15 +245,23 @@ internal static class SkeletonCard
         // Disclosure mode is checked before the read status, deliberately. A present tombstone is
         // authoritative regardless of what the cache holds, so a suppressed state must never fall
         // through to a branch that describes snapshot contents.
+        //
+        // These branches return before the authentication narration below, so each appends any
+        // authorization blocker itself. Adding a new early return means considering the same.
+        //
+        // Appending it here does NOT weaken the tombstone: DescribeAuthBlocker returns a status word
+        // turned into a sentence and never touches the snapshot, so a suppressed card gains no mailbox
+        // metadata. Withholding it would be the actual harm — telling someone to sign in when signing
+        // in cannot succeed is the conflation section 8 forbids.
         if (state.Mode == DisclosureMode.SignedOut)
         {
-            return ("Signed out", "Open the companion to sign in.");
+            return ("Signed out", "Open the companion to sign in." + DescribeAuthBlocker());
         }
 
         if (state.Mode == DisclosureMode.CountsOnly)
         {
             return ("Details hidden", "Message details are hidden by a privacy setting or an "
-                                     + "in-progress account change.");
+                                     + "in-progress account change." + DescribeAuthBlocker());
         }
 
         return state.ReadStatus switch
@@ -270,7 +278,8 @@ internal static class SkeletonCard
 
             CacheReadStatus.Cleared =>
                 ("Cache cleared",
-                    "State was explicitly cleared by a logout, account switch, or cache clear."),
+                    "State was explicitly cleared by a logout, account switch, or cache clear."
+                    + DescribeAuthBlocker()),
 
             CacheReadStatus.UnsupportedVersion =>
                 ("Cache discarded",
@@ -288,6 +297,42 @@ internal static class SkeletonCard
             _ => ("Unknown state", "The provider read a cache status it does not recognise."),
         };
     }
+
+    /// <summary>
+    /// A trailing sentence for cards whose own copy would otherwise mislead about authentication, or
+    /// empty when there is nothing to add.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only the states that make the surrounding advice <em>wrong</em> produce a sentence. A signed-out
+    /// or cleared card already says to open the companion and sign in, which is correct guidance when the
+    /// outcome is interaction-required and misleading when an administrator has to approve, the broker is
+    /// unavailable, or the build shipped without a registration.
+    /// </para>
+    /// <para>
+    /// Silence for every other status is deliberate. Appending "acquired a token" to a signed-out card,
+    /// or the pending sentence to every card in the moments after provider start, would be noise on the
+    /// two most frequently seen cards.
+    /// </para>
+    /// <para>
+    /// Leading space, because the caller concatenates it onto a completed sentence.
+    /// </para>
+    /// </remarks>
+    private static string DescribeAuthBlocker() =>
+        SilentAuthStatus switch
+        {
+            TokenAcquisitionStatus.ApprovalRequired =>
+                " Signing in will not be enough: an administrator must approve mailbox access for this "
+                + "app.",
+
+            TokenAcquisitionStatus.BrokerUnavailable =>
+                " Signing in will not work yet: the Windows authentication broker is unavailable.",
+
+            TokenAcquisitionStatus.NoConfiguration =>
+                " Signing in will not work: this build shipped without a usable Entra registration.",
+
+            _ => string.Empty,
+        };
 
     /// <summary>
     /// One sentence describing what the provider's silent acquisition did, for the medium and large
