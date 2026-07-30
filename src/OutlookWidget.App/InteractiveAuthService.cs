@@ -74,7 +74,27 @@ internal sealed class InteractiveAuthService
         TokenAcquisitionResult silent = await _silent.AcquireAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        if (silent.IsAcquired || !silent.IsResolvedBySigningIn)
+        // The silent shortcut requires a recorded selection, and that condition is the fix for a hole
+        // the previous version's own comment denied. It claimed a retry would re-attempt a failed
+        // write; it would not. With one account cached and the record missing, silent acquisition
+        // succeeds and returned here — so the write was never reached again, the companion reported
+        // Acquired with no selection on disk, and the state healed only by accident. Adding a second
+        // account later then took the provider to interaction-required, having had a usable answer
+        // available the whole time.
+        //
+        // Going interactive is the honest repair and the only one available. The alternative —
+        // recording the single cached account without asking — writes a *guess* as though it were a
+        // choice, and it would then be honoured as a choice once a second account exists. A prompt
+        // asks the question whose answer is missing.
+        if (silent.IsAcquired
+            && _selectedAccounts.Read().Status == SelectedAccountStatus.Recorded)
+        {
+            return silent;
+        }
+
+        // Broker-unavailable and approval-required still return as-is: neither is fixed by a dialog,
+        // and neither leaves anything to record.
+        if (!silent.IsAcquired && !silent.IsResolvedBySigningIn)
         {
             return silent;
         }
@@ -98,8 +118,9 @@ internal sealed class InteractiveAuthService
             // unrecorded selection: silent acquisition refuses to guess when more than one account is
             // cached, so an ignored write failure leaves the provider deterministically at
             // interaction-required while this process reports success. That is a sign-in the user is
-            // told worked and that can never converge. Reporting it as failed costs a retry, which is
-            // also the remedy, since retrying re-attempts the write.
+            // told worked and that can never converge. Reporting it as failed costs a retry, and the
+            // retry genuinely re-attempts the write — see the silent-shortcut condition above, which
+            // is what makes that true rather than merely asserted.
             //
             // Nothing is lost by discarding the token: WAM holds the device-bound refresh token and
             // MSAL's cache holds the account, so the next attempt acquires silently.

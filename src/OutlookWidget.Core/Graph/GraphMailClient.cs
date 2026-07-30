@@ -316,7 +316,27 @@ public sealed class GraphMailClient : IDisposable
             return first;
         }
 
-        return RemedyRank(second.Status) < RemedyRank(first.Status) ? second : first;
+        int firstRank = RemedyRank(first.Status);
+        int secondRank = RemedyRank(second.Status);
+
+        if (secondRank != firstRank)
+        {
+            return secondRank < firstRank ? second : first;
+        }
+
+        // Equal ranks used to fall back to position, which is harmless for every status except this
+        // one. Two throttled responses can carry different Retry-After values, and returning the
+        // shorter tells the caller to retry before the other endpoint's service-supplied backoff has
+        // expired — a throttle the product would then have earned rather than observed. The longer
+        // delay satisfies both services; the shorter satisfies only one.
+        if (first.Status == GraphMailStatus.Throttled)
+        {
+            return (second.RetryAfter ?? TimeSpan.Zero) > (first.RetryAfter ?? TimeSpan.Zero)
+                ? second
+                : first;
+        }
+
+        return first;
     }
 
     /// <summary>

@@ -38,10 +38,16 @@
   "36": "OutlookLauncher",
   "37": "StateCommitCoordinator",
   "38": "CompanionWindow",
-  "39": "MailboxSnapshot",
-  "40": "StubGraphHandler",
+  "39": "MailboxSnapshotTests",
+  "40": "FailingStream",
   "41": "IOperationalLogger",
-  "42": "ProtectedCache.cs",
+  "42": "GraphMailClient",
   "43": "CompanionLauncher",
-  "47": "DeliveryWorker"
+  "44": "MailboxSnapshot",
+  "45": "RefreshLeaseStore",
+  "46": "GraphResponseReader",
+  "47": "DeliveryState",
+  "48": ".Main",
+  "49": "OutlookWidget.Core.Models",
+  "50": ".Raise"
 }

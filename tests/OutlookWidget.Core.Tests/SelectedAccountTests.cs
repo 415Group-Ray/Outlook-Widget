@@ -319,6 +319,32 @@ public sealed class SelectedAccountTests : IDisposable
         }
     }
 
+    [Fact]
+    public void The_companion_does_not_short_circuit_a_silent_sign_in_without_a_recorded_selection()
+    {
+        // A regression guard, and weaker than the tests above — it reads source rather than running
+        // the flow, because the test project deliberately does not reference the companion. Stated as
+        // such rather than dressed up: it catches the shortcut being restored to its old unguarded
+        // form, and it would not catch a subtler way of reaching the same result.
+        //
+        // The behaviour it guards: taking the silent result whenever it succeeded meant a failed
+        // selection write never healed. The next attempt acquired silently and returned before the
+        // write was reached, so the companion reported Acquired with no selection on disk — and the
+        // comment beside it claimed the retry re-attempted the write, which it did not.
+        string source = TestInfrastructure.RepositorySources.StripCommentsAndStrings(
+            File.ReadAllText(
+                Path.Combine(
+                    TestInfrastructure.RepositorySources.AppSourceDirectory,
+                    "InteractiveAuthService.cs")));
+
+        Assert.DoesNotContain("silent.IsAcquired ||", source, StringComparison.Ordinal);
+
+        Assert.Contains(
+            nameof(SelectedAccountStatus.Recorded),
+            source,
+            StringComparison.Ordinal);
+    }
+
     /// <summary>Protection that protects nothing, so a test can plant an exact payload.</summary>
     private sealed class PassThroughProtector : IDataProtector
     {

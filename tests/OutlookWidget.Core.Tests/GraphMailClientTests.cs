@@ -218,6 +218,46 @@ public sealed class GraphMailClientTests
         Assert.Equal(expected, result.Status);
     }
 
+    [Theory]
+    [InlineData(5, 60, 60)]
+    [InlineData(60, 5, 60)]
+    public async Task Two_throttled_responses_keep_the_longer_retry_after(
+        int folderSeconds,
+        int messagesSeconds,
+        int expectedSeconds)
+    {
+        // Equal remedy ranks used to fall back to position, which is harmless for every status but
+        // this one: returning the shorter delay tells the caller to retry before the other endpoint's
+        // service-supplied backoff has expired, so the product would earn its next throttle rather
+        // than observe it. Both orders, because position is what stopped mattering.
+        var handler = new StubGraphHandler()
+            .Status(MessagesRoute, HttpStatusCode.TooManyRequests, TimeSpan.FromSeconds(messagesSeconds))
+            .Status(FolderRoute, HttpStatusCode.TooManyRequests, TimeSpan.FromSeconds(folderSeconds));
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(GraphMailStatus.Throttled, result.Status);
+        Assert.Equal(TimeSpan.FromSeconds(expectedSeconds), result.RetryAfter);
+    }
+
+    [Fact]
+    public async Task A_throttled_response_with_no_retry_after_loses_to_one_that_has_it()
+    {
+        // Absent guidance is not zero guidance, but it is less than an explicit delay, and honouring
+        // the explicit one satisfies both services.
+        var handler = new StubGraphHandler()
+            .Status(MessagesRoute, HttpStatusCode.TooManyRequests, TimeSpan.FromSeconds(30))
+            .Status(FolderRoute, HttpStatusCode.TooManyRequests);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(TimeSpan.FromSeconds(30), result.RetryAfter);
+    }
+
     [Fact]
     public async Task A_throttled_response_carries_its_retry_after()
     {
