@@ -4,6 +4,35 @@ using OutlookWidget.Core.Diagnostics;
 
 namespace OutlookWidget.Core.Authentication;
 
+/// <summary>Why a read of the recorded account selection ended as it did.</summary>
+public enum SelectedAccountStatus
+{
+    /// <summary>
+    /// Nothing has been recorded for this registration. A fresh install, or state written before the
+    /// selection existed. The caller may fall back to its prior behaviour.
+    /// </summary>
+    Absent,
+
+    /// <summary>A selection was read and is usable.</summary>
+    Recorded,
+
+    /// <summary>
+    /// A record exists and could not be trusted — unreadable, malformed, or carrying no identifier.
+    /// <b>The caller must not fall back.</b> See <see cref="SelectedAccountStore.Read"/> for why this
+    /// is not folded into <see cref="Absent"/>.
+    /// </summary>
+    Unreadable,
+}
+
+/// <summary>The outcome of one selection read.</summary>
+/// <param name="Status">Why the read ended as it did.</param>
+/// <param name="HomeAccountId">
+/// The identifier, present only on <see cref="SelectedAccountStatus.Recorded"/>.
+/// </param>
+public readonly record struct SelectedAccountResult(
+    SelectedAccountStatus Status,
+    string? HomeAccountId);
+
 /// <summary>
 /// Records which account the user actually chose, so silent acquisition stops guessing.
 /// </summary>
@@ -92,17 +121,33 @@ public sealed class SelectedAccountStore
     }
 
     /// <summary>
-    /// The recorded identifier, or <see langword="null"/> when there is none for this registration.
+    /// Reads the recorded selection, distinguishing "there is none" from "it could not be read".
     /// </summary>
     /// <remarks>
-    /// <b>Absent and unreadable are the same answer</b>, as they are for the authorization record and
-    /// for the same reason: the caller's fallback is the behaviour the product already had, so a
-    /// transient read failure degrades rather than breaks. A record written for a <em>different</em>
-    /// registration is treated as absent, not deleted — state lives under package identity, which does
-    /// not change when <c>authentication.json</c> is repointed, and a read has no business mutating
-    /// state it may not own.
+    /// <para>
+    /// <b>Absent and unreadable are deliberately <em>not</em> the same answer, and an earlier version
+    /// of this method said they were by analogy to <c>AuthorizationStateStore</c>.</b> That analogy
+    /// was wrong, because the two stores fail in opposite directions. There, wrongly claiming
+    /// approval-required asserts an administrator is needed and withdraws a retry the user may simply
+    /// want, so an unreadable record must yield no refinement. Here, treating an unreadable record as
+    /// absent sends the caller down the first-cached-account fallback — which on a machine with more
+    /// than one account reads a <em>different mailbox</em> and looks exactly like success.
+    /// </para>
+    /// <para>
+    /// So this one fails closed, which is the direction invariant 5 requires whenever the harm is
+    /// disclosure rather than inconvenience. A corrupt or transiently unreadable file costs a sign-in
+    /// prompt; the alternative costs the wrong person's mail on screen.
+    /// </para>
+    /// <para>
+    /// A record written for a <em>different</em> registration is genuinely
+    /// <see cref="SelectedAccountStatus.Absent"/> rather than unreadable — it is a perfectly good
+    /// record about something else, and this registration has no selection. It is not deleted: state
+    /// lives under package identity, which does not change when <c>authentication.json</c> is
+    /// repointed, and a read has no business mutating state it may not own. A record that <em>is</em>
+    /// ours and carries no identifier is malformed, so it fails closed like any other unreadable one.
+    /// </para>
     /// </remarks>
-    public string? TryRead()
+    public SelectedAccountResult Read()
     {
         try
         {
@@ -110,21 +155,33 @@ public sealed class SelectedAccountStore
                 File.ReadAllText(_paths.SelectedAccountFilePath),
                 ReadOptions);
 
-            if (record is null
-                || record.TenantId != _options.TenantId
-                || record.ClientId != _options.ClientId)
+            if (record is null)
             {
-                return null;
+                return new SelectedAccountResult(SelectedAccountStatus.Unreadable, null);
             }
 
-            return string.IsNullOrWhiteSpace(record.HomeAccountId) ? null : record.HomeAccountId;
+            if (record.TenantId != _options.TenantId || record.ClientId != _options.ClientId)
+            {
+                return new SelectedAccountResult(SelectedAccountStatus.Absent, null);
+            }
+
+            return string.IsNullOrWhiteSpace(record.HomeAccountId)
+                ? new SelectedAccountResult(SelectedAccountStatus.Unreadable, null)
+                : new SelectedAccountResult(SelectedAccountStatus.Recorded, record.HomeAccountId);
+        }
+        catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
+        {
+            // The only genuinely absent case: nothing has ever been recorded here. Separated from the
+            // catch below because that one is the fail-closed path and this one is a fresh install.
+            return new SelectedAccountResult(SelectedAccountStatus.Absent, null);
         }
         catch (Exception e) when (e is IOException
                                      or UnauthorizedAccessException
                                      or JsonException
                                      or ArgumentException)
         {
-            return null;
+            _logger.Record(OperationalEventId.CacheReadFailed, OperationalOutcome.Failed);
+            return new SelectedAccountResult(SelectedAccountStatus.Unreadable, null);
         }
     }
 

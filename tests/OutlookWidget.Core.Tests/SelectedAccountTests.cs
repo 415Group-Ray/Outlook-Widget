@@ -44,6 +44,15 @@ public sealed class SelectedAccountTests : IDisposable
         }
     }
 
+    private static SelectedAccountResult Recorded(string id) =>
+        new(SelectedAccountStatus.Recorded, id);
+
+    private static SelectedAccountResult Absent =>
+        new(SelectedAccountStatus.Absent, null);
+
+    private static SelectedAccountResult Unreadable =>
+        new(SelectedAccountStatus.Unreadable, null);
+
     [Fact]
     public void A_recorded_selection_round_trips()
     {
@@ -51,33 +60,60 @@ public sealed class SelectedAccountTests : IDisposable
 
         store.Write("object-id.tenant-id");
 
-        Assert.Equal("object-id.tenant-id", store.TryRead());
+        Assert.Equal(Recorded("object-id.tenant-id"), store.Read());
     }
 
     [Fact]
-    public void An_absent_record_reads_as_no_selection()
+    public void A_missing_file_is_absent_and_not_unreadable()
     {
-        Assert.Null(new SelectedAccountStore(Paths, Registration).TryRead());
+        // The one genuinely absent case: a fresh install. It has to stay distinguishable from the
+        // fail-closed one, because it is the only status that permits the fallback.
+        Assert.Equal(Absent, new SelectedAccountStore(Paths, Registration).Read());
     }
 
     [Fact]
-    public void A_record_written_for_another_registration_is_ignored()
+    public void A_record_written_for_another_registration_is_absent_rather_than_unreadable()
     {
-        // State lives under package identity, which does not change when authentication.json is
-        // repointed at a different client or tenant. Honouring the old registration's selection would
-        // have the provider ask for an account that means nothing to the new one.
+        // A perfectly good record about something else. State lives under package identity, which does
+        // not change when authentication.json is repointed at a different client or tenant, so this
+        // registration genuinely has no selection — the fallback is correct here.
         new SelectedAccountStore(Paths, OtherRegistration).Write("object-id.tenant-id");
 
-        Assert.Null(new SelectedAccountStore(Paths, Registration).TryRead());
+        Assert.Equal(Absent, new SelectedAccountStore(Paths, Registration).Read());
     }
 
     [Fact]
-    public void A_corrupt_record_reads_as_no_selection_rather_than_throwing()
+    public void A_corrupt_record_is_unreadable_rather_than_absent()
     {
+        // The finding this distinction exists for. Reporting corruption as "no selection" sends the
+        // caller down the first-cached-account fallback, which on a multi-account machine reads a
+        // different mailbox and looks exactly like success.
         Directory.CreateDirectory(_root);
         File.WriteAllText(Paths.SelectedAccountFilePath, "{ not json");
 
-        Assert.Null(new SelectedAccountStore(Paths, Registration).TryRead());
+        Assert.Equal(Unreadable, new SelectedAccountStore(Paths, Registration).Read());
+    }
+
+    [Fact]
+    public void A_record_for_this_registration_carrying_no_identifier_is_unreadable()
+    {
+        // Ours, and malformed. A half-written file is the likeliest way to reach this, and it fails
+        // closed for the same reason a corrupt one does.
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(
+            Paths.SelectedAccountFilePath,
+            $$"""{"homeAccountId":"","tenantId":"{{Registration.TenantId}}","clientId":"{{Registration.ClientId}}"}""");
+
+        Assert.Equal(Unreadable, new SelectedAccountStore(Paths, Registration).Read());
+    }
+
+    [Fact]
+    public void A_json_null_document_is_unreadable()
+    {
+        Directory.CreateDirectory(_root);
+        File.WriteAllText(Paths.SelectedAccountFilePath, "null");
+
+        Assert.Equal(Unreadable, new SelectedAccountStore(Paths, Registration).Read());
     }
 
     [Fact]
@@ -89,7 +125,7 @@ public sealed class SelectedAccountTests : IDisposable
         store.Write("object-id.tenant-id");
         store.Clear();
 
-        Assert.Null(store.TryRead());
+        Assert.Equal(Absent, store.Read());
     }
 
     [Fact]
@@ -112,7 +148,7 @@ public sealed class SelectedAccountTests : IDisposable
         IAccount first = new StubAccount("first.tenant");
         IAccount second = new StubAccount("second.tenant");
 
-        Assert.Same(first, SilentAuthService.Select([first, second], selectedHomeAccountId: null));
+        Assert.Same(first, SilentAuthService.Select([first, second], Absent));
     }
 
     [Fact]
@@ -120,7 +156,31 @@ public sealed class SelectedAccountTests : IDisposable
     {
         Assert.Same(
             PublicClientApplication.OperatingSystemAccount,
-            SilentAuthService.Select([], selectedHomeAccountId: null));
+            SilentAuthService.Select([], Absent));
+    }
+
+    [Fact]
+    public void An_unreadable_record_refuses_rather_than_falling_back()
+    {
+        // The heart of the fix. Before this, an unreadable record was reported as "no selection" and
+        // this call returned `first` — a different mailbox, silently, on any machine with more than
+        // one cached account. Failing closed costs a sign-in prompt; the alternative costs the wrong
+        // person's mail on screen.
+        IAccount first = new StubAccount("first.tenant");
+        IAccount second = new StubAccount("second.tenant");
+
+        Assert.Null(SilentAuthService.Select([first, second], Unreadable));
+    }
+
+    [Fact]
+    public void An_unreadable_record_refuses_even_with_a_single_cached_account()
+    {
+        // Deliberately refusing in the case where guessing would almost certainly be right. "Almost
+        // certainly" is the wrong standard for which mailbox to display, and a rule with an exception
+        // for the common case is one that stops holding exactly when a machine grows a second account.
+        IAccount only = new StubAccount("only.tenant");
+
+        Assert.Null(SilentAuthService.Select([only], Unreadable));
     }
 
     [Fact]
@@ -131,7 +191,7 @@ public sealed class SelectedAccountTests : IDisposable
         IAccount first = new StubAccount("first.tenant");
         IAccount chosen = new StubAccount("chosen.tenant");
 
-        Assert.Same(chosen, SilentAuthService.Select([first, chosen], "chosen.tenant"));
+        Assert.Same(chosen, SilentAuthService.Select([first, chosen], Recorded("chosen.tenant")));
     }
 
     [Fact]
@@ -142,7 +202,7 @@ public sealed class SelectedAccountTests : IDisposable
         // sign-in is the honest remedy.
         IAccount first = new StubAccount("first.tenant");
 
-        Assert.Null(SilentAuthService.Select([first], "chosen.tenant"));
+        Assert.Null(SilentAuthService.Select([first], Recorded("chosen.tenant")));
     }
 
     [Fact]
@@ -151,7 +211,7 @@ public sealed class SelectedAccountTests : IDisposable
         // Notably it does NOT fall through to the operating-system account. That fallback is a guess
         // about intent, and a recorded selection means intent is known — guessing over it would be a
         // regression dressed as resilience.
-        Assert.Null(SilentAuthService.Select([], "chosen.tenant"));
+        Assert.Null(SilentAuthService.Select([], Recorded("chosen.tenant")));
     }
 
     /// <summary>The three properties of <see cref="IAccount"/>, and no MSAL machinery.</summary>

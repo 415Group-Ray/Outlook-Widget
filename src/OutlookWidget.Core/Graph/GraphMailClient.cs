@@ -154,6 +154,21 @@ public sealed class GraphMailClient : IDisposable
         long started,
         CancellationToken callerToken)
     {
+        // Caller cancellation outranks everything below, including a complete set of good responses.
+        //
+        // This is checked here rather than only on the failure path because of a case that reads as
+        // success and is not: with the optional Focused count enabled, the two required requests can
+        // finish, the caller can then cancel, and the still-pending optional request returns as an
+        // ordinary optional failure. The result would be Success — for a pass the caller explicitly
+        // abandoned — and a caller that committed it would resurrect a refresh its own deadline had
+        // already ended. Discarding a genuinely complete result in the narrow race where the token
+        // fires just after the last response is the cheap side of that trade.
+        if (callerToken.IsCancellationRequested)
+        {
+            Record(GraphMailStatus.Cancelled, started, httpStatusCode: null, recordCount: null);
+            return GraphMailResult.Failure(GraphMailStatus.Cancelled);
+        }
+
         // The first required failure decides the outcome. Reporting the folder's before the message
         // read's is arbitrary and does not matter: both carry a category and a status code, and a
         // caller's response to either is the same.
@@ -163,16 +178,13 @@ public sealed class GraphMailClient : IDisposable
 
         if (failed is not null)
         {
-            // A caller-cancelled read is reclassified here rather than in the send helper, because
-            // only this level knows whose token fired. The helper sees one linked token and cannot
-            // tell a 10-second Graph timeout from the refresh abandoning the whole pass.
-            GraphMailStatus status = failed.Status == GraphMailStatus.TimedOut
-                                     && callerToken.IsCancellationRequested
-                ? GraphMailStatus.Cancelled
-                : failed.Status;
-
-            Record(status, started, failed.HttpStatusCode, recordCount: null);
-            return GraphMailResult.Failure(status, failed.HttpStatusCode, failed.RetryAfter);
+            // No cancellation reclassification here any more. The send helper reports every
+            // OperationCanceledException as TimedOut because it sees one linked token and cannot tell
+            // the nested Graph bound from the caller abandoning the pass — and the check above has
+            // already answered that question for the whole method, so a TimedOut reaching this point
+            // is genuinely the nested bound.
+            Record(failed.Status, started, failed.HttpStatusCode, recordCount: null);
+            return GraphMailResult.Failure(failed.Status, failed.HttpStatusCode, failed.RetryAfter);
         }
 
         if (!GraphResponseReader.TryReadFolderCounts(

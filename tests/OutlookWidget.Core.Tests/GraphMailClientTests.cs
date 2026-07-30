@@ -350,6 +350,26 @@ public sealed class GraphMailClientTests
     }
 
     [Fact]
+    public async Task Caller_cancellation_outranks_a_complete_set_of_good_responses()
+    {
+        // The case that reads as success and is not. With the optional count enabled, the two required
+        // requests can finish, the caller can then cancel, and the still-pending optional request
+        // returns as an ordinary optional failure — so the result was Success for a pass the caller had
+        // explicitly abandoned, and a caller that committed it would resurrect a refresh its own
+        // deadline had already ended.
+        var handler = HealthyMailbox();
+        using GraphMailClient client = ClientFor(handler);
+        using var caller = new CancellationTokenSource();
+
+        await caller.CancelAsync();
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: true, caller.Token);
+
+        Assert.Equal(GraphMailStatus.Cancelled, result.Status);
+        Assert.Null(result.Readout);
+    }
+
+    [Fact]
     public async Task An_empty_subject_and_an_absent_sender_get_local_labels()
     {
         var handler = new StubGraphHandler()

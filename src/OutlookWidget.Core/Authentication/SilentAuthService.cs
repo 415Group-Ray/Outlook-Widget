@@ -172,31 +172,52 @@ public sealed class SilentAuthService
         List<IAccount> accounts =
             (await _client.GetAccountsAsync().ConfigureAwait(false)).ToList();
 
-        return new AccountSelection(Select(accounts, _selectedAccounts?.TryRead()), accounts.Count);
+        // No store configured at all is the same as no record: the fallback behaviour, which is what
+        // a caller that never supplied one is asking for.
+        SelectedAccountResult selection = _selectedAccounts?.Read()
+                                          ?? new SelectedAccountResult(SelectedAccountStatus.Absent, null);
+
+        return new AccountSelection(Select(accounts, selection), accounts.Count);
     }
 
     /// <summary>
     /// The selection rule itself, separated from the MSAL call so it can be tested directly.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Pure and synchronous on purpose. Stubbing <see cref="IPublicClientApplication"/> to reach this
-    /// logic would mean implementing a large interface to exercise four lines, and the resulting test
-    /// would be mostly stub. <see cref="IAccount"/> is three properties, so the rule is tested against
-    /// real inputs instead.
+    /// logic would mean implementing a large interface to exercise a handful of lines, and the
+    /// resulting test would be mostly stub. <see cref="IAccount"/> is three properties, so the rule is
+    /// tested against real inputs instead.
+    /// </para>
+    /// <para>
+    /// <b>Only <see cref="SelectedAccountStatus.Absent"/> permits the fallback.</b> That is the whole
+    /// shape of this method: a recorded selection must be honoured exactly, and an
+    /// <see cref="SelectedAccountStatus.Unreadable"/> record must not be downgraded into "no
+    /// preference" — a corrupt or transiently unreadable file would otherwise send a multi-account
+    /// machine to whichever account MSAL enumerates first and render a different mailbox.
+    /// </para>
     /// </remarks>
-    internal static IAccount? Select(IReadOnlyList<IAccount> accounts, string? selectedHomeAccountId)
+    internal static IAccount? Select(IReadOnlyList<IAccount> accounts, SelectedAccountResult selection)
     {
         ArgumentNullException.ThrowIfNull(accounts);
 
-        if (selectedHomeAccountId is { Length: > 0 })
+        // Fails closed. The record exists and cannot be trusted, so there is no account this may
+        // safely ask for; null becomes interaction-required in AcquireAsync.
+        if (selection.Status == SelectedAccountStatus.Unreadable)
         {
-            // No fallback on a miss. Returning another account here would read a different mailbox and
-            // look like success; null becomes interaction-required in AcquireAsync.
+            return null;
+        }
+
+        if (selection is { Status: SelectedAccountStatus.Recorded, HomeAccountId: { Length: > 0 } selectedId })
+        {
+            // No fallback on a miss either. Returning another account here would read a different
+            // mailbox and look exactly like success.
             foreach (IAccount candidate in accounts)
             {
                 if (string.Equals(
                         candidate.HomeAccountId?.Identifier,
-                        selectedHomeAccountId,
+                        selectedId,
                         StringComparison.Ordinal))
                 {
                     return candidate;
