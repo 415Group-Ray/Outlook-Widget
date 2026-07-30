@@ -224,6 +224,44 @@ public sealed class GraphMailClientTests
     }
 
     [Fact]
+    public async Task A_connection_that_dies_while_the_body_is_read_is_still_a_result_and_not_a_throw()
+    {
+        // The failure ResponseHeadersRead creates: status 200, headers received, connection dropped
+        // mid-payload. Real .NET raises HttpIOException, which derives from IOException and NOT from
+        // HttpRequestException — so an earlier version of this catch missed it entirely and let the
+        // exception escape a method documented as never throwing, taking the refresh path with it.
+        var handler = new StubGraphHandler()
+            .Json(MessagesRoute, MessagesJson)
+            .BodyFailure(FolderRoute);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(GraphMailStatus.NetworkFailure, result.Status);
+        Assert.Null(result.Readout);
+    }
+
+    [Fact]
+    public async Task A_dying_optional_count_still_cannot_discard_the_required_results()
+    {
+        // The same failure on the optional request. Worth its own case because the whole point of
+        // reducing each request to a value is that an escaping exception from any one of the three
+        // would abandon the other two.
+        var handler = new StubGraphHandler()
+            .BodyFailure(FocusedRoute)
+            .Json(MessagesRoute, MessagesJson)
+            .Json(FolderRoute, FolderJson);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: true, TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Readout!.FocusedUnreadCount);
+    }
+
+    [Fact]
     public async Task A_success_status_carrying_something_other_than_json_is_an_invalid_response()
     {
         var handler = new StubGraphHandler()

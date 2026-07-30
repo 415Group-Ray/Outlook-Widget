@@ -1,16 +1,16 @@
 # Graph Report - Outlook Widget  (2026-07-30)
 
 ## Corpus Check
-- 90 files · ~130,322 words
+- 92 files · ~132,631 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1096 nodes · 2470 edges · 44 communities (40 shown, 4 thin omitted)
-- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 281 edges (avg confidence: 0.8)
+- 1125 nodes · 2535 edges · 44 communities (41 shown, 3 thin omitted)
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 289 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `37d02aad`
+- Built from commit: `c33592ea`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -22,7 +22,7 @@
 - OutlookWidget.Core.Refresh
 - DisclosureTombstoneStore
 - Outlook Inbox Widget
-- .Record
+- WidgetProvider
 - .Current
 - AuthenticationConfigurationTests
 - .Start
@@ -38,9 +38,9 @@
 - Final Convergence Privacy Guarantee
 - .Locate
 - CoordinationFixture
-- ProtectedCache
+- .Record
 - CoordinationPaths
-- RefreshLeaseStore
+- SelectedAccountTests
 - ProviderFactory
 - ProviderCardTests
 - .ReadAsync
@@ -48,35 +48,35 @@
 - DeliveryWorker
 - StateCommitCoordinator
 - CompanionWindow
-- CurrentUserDataProtector
+- ProtectedCache.cs
 - StubGraphHandler
 - IOperationalLogger
-- CompanionLauncher
-- PackageIdentity
+- SelectedAccountStore
+- .Raise
 
 ## God Nodes (most connected - your core abstractions)
 1. `CompanionWindow` - 31 edges
 2. `OutlookWidget.Core.Refresh` - 31 edges
 3. `DisclosureTombstoneStore` - 27 edges
 4. `GraphMailClientTests` - 27 edges
-5. `DisclosureTombstoneTests` - 26 edges
-6. `RefreshCoordinatorTests` - 26 edges
-7. `OutlookWidget.Core.Diagnostics` - 25 edges
-8. `IOperationalLogger` - 25 edges
-9. `OutlookWidget.Core.Caching` - 24 edges
+5. `OutlookWidget.Core.Caching` - 26 edges
+6. `OutlookWidget.Core.Diagnostics` - 26 edges
+7. `IOperationalLogger` - 26 edges
+8. `DisclosureTombstoneTests` - 26 edges
+9. `RefreshCoordinatorTests` - 26 edges
 10. `AuthenticationOutcomeTests` - 23 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Cache is discarded and refetched, never migrated` --semantically_similar_to--> `No telemetry; logging API shape prevents sensitive data`  [INFERRED] [semantically similar]
   docs/troubleshooting.md → README.md
+- `SelectedAccountTests` --references--> `AuthenticationOptions`  [EXTRACTED]
+  tests/OutlookWidget.Core.Tests/SelectedAccountTests.cs → src/OutlookWidget.Core/Authentication/AuthenticationOptions.cs
+- `SelectedAccountTests` --references--> `CoordinationPaths`  [EXTRACTED]
+  tests/OutlookWidget.Core.Tests/SelectedAccountTests.cs → src/OutlookWidget.Core/Caching/CoordinationPaths.cs
 - `CoordinationFixture` --references--> `CoordinationPaths`  [EXTRACTED]
   tests/OutlookWidget.Core.Tests/TestInfrastructure/CoordinationFixture.cs → src/OutlookWidget.Core/Caching/CoordinationPaths.cs
 - `CoordinationFixture` --references--> `ProtectedCache`  [EXTRACTED]
   tests/OutlookWidget.Core.Tests/TestInfrastructure/CoordinationFixture.cs → src/OutlookWidget.Core/Caching/ProtectedCache.cs
-- `FakeWidgetHost` --references--> `DeliveryState`  [EXTRACTED]
-  tests/OutlookWidget.Core.Tests/TestInfrastructure/FakeWidgetHost.cs → src/OutlookWidget.Core/Delivery/IWidgetDeliverySink.cs
-- `FakeWidgetHost` --implements--> `IWidgetDeliverySink`  [EXTRACTED]
-  tests/OutlookWidget.Core.Tests/TestInfrastructure/FakeWidgetHost.cs → src/OutlookWidget.Core/Delivery/IWidgetDeliverySink.cs
 
 ## Import Cycles
 - None detected.
@@ -91,27 +91,27 @@
 - **Load-bearing coordination invariants** — readme_mutationlock_ref_struct, readme_mandatory_mutex_timeout, readme_single_flight_expiring_record, readme_provider_only_updatewidget, readme_one_suppression_file_per_operation, readme_cross_process_concurrency_suite [EXTRACTED 1.00]
 - **MSIX signing, publisher identity, and packaging chain** — docs_phase0_evidence_signing_decisions, docs_phase0_evidence_publisher_subject_quoting, docs_phase0_evidence_build_package_ps1, docs_phase0_evidence_msbuild_comma_path_constraint, docs_phase0_evidence_gate_1_signed_msix_install, docs_troubleshooting_install_failures [INFERRED 0.85]
 
-## Communities (44 total, 4 thin omitted)
+## Communities (44 total, 3 thin omitted)
 
 ### Community 0 - "AuthenticationOutcomeTests"
-Cohesion: 0.06
-Nodes (27): Account, CachedCount, IAccount, CancellationToken, IPublicClientApplication, Task, InteractiveAuthService, IPublicClientApplication (+19 more)
+Cohesion: 0.10
+Nodes (13): CancellationToken, Task, Exception, string, AuthenticationFailures, AuthenticationPhase, CancellationToken, DateTimeOffset (+5 more)
 
 ### Community 1 - "OutlookWidget.Core (shared .NET library)"
 Cohesion: 0.05
 Nodes (66): AbandonedMutexException Recovery, Adaptive Cards Schema 1.5 Rendering, 20-Second Async Refresh Deadline, Bounded Atomic Replace Retry Ladder, Boot-Session Discriminator for Lease Expiry, Cached-First, Activation-Driven Refresh Model, Signature Timestamping Decision, Approval/Consent-Required Authorization State (+58 more)
 
 ### Community 2 - ".RefreshAsync"
-Cohesion: 0.11
-Nodes (23): CancellationToken, Lock, long, Task, TimeSpan, DeliveryRequestOutcome, IDeliveryRequester, IRefreshFetcher (+15 more)
+Cohesion: 0.08
+Nodes (29): Guid, JsonSerializerOptions, LeaseRecord, CancellationToken, Lock, long, Task, TimeSpan (+21 more)
 
 ### Community 3 - ".SeedState"
-Cohesion: 0.12
+Cohesion: 0.11
 Nodes (13): Fact, Func, TimeSpan, DeliveryWorkerTests, Fact, ProtectedCacheTests, int, IReadOnlyList (+5 more)
 
 ### Community 4 - "OutlookWidget.Core.Refresh"
 Cohesion: 0.07
-Nodes (22): OutlookWidget.Core.Tests.TestInfrastructure, OutlookWidget.Core.Tests, OutlookWidget.Core.Authentication, OutlookWidget.Provider, OutlookWidget.Packaging, OutlookWidget.Core.Diagnostics, OutlookWidget.Core.Refresh, OutlookWidget.Core.Delivery (+14 more)
+Nodes (20): OutlookWidget.Core.Tests.TestInfrastructure, OutlookWidget.Core.Tests, OutlookWidget.Core.Authentication, OutlookWidget.Provider, OutlookWidget.Packaging, OutlookWidget.Core.Diagnostics, OutlookWidget.Core.Graph, OutlookWidget.Core.Refresh (+12 more)
 
 ### Community 5 - "DisclosureTombstoneStore"
 Cohesion: 0.08
@@ -121,17 +121,17 @@ Nodes (16): ActiveOperationRegistry, HashSet, DisclosureMode, Action, bool, Dict
 Cohesion: 0.05
 Nodes (49): Client/tenant IDs supplied via package configuration, never committed, Consent-blocked vs Graph HTTP 403 distinction, Entra ID app registration (single-tenant public client), Permission minimization (remove User.Read, forbid Mail.Read), Author self-consent to delegated Mail.ReadBasic, WAM broker redirect URI carrying the client ID, Build-Package.ps1, CoordinationPathsTests (+41 more)
 
-### Community 7 - ".Record"
-Cohesion: 0.15
-Nodes (11): TimeSpan, Func, IEnumerable, ProcessStartInfo, string, OutlookLauncher, OutlookLaunchResult, OutlookLaunchStrategy (+3 more)
+### Community 7 - "WidgetProvider"
+Cohesion: 0.06
+Nodes (27): IWidgetProvider, Func, IEnumerable, ProcessStartInfo, string, OutlookLauncher, OutlookLaunchResult, OutlookLaunchStrategy (+19 more)
 
 ### Community 8 - ".Current"
 Cohesion: 0.16
 Nodes (11): TimeSpan, BootSessionStamp, DateTimeOffset, ISystemClock, SystemClock, Fact, BootSessionStampTests, DateTimeOffset (+3 more)
 
 ### Community 9 - "AuthenticationConfigurationTests"
-Cohesion: 0.16
-Nodes (10): Guid, JsonSerializerOptions, string, AuthenticationConfiguration, ConfigurationFile, Fact, InlineData, string (+2 more)
+Cohesion: 0.07
+Nodes (24): Exception, IdentityKind, IPublicClientApplication, Task, Program, Guid, JsonSerializerOptions, string (+16 more)
 
 ### Community 10 - ".Start"
 Cohesion: 0.09
@@ -177,17 +177,17 @@ Nodes (7): Func, Fact, string, CoordinationPathsTests, Fact, string, PackagedSta
 Cohesion: 0.13
 Nodes (13): Count, Id, Outcome, OperationalEventId, OperationalOutcome, TimeSpan, NullOperationalLogger, IReadOnlyList (+5 more)
 
-### Community 29 - "ProtectedCache"
-Cohesion: 0.15
-Nodes (8): byte, int, CacheCommitResult, CacheReadResult, IDataProtector, ProtectedCache, SuppressMessage, FailingProtector
+### Community 29 - ".Record"
+Cohesion: 0.20
+Nodes (6): byte, int, CacheCommitResult, ProtectedCache, TimeSpan, SuppressMessage
 
 ### Community 30 - "CoordinationPaths"
 Cohesion: 0.07
 Nodes (34): ImmutableArray, AuthenticationOptions, DateTimeOffset, Guid, JsonSerializerOptions, AuthorizationRecord, AuthorizationStateStore, Func (+26 more)
 
-### Community 31 - "RefreshLeaseStore"
-Cohesion: 0.19
-Nodes (7): Guid, JsonSerializerOptions, LeaseRecord, CancellationToken, Guid, LeaseClaim, RefreshLeaseStore
+### Community 31 - "SelectedAccountTests"
+Cohesion: 0.18
+Nodes (8): AccountId, IAccount, IAccount, IReadOnlyList, Fact, string, SelectedAccountTests, StubAccount
 
 ### Community 32 - "ProviderFactory"
 Cohesion: 0.24
@@ -195,23 +195,27 @@ Nodes (7): PreserveSig, Func, Guid, int, IntPtr, IClassFactory, ProviderFactory
 
 ### Community 34 - ".ReadAsync"
 Cohesion: 0.07
-Nodes (29): OutlookWidget.Core.Graph, OutlookWidget.Core.Models, GraphResponse, HttpClient, JsonElement, bool, CancellationToken, HttpResponseMessage (+21 more)
+Nodes (27): GraphResponse, HttpClient, JsonElement, bool, CancellationToken, HttpResponseMessage, HttpStatusCode, string (+19 more)
 
 ### Community 35 - "MailboxSnapshot"
 Cohesion: 0.15
 Nodes (12): ReadOnlySpan, DateTimeOffset, Guid, int, IReadOnlyList, JsonSerializerOptions, string, MailboxLimits (+4 more)
 
 ### Community 36 - "DeliveryWorker"
-Cohesion: 0.05
-Nodes (31): Detail, Headline, Instance, IWidgetProvider, SemaphoreSlim, AuthenticationConfigurationStatus, bool, CancellationTokenSource (+23 more)
+Cohesion: 0.10
+Nodes (18): Detail, Headline, Instance, SemaphoreSlim, bool, CancellationTokenSource, Lock, long (+10 more)
 
 ### Community 37 - "StateCommitCoordinator"
 Cohesion: 0.32
 Nodes (7): CancellationToken, ClearStateAction, CommitSnapshotAction, IStateCommitAction, StateCommitCoordinator, StateCommitOutcome, StateCommitResult
 
 ### Community 38 - "CompanionWindow"
-Cohesion: 0.14
+Cohesion: 0.15
 Nodes (16): MarshalAs, MSG, RECT, Func, int, IntPtr, LibraryImport, string (+8 more)
+
+### Community 39 - "ProtectedCache.cs"
+Cohesion: 0.16
+Nodes (6): CacheCommitStatus, CacheReadResult, CacheReadStatus, CurrentUserDataProtector, IDataProtector, FailingProtector
 
 ### Community 40 - "StubGraphHandler"
 Cohesion: 0.13
@@ -221,37 +225,37 @@ Nodes (11): ConcurrentBag, HttpMessageHandler, HttpRequestMessage, CancellationT
 Cohesion: 0.29
 Nodes (8): Mutex, IOperationalLogger, bool, CancellationToken, int, MutationLock, MutationLockOutcome, MutationMutex
 
-### Community 42 - "CompanionLauncher"
-Cohesion: 0.33
-Nodes (5): Func, IEnumerable, ProcessStartInfo, string, CompanionLauncher
+### Community 42 - "SelectedAccountStore"
+Cohesion: 0.14
+Nodes (11): AccountSelection, IPublicClientApplication, InteractiveAuthService, Guid, JsonSerializerOptions, AccountRecord, SelectedAccountStore, IPublicClientApplication (+3 more)
 
-### Community 43 - "PackageIdentity"
-Cohesion: 0.21
-Nodes (7): Exception, IdentityKind, int, LibraryImport, IdentityKind, PackageIdentity, PackageIdentityException
+### Community 43 - ".Raise"
+Cohesion: 0.48
+Nodes (3): StateChangeSignal, Fact, StateChangeSignalTests
 
 ## Ambiguous Edges - Review These
 - `Tray/Popover Fallback Surface` → `Widgets Policy Preflight (AllowNewsAndInterests)`  [AMBIGUOUS]
   TECHNICAL_PLAN.md · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **38 isolated node(s):** `net10.0-windows`, `Microsoft.Identity.Client`, `Microsoft.NET.Sdk`, `ConfigurationFile`, `CacheReadStatus` (+33 more)
+- **39 isolated node(s):** `net10.0-windows`, `Microsoft.Identity.Client`, `Microsoft.NET.Sdk`, `ConfigurationFile`, `AccountSelection` (+34 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `Tray/Popover Fallback Surface` and `Widgets Policy Preflight (AllowNewsAndInterests)`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `OutlookWidget.Core.Refresh` connect `OutlookWidget.Core.Refresh` to `.ReadAsync`, `.RefreshAsync`, `DisclosureTombstoneStore`, `StateCommitCoordinator`, `.Current`, `IOperationalLogger`, `CoordinationStaticAnalysisTests`, `RefreshLeaseStore`?**
-  _High betweenness centrality (0.110) - this node is a cross-community bridge._
-- **Why does `IOperationalLogger` connect `IOperationalLogger` to `AuthenticationOutcomeTests`, `.ReadAsync`, `.RefreshAsync`, `DeliveryWorker`, `DisclosureTombstoneStore`, `StateCommitCoordinator`, `.Record`, `AuthenticationConfigurationTests`, `.Start`, `CompanionLauncher`, `CoordinationFixture`, `ProtectedCache`, `CoordinationPaths`, `RefreshLeaseStore`?**
-  _High betweenness centrality (0.107) - this node is a cross-community bridge._
-- **Why does `OutlookWidget.Core.Tests` connect `OutlookWidget.Core.Refresh` to `.ReadAsync`?**
-  _High betweenness centrality (0.090) - this node is a cross-community bridge._
+- **Why does `IOperationalLogger` connect `IOperationalLogger` to `.ReadAsync`, `.RefreshAsync`, `DeliveryWorker`, `DisclosureTombstoneStore`, `StateCommitCoordinator`, `WidgetProvider`, `AuthenticationConfigurationTests`, `SelectedAccountStore`, `.Start`, `CoordinationFixture`, `.Record`, `CoordinationPaths`?**
+  _High betweenness centrality (0.130) - this node is a cross-community bridge._
+- **Why does `OutlookWidget.Core.Refresh` connect `OutlookWidget.Core.Refresh` to `.RefreshAsync`, `DeliveryWorker`, `DisclosureTombstoneStore`, `StateCommitCoordinator`, `ProtectedCache.cs`, `.Current`, `IOperationalLogger`, `CoordinationStaticAnalysisTests`?**
+  _High betweenness centrality (0.073) - this node is a cross-community bridge._
 - **What connects `net10.0-windows`, `Microsoft.Identity.Client`, `Microsoft.NET.Sdk` to the rest of the system?**
-  _38 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _39 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `AuthenticationOutcomeTests` be split into smaller, more focused modules?**
-  _Cohesion score 0.06394230769230769 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.10101010101010101 - nodes in this community are weakly interconnected._
 - **Should `OutlookWidget.Core (shared .NET library)` be split into smaller, more focused modules?**
   _Cohesion score 0.05081585081585081 - nodes in this community are weakly interconnected._
+- **Should `.RefreshAsync` be split into smaller, more focused modules?**
+  _Cohesion score 0.0821917808219178 - nodes in this community are weakly interconnected._

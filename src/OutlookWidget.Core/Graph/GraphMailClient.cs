@@ -213,9 +213,10 @@ public sealed class GraphMailClient : IDisposable
     /// </summary>
     /// <remarks>
     /// <b>This method does not throw</b>, which is what lets three requests run concurrently without
-    /// one taking the others down. The exception filters are exhaustive for the transport:
-    /// <see cref="HttpRequestException"/> covers connection and DNS failures,
-    /// <see cref="OperationCanceledException"/> covers both cancellation sources, and
+    /// one taking the others down. <see cref="HttpRequestException"/> covers connection and DNS
+    /// failures before a response, <see cref="IOException"/> covers a connection that dies while the
+    /// body is being read — see the catch itself, which is where that distinction is easy to get wrong
+    /// and was — <see cref="OperationCanceledException"/> covers both cancellation sources, and
     /// <see cref="JsonException"/> covers a success status carrying something that is not JSON.
     /// Anything else is a programming error and is left to propagate.
     /// </remarks>
@@ -266,8 +267,14 @@ public sealed class GraphMailClient : IDisposable
             // the one that fired. See Combine.
             return new GraphResponse(GraphMailStatus.TimedOut, null, null, null);
         }
-        catch (HttpRequestException)
+        catch (Exception e) when (e is HttpRequestException or IOException)
         {
+            // Both, and the second one is the bug this catch originally had. `ResponseHeadersRead`
+            // means the body is still on the wire when ParseAsync consumes it, and a connection that
+            // dies at that point surfaces as HttpIOException — which derives from IOException, not
+            // from HttpRequestException. Catching only the latter left a perfectly ordinary
+            // mid-response network failure escaping a method whose whole contract is that it does not
+            // throw, and it would have taken the refresh path down with it.
             return new GraphResponse(GraphMailStatus.NetworkFailure, null, null, null);
         }
     }

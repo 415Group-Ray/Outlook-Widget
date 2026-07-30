@@ -91,6 +91,22 @@ public sealed class MailboxSnapshotTests
         Assert.Null(MailboxSnapshot.TryDeserialize(Encoding.UTF8.GetBytes("not json at all")));
     }
 
+    [Theory]
+    [InlineData("""{"schemaVersion":1,"tenantId":"11111111-2222-3333-4444-555555555555","homeAccountId":"a.b","totalItemCount":1,"unreadItemCount":1,"messages":null,"refreshedAtUtc":"2026-07-30T09:00:00Z"}""")]
+    [InlineData("""{"schemaVersion":1,"tenantId":"11111111-2222-3333-4444-555555555555","homeAccountId":"a.b","totalItemCount":1,"unreadItemCount":1,"messages":[null],"refreshedAtUtc":"2026-07-30T09:00:00Z"}""")]
+    [InlineData("""{"schemaVersion":1,"tenantId":"11111111-2222-3333-4444-555555555555","homeAccountId":null,"totalItemCount":1,"unreadItemCount":1,"messages":[],"refreshedAtUtc":"2026-07-30T09:00:00Z"}""")]
+    [InlineData("""{"schemaVersion":1,"tenantId":"11111111-2222-3333-4444-555555555555","homeAccountId":"a.b","totalItemCount":1,"unreadItemCount":1,"messages":[{"displaySender":null,"subject":"S","receivedAt":"2026-07-30T09:00:00Z","isRead":false}],"refreshedAtUtc":"2026-07-30T09:00:00Z"}""")]
+    public void An_explicit_null_where_a_required_value_belongs_is_discarded(string json)
+    {
+        // `required` enforces that a property is *set*, not that it is set to something, and
+        // System.Text.Json does not enforce nullable-reference annotations. So each of these
+        // deserialises cleanly with a null where the type says there cannot be one. Counting or
+        // rendering it threw NullReferenceException, which no filter catches — a malformed cache
+        // crashed the load instead of being discarded, which is the one thing TryDeserialize promises
+        // never to do.
+        Assert.Null(MailboxSnapshot.TryDeserialize(Encoding.UTF8.GetBytes(json)));
+    }
+
     [Fact]
     public void A_payload_carrying_more_than_five_messages_is_discarded()
     {

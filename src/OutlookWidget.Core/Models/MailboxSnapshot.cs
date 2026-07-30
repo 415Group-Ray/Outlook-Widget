@@ -191,9 +191,20 @@ public sealed class MailboxSnapshot
     /// Reads a payload back, or answers <see langword="null"/> when it cannot be trusted.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <b>Every failure is null rather than an exception</b>, and an unrecognised schema version is a
     /// failure like any other. The caller's response is identical in all cases — discard and refetch —
     /// so distinguishing them would only invite a caller to handle one and forget another.
+    /// </para>
+    /// <para>
+    /// <b><c>required</c> does not mean non-null, and assuming it did was a real defect here.</b> The
+    /// modifier enforces that a property is <em>set</em>, not that it is set to something; a payload
+    /// containing <c>"messages": null</c> deserialises with a null collection and every declared
+    /// nullable-reference annotation intact, because <see cref="JsonSerializer"/> does not enforce
+    /// them. Counting that collection threw <see cref="NullReferenceException"/>, which no filter
+    /// below catches — so a malformed cache crashed the load instead of being discarded, which is the
+    /// one thing this method promises never to do. The explicit checks are the enforcement.
+    /// </para>
     /// </remarks>
     public static MailboxSnapshot? TryDeserialize(ReadOnlySpan<byte> payload)
     {
@@ -202,17 +213,41 @@ public sealed class MailboxSnapshot
             MailboxSnapshot? snapshot =
                 JsonSerializer.Deserialize<MailboxSnapshot>(payload, SerializerOptions);
 
-            if (snapshot is null || snapshot.SchemaVersion != CurrentSchemaVersion)
-            {
-                return null;
-            }
-
-            return snapshot.Messages.Count > MailboxLimits.MaxMessages ? null : snapshot;
+            return snapshot is not null && IsUsable(snapshot) ? snapshot : null;
         }
         catch (Exception e) when (e is JsonException or NotSupportedException)
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Whether a deserialised payload can be trusted enough to render.
+    /// </summary>
+    /// <remarks>
+    /// The element check matters as much as the collection one: <c>"messages": [null]</c> is just as
+    /// valid to the serialiser, and a null entry would survive to the render path and throw there
+    /// instead — further from the cause and inside the delivery worker rather than the load.
+    /// </remarks>
+    private static bool IsUsable(MailboxSnapshot snapshot)
+    {
+        if (snapshot.SchemaVersion != CurrentSchemaVersion
+            || string.IsNullOrWhiteSpace(snapshot.HomeAccountId)
+            || snapshot.Messages is null
+            || snapshot.Messages.Count > MailboxLimits.MaxMessages)
+        {
+            return false;
+        }
+
+        foreach (MessagePreview? preview in snapshot.Messages)
+        {
+            if (preview is null || preview.DisplaySender is null || preview.Subject is null)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>Counts only, never content. See <see cref="MessagePreview"/>'s remarks.</summary>

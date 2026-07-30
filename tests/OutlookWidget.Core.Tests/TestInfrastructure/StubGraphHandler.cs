@@ -66,10 +66,40 @@ internal sealed class StubGraphHandler : HttpMessageHandler
         return this;
     }
 
-    /// <summary>Fails the request the way a dead connection does.</summary>
+    /// <summary>Fails the request the way a dead connection does, before any response arrives.</summary>
     public StubGraphHandler NetworkFailure(string match)
     {
         _routes.Add((match, () => throw new HttpRequestException("simulated transport failure")));
+        return this;
+    }
+
+    /// <summary>
+    /// Answers with a success status and then dies while the body is being read.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The failure <c>HttpCompletionOption.ResponseHeadersRead</c> creates and a before-the-response
+    /// stub cannot reach: headers have arrived, the status is 200, and the connection drops
+    /// mid-payload. Real .NET raises <c>HttpIOException</c> there, which derives from
+    /// <see cref="IOException"/> and <em>not</em> from <see cref="HttpRequestException"/>.
+    /// </para>
+    /// <para>
+    /// <b>It has to be a throwing stream, not a throwing <see cref="HttpContent"/>, and the first
+    /// version of this stub got that wrong.</b> Overriding <c>SerializeToStreamAsync</c> to throw
+    /// looks equivalent and is not: <see cref="HttpContent"/> wraps what escapes there in
+    /// <see cref="HttpRequestException"/>, so the stub reproduced the case the client already handled
+    /// and the test passed with the defect still present. <see cref="StreamContent"/> hands its inner
+    /// stream back unbuffered, so the <see cref="IOException"/> surfaces raw inside
+    /// <c>JsonDocument.ParseAsync</c> — which is where it surfaces in production.
+    /// </para>
+    /// </remarks>
+    public StubGraphHandler BodyFailure(string match)
+    {
+        _routes.Add((match, () => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new FailingStream()),
+        }));
+
         return this;
     }
 
@@ -105,5 +135,48 @@ internal sealed class StubGraphHandler : HttpMessageHandler
         }
 
         return new HttpResponseMessage(HttpStatusCode.NotFound);
+    }
+
+    /// <summary>
+    /// A readable stream that dies on the first read, the way a dropped connection does.
+    /// </summary>
+    /// <remarks>
+    /// Both read overloads throw, because which one the JSON reader reaches is an implementation
+    /// detail of the parser rather than something this stub should depend on.
+    /// </remarks>
+    private sealed class FailingStream : Stream
+    {
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new IOException("simulated mid-response connection failure");
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default) =>
+            throw new IOException("simulated mid-response connection failure");
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
     }
 }
