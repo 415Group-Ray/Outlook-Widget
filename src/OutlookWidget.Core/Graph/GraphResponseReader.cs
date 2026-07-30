@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using OutlookWidget.Core.Launching;
 using OutlookWidget.Core.Models;
 
 namespace OutlookWidget.Core.Graph;
@@ -211,10 +212,18 @@ internal static class GraphResponseReader
     /// The web link, or <see langword="null"/> when it is absent, malformed, oversized, or not HTTPS.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <b>Truncating a URL would be worse than dropping it</b>, which is why the length rule differs
     /// from the two display strings: a truncated link is a live action that navigates somewhere other
-    /// than the message. The HTTPS requirement is the same argument — a scheme this product did not
-    /// expect is an action it should not offer, and the message still renders without one.
+    /// than the message. The message still renders without one.
+    /// </para>
+    /// <para>
+    /// <b>The host is checked, not just the scheme, and checking only the scheme was the gap.</b>
+    /// Section 11 accepts HTTPS links only from expected Outlook hosts; a response carrying
+    /// <c>https://example.com/…</c> passed the old check purely for being absolute HTTPS and would
+    /// have been cached as an openable action. <see cref="OutlookWebLink"/> holds the list, shared
+    /// with the launch-time check section 3 requires, so the two cannot drift apart.
+    /// </para>
     /// </remarks>
     private static string? ReadWebLink(JsonElement element)
     {
@@ -231,9 +240,7 @@ internal static class GraphResponseReader
             return null;
         }
 
-        return Uri.TryCreate(link, UriKind.Absolute, out Uri? uri) && uri.Scheme == Uri.UriSchemeHttps
-            ? link
-            : null;
+        return OutlookWebLink.IsAllowed(link) ? link : null;
     }
 
     /// <summary>

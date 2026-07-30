@@ -597,6 +597,57 @@ public sealed class GraphMailClientTests
         Assert.Equal("S", preview.Subject);
     }
 
+    [Theory]
+    [InlineData("https://example.com/owa/?ItemID=1")]
+    [InlineData("https://evil-outlook.office.com/owa/?ItemID=1")]
+    [InlineData("https://outlook.office.com.attacker.test/owa/?ItemID=1")]
+    [InlineData("https://outlook.office365.com.evil.test/owa/?ItemID=1")]
+    public async Task An_https_link_from_an_unexpected_host_is_dropped(string link)
+    {
+        // Section 11 accepts HTTPS links only from expected Outlook hosts. Checking the scheme alone
+        // accepted every one of these, and the snapshot would then have carried an openable action
+        // pointing somewhere else entirely.
+        //
+        // The last three are the reason the allowlist compares hosts for equality rather than by
+        // suffix or prefix: each of them ends or begins with a legitimate host and is a different
+        // domain.
+        var handler = new StubGraphHandler()
+            .Json(
+                MessagesRoute,
+                $$"""{"value":[{"id":"1","subject":"S","receivedDateTime":"2026-07-30T09:00:00Z","isRead":false,"webLink":"{{link}}"}]}""")
+            .Json(FolderRoute, FolderJson);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        MessagePreview preview = Assert.Single(result.Readout!.Messages);
+        Assert.Null(preview.WebLink);
+        Assert.Equal("S", preview.Subject);
+    }
+
+    [Theory]
+    [InlineData("https://outlook.office.com/owa/?ItemID=1")]
+    [InlineData("https://outlook.office365.com/owa/?ItemID=1")]
+    [InlineData("https://OUTLOOK.OFFICE365.COM/owa/?ItemID=1")]
+    [InlineData("https://outlook.office365.us/owa/?ItemID=1")]
+    public async Task An_https_link_from_a_documented_outlook_host_is_kept(string link)
+    {
+        // The other half, and worth having: an allowlist that rejects everything would pass the tests
+        // above while silently removing the open action from every message.
+        var handler = new StubGraphHandler()
+            .Json(
+                MessagesRoute,
+                $$"""{"value":[{"id":"1","subject":"S","receivedDateTime":"2026-07-30T09:00:00Z","isRead":false,"webLink":"{{link}}"}]}""")
+            .Json(FolderRoute, FolderJson);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(link, Assert.Single(result.Readout!.Messages).WebLink);
+    }
+
     [Fact]
     public async Task An_oversized_link_is_dropped_rather_than_truncated()
     {
