@@ -287,6 +287,38 @@ public sealed class SelectedAccountTests : IDisposable
         Assert.Null(SilentAuthService.Select([], Recorded("chosen.tenant")));
     }
 
+    [Fact]
+    public void The_companion_never_discards_the_selection_write_result()
+    {
+        // A source-level check because the test project deliberately does not reference
+        // OutlookWidget.App — the same reason the interactive-authentication boundary is enforced this
+        // way. It is worth having: ignoring this result is not a compile error and not a warning, and
+        // the consequence is a sign-in the user is told worked that can never converge, because
+        // Select refuses to guess when the record is missing and more than one account is cached.
+        //
+        // Matching on a bare statement rather than on the call: `_selectedAccounts.Write(x);` on its
+        // own line is the defect, while any use of the value — a condition, an assignment, a return —
+        // is fine and should not be legislated into one shape.
+        foreach (string path in TestInfrastructure.RepositorySources.AppSourceFiles())
+        {
+            string source = TestInfrastructure.RepositorySources.StripCommentsAndStrings(
+                File.ReadAllText(path));
+
+            foreach (string line in source.Split('\n'))
+            {
+                string trimmed = line.Trim();
+
+                Assert.False(
+                    trimmed.StartsWith("_selectedAccounts.Write(", StringComparison.Ordinal)
+                    && trimmed.EndsWith(");", StringComparison.Ordinal),
+                    $"{Path.GetFileName(path)} discards the result of the selection write. A failed "
+                    + "write leaves what a fresh install leaves, and silent acquisition then refuses "
+                    + "to guess, so the sign-in must be reported as failed rather than succeeding "
+                    + "into a state that cannot converge.");
+            }
+        }
+    }
+
     /// <summary>Protection that protects nothing, so a test can plant an exact payload.</summary>
     private sealed class PassThroughProtector : IDataProtector
     {

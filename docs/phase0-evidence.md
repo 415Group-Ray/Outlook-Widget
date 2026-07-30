@@ -634,10 +634,10 @@ selection agree by construction and a green run proves nothing about the differe
 unit tests cover the selection rule against real `IAccount` values, which is the part that is ours.
 What is unobserved is the write path on a real WAM sign-in: whether `AuthenticationResult.Account`
 carries a `HomeAccountId` through the broker on this tenant. If it does not, the file is never written,
-the fallback silently stands. That is now bounded rather than silent — with more than one cached
-account the missing record refuses instead of guessing — but on this single-account machine the
-fallback still runs and still lands on the right mailbox, so a broken write would look exactly like a
-working one. **Confirm `account-v1.bin` exists in the
+the fallback would stand. That is no longer silent in either direction: a write that fails now fails the
+sign-in, so the companion reports it rather than claiming success, and with more than one cached account
+a missing record refuses instead of guessing. What remains unobserved is the ordinary path — whether the
+broker returns a `HomeAccountId` at all on this tenant. **Confirm `account-v1.bin` exists in the
 package store after the next companion sign-in** — that is a one-look check and it is the only evidence
 this works. Existence is all that can be checked by eye: the record is DPAPI-protected, per section 4
 step 6, so its contents are not readable in a text editor.

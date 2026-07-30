@@ -121,11 +121,13 @@ public sealed class SelectedAccountStore
     /// Records the account an interactive sign-in selected.
     /// </summary>
     /// <returns>
-    /// Whether the selection was persisted. <see langword="false"/> matters: a failed write is
-    /// indistinguishable on disk from a fresh install, so the caller cannot treat the selection as
-    /// recorded. See <c>SilentAuthService.Select</c>, which is where that gap is actually closed —
-    /// it refuses to guess whenever no selection is present and more than one account is cached,
-    /// which covers a failed write and a genuinely fresh install alike.
+    /// Whether the selection was persisted, and the caller must not ignore it.
+    /// <see langword="false"/> leaves exactly what a fresh install leaves, so nothing downstream can
+    /// tell the two apart after the fact. Two defences, and both are needed:
+    /// <c>SilentAuthService.Select</c> refuses to guess whenever no selection is present and more than
+    /// one account is cached, which also covers state written before this record existed; and the
+    /// companion reports the sign-in as failed rather than succeeding into a state that can never
+    /// converge.
     /// </returns>
     public bool Write(string homeAccountId)
     {

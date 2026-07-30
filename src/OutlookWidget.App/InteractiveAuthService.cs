@@ -92,9 +92,28 @@ internal sealed class InteractiveAuthService
             // it. Recorded before the result is returned, because the provider may re-probe on the
             // state-changed signal the caller raises immediately afterwards and would otherwise read a
             // file that is not there yet.
-            if (result.Account?.HomeAccountId?.Identifier is { Length: > 0 } homeAccountId)
+            //
+            // **A failed write fails the sign-in**, and that is not the obvious call — a token was
+            // genuinely issued. It is right because of what the rest of the system now does with an
+            // unrecorded selection: silent acquisition refuses to guess when more than one account is
+            // cached, so an ignored write failure leaves the provider deterministically at
+            // interaction-required while this process reports success. That is a sign-in the user is
+            // told worked and that can never converge. Reporting it as failed costs a retry, which is
+            // also the remedy, since retrying re-attempts the write.
+            //
+            // Nothing is lost by discarding the token: WAM holds the device-bound refresh token and
+            // MSAL's cache holds the account, so the next attempt acquires silently.
+            if (result.Account?.HomeAccountId?.Identifier is not { Length: > 0 } homeAccountId
+                || !_selectedAccounts.Write(homeAccountId))
             {
-                _selectedAccounts.Write(homeAccountId);
+                LastFailure = SelectionNotRecorded;
+
+                _logger.Record(
+                    OperationalEventId.SignInCompleted,
+                    OperationalOutcome.Failed,
+                    System.Diagnostics.Stopwatch.GetElapsedTime(started));
+
+                return TokenAcquisitionResult.Unavailable(TokenAcquisitionStatus.Failed);
             }
 
             _logger.Record(
@@ -138,4 +157,14 @@ internal sealed class InteractiveAuthService
     /// </para>
     /// </remarks>
     public string? LastFailure { get; private set; }
+
+    /// <summary>
+    /// Why a sign-in that acquired a token is still reported as failed.
+    /// </summary>
+    /// <remarks>
+    /// A fixed category, not a message. There is no exception to describe here — the failure is that a
+    /// local write did not happen — and the same rule applies as everywhere else in this file: the
+    /// companion may show a category, never a path, an account, or an exception's own text.
+    /// </remarks>
+    internal const string SelectionNotRecorded = "SelectedAccountNotRecorded";
 }

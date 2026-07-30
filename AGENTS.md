@@ -48,11 +48,20 @@ fails with `0x80073CFB`. If you do hit that code, the fix is still never to unin
 pin. Measured; see the evidence report.
 
 The cross-process coordination core is implemented and tested, and **authentication now exists**: the
-companion signs in interactively through WAM and the provider acquires silently. There is still **no
-Microsoft Graph access**, so the provider renders a placeholder card describing coordination and
-authentication state rather than mail. The current companion is a packaging and authentication probe with
-a minimal Win32 window, not the finished WinUI experience. The remaining Phase 0 gates are **10 and 12**
-(both need `GraphMailClient`) and **11** (needs a real refresh).
+companion signs in interactively through WAM and the provider acquires silently, for the account the user
+actually chose rather than whichever one MSAL enumerates first.
+
+**`GraphMailClient`, the response validation, and the snapshot models now exist, and nothing calls them.**
+No Microsoft Graph request has been issued by this product, so the provider still renders a placeholder
+card describing coordination and authentication state rather than mail. Hold that distinction precisely:
+the blocker on gates **10 and 12** has moved from "the client does not exist" to "nothing calls the
+client", and **code is not a gate status**. Their unit tests run against a stub handler and establish
+nothing about what `Mail.ReadBasic` actually returns or whether the Focused filter is accepted. Gate **11**
+still needs a real refresh, so it follows them. The remaining work before any of the three can be measured
+is wiring the client into `RefreshCoordinator`.
+
+The current companion is a packaging and authentication probe with a minimal Win32 window, not the
+finished WinUI experience.
 
 Two authentication invariants that are easy to break and were each already broken once:
 
@@ -82,8 +91,9 @@ identify the mismatch and update every affected source as part of the approved c
 
 - `src/OutlookWidget.Core` — surface-independent caching, coordination, refresh, delivery,
   launching, diagnostics, and **authentication** (`BrokerClient`, `SilentAuthService`,
-  `AuthenticationFailures`, the shared token cache). Graph access and the snapshot models are what
-  later slices add. Interactive authentication is deliberately **not** here; see below.
+  `AuthenticationFailures`, `SelectedAccountStore`, the shared token cache), plus `Graph/`
+  (`GraphMailClient`, `GraphResponseReader`) and `Models/` (`MailboxSnapshot`, `MessagePreview`,
+  `MailboxReadout`). Interactive authentication is deliberately **not** here; see below.
 - `src/OutlookWidget.Packaging` — MSIX package-identity interop only, shared by the two
   executables so the core stays free of any knowledge that MSIX exists. Do not grow it into a
   general utility assembly.
@@ -180,7 +190,14 @@ platform gates are still being proved.
   explicit architecture and scope decision.
 - Never request, cache, render, or log message bodies, `bodyPreview`, attachments, recipient
   lists, access tokens, raw Graph responses, or other mailbox content outside the approved
-  sender/subject/received-time/read-state fields.
+  fields. **The approved set is the plan's, not a shorter paraphrase of it.** Earlier wording
+  here said "sender/subject/received-time/read-state" and read as exhaustive; it is not.
+  Sections 6, 7, and 8 of `TECHNICAL_PLAN.md` also approve `id`, `inferenceClassification`,
+  and `webLink` in the message query, and section 8 caches `webLink` — which section 9's
+  "open an individual message" depends on, so removing it would delete an approved feature
+  rather than tighten a boundary. Only `webLink` is retained beyond the four display fields;
+  `id` and `inferenceClassification` are requested and not cached. Widening past that list, in
+  the query or the cache, still needs an explicit scope decision.
 - Interactive authentication belongs only in the companion. Provider authentication is
   silent-only and fails closed; it must not open a browser or display authentication UI.
 - Do not add telemetry, a hosted backend, webhooks, startup tasks, scheduled tasks, services,
