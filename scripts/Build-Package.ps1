@@ -257,19 +257,42 @@ Fix it with:  git fetch --unshallow
 
     $statePath = Join-Path $StateDirectory '.package-version.json'
     $revision = 0
+    $previousVersion = $null
 
     if (Test-Path -LiteralPath $statePath) {
+        # Read AND interpret the state in one guarded block that never throws. The deliberate monotonicity
+        # failure is raised after it, further down, and that separation is the point.
+        #
+        # It used to be raised from inside a try like this one, with a `catch [RuntimeException] { throw }`
+        # to let it through. But PowerShell's `throw "string"` produces a RuntimeException, and so does a
+        # missing property under Set-StrictMode, and so does a failed [version] cast — so state that was
+        # valid JSON without a usable `version` (an interrupted write, or an older format) was
+        # indistinguishable from the deliberate failure, got rethrown, and broke every package build until
+        # the file was deleted by hand. Exactly the opposite of the recovery this catch promises.
         try {
             $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
 
-            if ($state.build -eq $build) {
-                $revision = [int]$state.revision + 1
+            # Property bags rather than dotted access, because Set-StrictMode makes a missing property a
+            # terminating error rather than $null.
+            $storedBuild = $state.PSObject.Properties['build']
+            $storedRevision = $state.PSObject.Properties['revision']
+            $storedVersion = $state.PSObject.Properties['version']
+
+            if ($storedBuild -and $storedRevision -and [int]$storedBuild.Value -eq $build) {
+                $revision = [int]$storedRevision.Value + 1
+            }
+
+            if ($storedVersion -and $storedVersion.Value) {
+                $previousVersion = [version]$storedVersion.Value
             }
         }
         catch {
-            # Unreadable state means one skipped revision, not a wrong version: the guard below still
-            # rejects anything that would not increase.
+            # Malformed state costs at most a repeated revision, which the installed-package check below
+            # still catches. It must never fail the build: this file is local, disposable, and not the
+            # authority on anything.
             Write-Warning "Ignoring unreadable version state at $statePath."
+            $revision = 0
+            $previousVersion = $null
         }
     }
 
@@ -355,20 +378,12 @@ destroys the widget pin and package-local state, and both options above avoid th
     }
 
     # Refuse to go backwards relative to this machine's own build history, for the same reason.
-    if (Test-Path -LiteralPath $statePath) {
-        try {
-            $previous = (Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json).version
-
-            if ($previous -and [version]$resolved -le [version]$previous) {
-                throw "Derived version $resolved does not exceed the previous $previous. Commit, or delete $statePath if the history was rewritten."
-            }
-        }
-        catch [System.Management.Automation.RuntimeException] {
-            throw
-        }
-        catch {
-            # A malformed previous version is not worth failing the build over.
-        }
+    #
+    # Raised out here, on a value already parsed and validated above, rather than from inside a try that
+    # also has to survive a malformed file. There is no exception-type filtering left to get wrong: if
+    # $previousVersion is null the state was absent or unusable and this check simply does not apply.
+    if ($previousVersion -and [version]$resolved -le $previousVersion) {
+        throw "Derived version $resolved does not exceed the previous $previousVersion. Commit, or delete $statePath if the history was rewritten."
     }
 
     New-Item -ItemType Directory -Force -Path $StateDirectory | Out-Null
