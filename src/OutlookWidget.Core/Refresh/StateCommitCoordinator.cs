@@ -222,22 +222,16 @@ public sealed class StateCommitCoordinator
     }
 
     /// <summary>
-    /// Signals the package-user-wide state-changed event. Only ever called after a commit
+    /// Signals the package-user-wide state-changed event. Only ever called from here after a commit
     /// succeeded, because a signal without a generation change teaches listeners to
     /// distrust the signal.
     /// </summary>
-    private void SignalStateChanged()
-    {
-        try
-        {
-            using var stateChanged = EventWaitHandle.OpenExisting(_paths.StateChangedEventName);
-            stateChanged.Set();
-        }
-        catch (WaitHandleCannotBeOpenedException)
-        {
-            // No peer is listening. Committed state on disk is authoritative and the
-            // provider rechecks the generation on Activate and before rendering, so a
-            // missed signal delays rendering rather than losing the change.
-        }
-    }
+    /// <remarks>
+    /// The mechanism moved to <see cref="StateChangeSignal"/> so it exists once; the rule that
+    /// <em>this</em> type signals only after a successful commit is unchanged and still enforced by the
+    /// single call site above. No peer listening is tolerated there: committed state on disk is
+    /// authoritative and the provider rechecks the generation on Activate and before rendering, so a
+    /// missed signal delays rendering rather than losing the change.
+    /// </remarks>
+    private void SignalStateChanged() => StateChangeSignal.Raise(_paths);
 }

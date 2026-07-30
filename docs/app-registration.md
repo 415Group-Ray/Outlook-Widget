@@ -3,8 +3,10 @@
 One single-tenant registration, public client, no secret. A separate production registration
 is a multi-user concern and is created only if the tool is shared beyond the author.
 
-Status: **created.** The identifiers are configured and ship in the package. Gates 8, 9, 10, and 12
-now wait on the authentication code rather than on the registration.
+Status: **created, and exercised.** The identifiers are configured and ship in the package. Gate 9
+passes and gate 8 is split — brokered sign-in works, self-consent was refused by tenant policy and an
+administrator granted consent; see the Consent section below, which is the part most likely to surprise
+you. Gates 10 and 12 now wait on the Graph client rather than on authentication.
 
 ## Settings
 
@@ -39,12 +41,35 @@ Add delegated `Mail.ReadBasic`. Nothing else.
 
 ## Consent
 
-The author can self-consent to delegated `Mail.ReadBasic`; Microsoft does not mark it as
-requiring admin consent. No administrator step is on the critical path.
+**Self-consent is the intended path. Try it first.** Sign in and see what happens before arranging
+anything with an administrator — and in particular **do not grant admin consent up front**, because that
+pre-approves the permission, the self-consent path never runs, and you lose the ability to tell whether
+it would have worked.
 
-Phase 0 still confirms this empirically at first sign-in, because a tenant user-consent policy
-can require administrator approval regardless. **If that happens it is an authorization
-failure, not a Graph failure**, and the two must not be conflated:
+Involve an administrator only once a sign-in actually returns `ApprovalRequired`.
+
+**On the reference tenant it did.** Microsoft does not mark delegated `Mail.ReadBasic` as requiring admin
+consent, and that is what an earlier version of this section relied on when it said no administrator step
+was on the critical path. The permission's own default is not what decides it — **the tenant's
+user-consent policy is** — and that is the part worth knowing in advance, rather than a prediction about
+your tenant. On the 415 Group tenant that policy is "Let Microsoft manage your consent settings" with mail-client consent
+enabled, which permits user consent to mail permissions only for a fixed list of six Microsoft-chosen
+mail clients (Apple Mail, Spark, eM Client, Android-Samsung, Android-Mail, Thunderbird). Microsoft owns
+that list and it cannot be added to, so a registration of your own can never self-consent while that
+setting is in force.
+
+Two readings that look like they contradict this and do not: the API permissions blade may show
+`Admin consent required: No`, which reports the *organization default* rather than your effective policy
+— the blade says so itself; and the consent dialog lists three permissions where the registration
+configures one, the other two being MSAL's automatic `offline_access` and `profile`.
+
+Sequencing matters if you want the question answered rather than skipped: **do not grant admin consent
+before first sign-in.** Doing so pre-approves the permission, the self-consent path never executes, and
+you learn nothing about whether it would have worked. Attempt sign-in first, record what happened, then
+grant if it was refused.
+
+**A consent block is an authorization failure, not a Graph failure**, and the two must not be
+conflated:
 
 | | Consent blocked by tenant policy | Graph HTTP 403 |
 |---|---|---|
@@ -104,7 +129,13 @@ because the loader has nowhere to put them:
 
 Record in [phase0-evidence.md](phase0-evidence.md): that the registration was created, the exact
 permission granted, the redirect URI platform used, whether self-consent succeeded without an
-administrator, and the date.
+administrator, **and if it did not, whether admin consent was subsequently granted and when**, and the
+date.
+
+That last part is not bookkeeping. Once admin consent is granted the self-consent question can no longer
+be re-measured on that tenant, because a sign-in then succeeds regardless of which path would have been
+taken. A record that says only "sign-in succeeded" is indistinguishable from one where the gate was never
+really tested.
 
 **Do not record the raw tenant or client ID there.** That file is committed, and an earlier version
 of this document asked for both — telling the reader to keep the identifiers out of Git and then to

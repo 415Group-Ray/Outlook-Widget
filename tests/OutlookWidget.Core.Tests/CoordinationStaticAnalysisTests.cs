@@ -356,6 +356,135 @@ public sealed class CoordinationStaticAnalysisTests
                 + "Found in: " + string.Join(", ", offenders));
     }
 
+    /// <summary>
+    /// The one file permitted to acquire a token interactively.
+    /// </summary>
+    private const string InteractiveAuthFileName = "InteractiveAuthService.cs";
+
+    [Fact]
+    public void Exactly_one_companion_file_acquires_a_token_interactively()
+    {
+        // The two checks nearby establish that the interactive API appears in neither the core nor the
+        // provider. On their own that is satisfied by it existing nowhere at all, which was true until
+        // gate 8 needed it and is a weaker property than intended: what the invariant actually says is
+        // that interactive authentication exists in exactly one place, and that the place is the
+        // companion.
+        //
+        // This is the positive half. It is also the assertion that fails if someone "fixes" a
+        // sign-in-required card by moving the interactive call somewhere the provider can reach, which
+        // is the specific mistake that would put an unowned authentication window over whatever the
+        // user was doing — raised by a process they did not start.
+        var offenders = new List<string>();
+        bool serviceFound = false;
+
+        foreach (string file in RepositorySources.AppSourceFiles())
+        {
+            string code = StripCommentsAndStrings(File.ReadAllText(file));
+
+            if (!code.Contains("AcquireTokenInteractive", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (Path.GetFileName(file).Equals(InteractiveAuthFileName, StringComparison.Ordinal))
+            {
+                serviceFound = true;
+                continue;
+            }
+
+            offenders.Add(Path.GetFileName(file));
+        }
+
+        Assert.True(
+            offenders.Count == 0,
+            $"Only {InteractiveAuthFileName} may acquire a token interactively. Found in: "
+                + string.Join(", ", offenders));
+
+        Assert.True(
+            serviceFound,
+            $"{InteractiveAuthFileName} no longer acquires a token interactively. Either the single "
+                + "interactive call site moved, in which case this expectation must move with it, or "
+                + "the companion can no longer sign anyone in — which would make gate 8 unprovable and "
+                + "gate 9 unreachable, since the provider can only acquire silently against a token "
+                + "the broker already holds.");
+    }
+
+    [Fact]
+    public void The_provider_reaches_the_broker_only_through_the_zero_handle_helper()
+    {
+        // Gate 9's subject is a zero parent window handle, and the provider must be the process that
+        // supplies one. BrokerClient.NoParentWindow is a named member specifically so this is
+        // searchable and so the choice cannot be made accidentally: a provider that grew a window and
+        // passed its handle would be a background COM server capable of parenting a dialog, which is
+        // the thing section 7 forbids.
+        //
+        // Checked by source because asserting it dynamically would mean launching the COM server.
+        var callers = new List<string>();
+
+        foreach (string file in RepositorySources.ProviderSourceFiles())
+        {
+            string code = StripCommentsAndStrings(File.ReadAllText(file));
+
+            if (!code.Contains("BrokerClient", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            callers.Add(Path.GetFileName(file));
+
+            Assert.True(
+                code.Contains("BrokerClient.NoParentWindow", StringComparison.Ordinal),
+                $"{Path.GetFileName(file)} builds a broker client without passing "
+                    + "BrokerClient.NoParentWindow. The provider owns no window and must pass no "
+                    + "handle.");
+
+            Assert.False(
+                code.Contains("WithParentActivityOrWindow", StringComparison.Ordinal),
+                $"{Path.GetFileName(file)} configures a parent window directly. Parent-window "
+                    + "configuration belongs to BrokerClient, which both processes share.");
+        }
+
+        Assert.True(
+            callers.Count > 0,
+            "No provider file builds a broker client. Either silent acquisition was removed from the "
+                + "provider, which makes gate 9 unprovable, or the composition moved and this "
+                + "expectation must move with it.");
+    }
+
+    [Fact]
+    public void The_provider_re_probes_authentication_when_state_changes()
+    {
+        // The provider probes once per process and lives until its last widget is unpinned, so without
+        // a re-probe on the state-changed signal the ordinary flow never converges: a widget rendering
+        // "sign in required" launches the companion, the user signs in, and the provider keeps its
+        // original result with a valid token sitting in the broker. The only escapes were unpinning the
+        // widget or killing the process, and unpinning discards the pin that the force-shutdown upgrade
+        // path exists to preserve.
+        //
+        // Checked by source because asserting it dynamically would mean launching the COM server and
+        // driving a real broker.
+        string composition = string.Empty;
+
+        foreach (string file in RepositorySources.ProviderSourceFiles())
+        {
+            string code = StripCommentsAndStrings(File.ReadAllText(file));
+
+            if (code.Contains("new StateChangeListener", StringComparison.Ordinal))
+            {
+                composition = code;
+                break;
+            }
+        }
+
+        Assert.False(
+            string.IsNullOrEmpty(composition),
+            "No provider file constructs a StateChangeListener. Either cross-process notification was "
+                + "removed from the provider, or the composition moved and this expectation must move "
+                + "with it.");
+
+        Assert.Contains("RequestProbe", composition, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void The_logging_api_exposes_no_field_capable_of_carrying_mailbox_or_identity_metadata()
     {

@@ -150,15 +150,63 @@ internal static class SkeletonCard
     public static AuthenticationConfigurationStatus ConfigurationStatus { get; set; } =
         AuthenticationConfigurationStatus.Absent;
 
+    /// <summary>
+    /// The result of this process's silent token acquisition, or <see langword="null"/> before the
+    /// attempt has finished.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>This is the gate 9 readout.</b> Gate 9 asks whether the provider can acquire a token silently
+    /// with a zero parent window handle, and there is no way to observe that from outside the process:
+    /// the provider is a background COM server with no console and no window, and the operational log
+    /// records categories rather than a running state. Putting the classified status on the card makes
+    /// the gate answerable by pinning the widget and reading it.
+    /// </para>
+    /// <para>
+    /// A status word only — never a token, an account, an expiry, or an error message. It is set by the
+    /// background probe rather than read here, so the delivery path stays free of I/O.
+    /// </para>
+    /// </remarks>
+    public static TokenAcquisitionStatus? SilentAuthStatus { get; set; }
+
     public static string Data(WidgetInstance instance, DeliveryState state)
     {
         (string headline, string detail) = Describe(state);
 
         bool disclosureReduced = state.Mode != DisclosureMode.Full;
 
+        // An authentication state the companion can actually address — not merely any non-success.
+        //
+        // Excluded: null (pending, not yet a problem, resolves within moments of provider start) and
+        // Failed, whose remedy is the next refresh rather than opening anything. Including Failed was a
+        // defect with a cost beyond a useless button: needsCompanion suppresses mail actions at the small
+        // size, so a transient network error removed **Open Outlook** — which needs no token at all — and
+        // replaced it with a companion trip that would report nothing actionable.
+        //
+        // Included, deliberately, even though signing in cannot fix them: BrokerUnavailable,
+        // NoConfiguration, and ApprovalRequired. The companion is where diagnostics live, which is what
+        // section 3 means by a broker-unavailable card carrying "an action to open the companion", and
+        // what the section 8 state table means by "companion diagnostics". The button is labelled Open
+        // companion rather than Sign in, so it promises a place to look rather than a fix.
+        bool authNeedsAttention = SilentAuthStatus is
+            TokenAcquisitionStatus.InteractionRequired
+            or TokenAcquisitionStatus.Cancelled
+            or TokenAcquisitionStatus.ApprovalRequired
+            or TokenAcquisitionStatus.BrokerUnavailable
+            or TokenAcquisitionStatus.NoConfiguration;
+
         // The companion is the only way out of a suppressed or unusable state, so it is offered
         // whenever the card cannot show real content.
-        bool needsCompanion = disclosureReduced || state.ReadStatus != CacheReadStatus.Success;
+        //
+        // The authentication clause is not redundant with the two before it, and omitting it was a
+        // bug. The expected steady state once mail exists is a successful cache read in Full mode
+        // with an expired or missing token: the detail line then says "Sign in required: open the
+        // companion" while both other clauses are false, so the card asked for an action it did not
+        // offer. That is the one state where the button is the only thing that can resolve what the
+        // card is complaining about.
+        bool needsCompanion = disclosureReduced
+                              || state.ReadStatus != CacheReadStatus.Success
+                              || authNeedsAttention;
 
         // Mail actions are withheld whenever disclosure is reduced: offering Refresh and Open
         // Outlook on a signed-out card would invite an action whose only possible outcome is
@@ -197,15 +245,23 @@ internal static class SkeletonCard
         // Disclosure mode is checked before the read status, deliberately. A present tombstone is
         // authoritative regardless of what the cache holds, so a suppressed state must never fall
         // through to a branch that describes snapshot contents.
+        //
+        // These branches return before the authentication narration below, so each appends any
+        // authorization blocker itself. Adding a new early return means considering the same.
+        //
+        // Appending it here does NOT weaken the tombstone: DescribeAuthBlocker returns a status word
+        // turned into a sentence and never touches the snapshot, so a suppressed card gains no mailbox
+        // metadata. Withholding it would be the actual harm — telling someone to sign in when signing
+        // in cannot succeed is the conflation section 8 forbids.
         if (state.Mode == DisclosureMode.SignedOut)
         {
-            return ("Signed out", "Open the companion to sign in.");
+            return ("Signed out", "Open the companion to sign in." + DescribeAuthBlocker());
         }
 
         if (state.Mode == DisclosureMode.CountsOnly)
         {
             return ("Details hidden", "Message details are hidden by a privacy setting or an "
-                                     + "in-progress account change.");
+                                     + "in-progress account change." + DescribeAuthBlocker());
         }
 
         return state.ReadStatus switch
@@ -213,16 +269,17 @@ internal static class SkeletonCard
             CacheReadStatus.Success =>
                 ("Coordination is live",
                     "Cached state was read and delivered by the provider. No mailbox data exists "
-                    + "yet: authentication and Graph arrive in Phase 1 slice 2."),
+                    + "yet: Graph access arrives with the next core slice. " + DescribeSilentAuth()),
 
             CacheReadStatus.Absent =>
                 ("No cached state yet",
                     "The provider is running and rendering. Nothing has been committed to the "
-                    + "cache yet."),
+                    + "cache yet. " + DescribeSilentAuth()),
 
             CacheReadStatus.Cleared =>
                 ("Cache cleared",
-                    "State was explicitly cleared by a logout, account switch, or cache clear."),
+                    "State was explicitly cleared by a logout, account switch, or cache clear."
+                    + DescribeAuthBlocker()),
 
             CacheReadStatus.UnsupportedVersion =>
                 ("Cache discarded",
@@ -240,6 +297,74 @@ internal static class SkeletonCard
             _ => ("Unknown state", "The provider read a cache status it does not recognise."),
         };
     }
+
+    /// <summary>
+    /// A trailing sentence for cards whose own copy would otherwise mislead about authentication, or
+    /// empty when there is nothing to add.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only the states that make the surrounding advice <em>wrong</em> produce a sentence. A signed-out
+    /// or cleared card already says to open the companion and sign in, which is correct guidance when the
+    /// outcome is interaction-required and misleading when an administrator has to approve, the broker is
+    /// unavailable, or the build shipped without a registration.
+    /// </para>
+    /// <para>
+    /// Silence for every other status is deliberate. Appending "acquired a token" to a signed-out card,
+    /// or the pending sentence to every card in the moments after provider start, would be noise on the
+    /// two most frequently seen cards.
+    /// </para>
+    /// <para>
+    /// Leading space, because the caller concatenates it onto a completed sentence.
+    /// </para>
+    /// </remarks>
+    private static string DescribeAuthBlocker() =>
+        SilentAuthStatus switch
+        {
+            TokenAcquisitionStatus.ApprovalRequired =>
+                " Signing in will not be enough: an administrator must approve mailbox access for this "
+                + "app.",
+
+            TokenAcquisitionStatus.BrokerUnavailable =>
+                " Signing in will not work yet: the Windows authentication broker is unavailable.",
+
+            TokenAcquisitionStatus.NoConfiguration =>
+                " Signing in will not work: this build shipped without a usable Entra registration.",
+
+            _ => string.Empty,
+        };
+
+    /// <summary>
+    /// One sentence describing what the provider's silent acquisition did, for the medium and large
+    /// detail line.
+    /// </summary>
+    /// <remarks>
+    /// Phrased so that each outcome states its own remedy, because these are the same distinctions the
+    /// real signed-out, sign-in-required, and broker-unavailable cards must draw in Phase 2 and this is
+    /// the first place the wording gets tried against a real host.
+    /// </remarks>
+    private static string DescribeSilentAuth() =>
+        SilentAuthStatus switch
+        {
+            null => "Silent token acquisition has not finished yet.",
+
+            TokenAcquisitionStatus.Acquired =>
+                "The provider acquired a token silently with no window of its own, so gate 9 passes.",
+
+            TokenAcquisitionStatus.InteractionRequired =>
+                "Sign-in required: open the companion and sign in.",
+
+            TokenAcquisitionStatus.ApprovalRequired =>
+                "An administrator must approve mailbox access for this app.",
+
+            TokenAcquisitionStatus.BrokerUnavailable =>
+                "The Windows authentication broker is unavailable, so signing in will not help.",
+
+            TokenAcquisitionStatus.NoConfiguration =>
+                "This build shipped without a usable Entra registration.",
+
+            _ => "Silent token acquisition failed; this is usually transient.",
+        };
 
     /// <summary>
     /// The large-size diagnostic, as three separate lines.
@@ -282,7 +407,8 @@ internal static class SkeletonCard
                 + (instance.IsActive ? "active" : "inactive"),
             $"generation {state.Generation} · delivered {delivered} · mode {state.Mode} · "
                 + $"read {state.ReadStatus} · payload {payload}",
-            $"config {ConfigurationStatus} · widget {instance.Id}");
+            $"config {ConfigurationStatus} · silent auth "
+                + $"{(SilentAuthStatus?.ToString() ?? "pending")} · widget {instance.Id}");
     }
 
     /// <summary>

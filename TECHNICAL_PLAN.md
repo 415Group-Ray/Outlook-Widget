@@ -6,11 +6,11 @@ Planning date: **2026-07-27**
 
 Implementation status: **Phase 0 in progress; the native surface and packaging are proven.** Gates 1, 2, 3, 4, 5 (as superseded below), 6, and the native half of 7 have all passed on the reference machine, including cold activation, reboot survival, instance recovery, upgrade with a widget pinned, and clean provider exit on unpin. The section 18 fallback branch is therefore **not** taken. The coordination subsystem (Phase 1 slice 1) and the Windows Widgets provider are implemented, packaged, installed, and observed working in the Widgets Board.
 
-**Gates 9 and 11 have not passed**, and they are the native-surface gates still open. Gate 9 — provider silent-only acquisition with a zero parent handle — is not started. Gate 11 — cached-first refresh and cross-process invalidation across real Board activation and provider recycle — cannot be observed before authentication and Graph exist; its signalling half is real and measured, but the gate is not met. Gate 4 is fully verified, including the `CustomState` round trip through the host.
+**Gate 11 is the only native-surface gate still open.** Gate 9 — provider silent-only acquisition with a zero parent handle — **passes**, observed as `silent auth Acquired` on the pinned card, which settles the surface decision on evidence. Gate 11 — cached-first refresh and cross-process invalidation across real Board activation and provider recycle — cannot be observed before Graph exists; its signalling half is real and now exercised in both directions, but the gate is not met. Gate 4 is fully verified, including the `CustomState` round trip through the host. Gate 8 is **split**: brokered sign-in passes, self-consent is blocked by the reference tenant's consent policy.
 
-Gate 11 does not affect the fallback decision, because both surfaces consume the same coordination core. **Gate 9 does**: a provider that cannot acquire a token silently with a zero parent handle would render sign-in-required forever, since interactive authentication belongs only to the companion, whereas a tray/popover UI process could authenticate itself. The fallback proof is not being built, but that rests on gate 9 not failing rather than on evidence that it will not.
+Gate 11 does not affect the fallback decision, because both surfaces consume the same coordination core. **Gate 9 did**, and it passed: a provider that could not acquire a token silently with a zero parent handle would have rendered sign-in-required forever, since interactive authentication belongs only to the companion, whereas a tray/popover UI process could have authenticated itself. It acquired one. **The fallback proof is not being built, and that now rests on evidence rather than on expectation** — the hedge that used to close this paragraph is gone because the measurement replaced it.
 
-**Every remaining Phase 0 gate depends on the authentication code**, and nothing depends on a portal task: the Entra app registration is **created** and its identifiers ship in the package. Gates 8, 9, 10, 11, and 12 need `InteractiveAuthService`, `SilentAuthService`, `GraphMailClient`, and the snapshot model — Phase 1 slice 2. Gate 8 comes first, because the provider can only acquire silently against a token the broker already holds. `docs/phase0-evidence.md` is authoritative for what has actually been measured.
+**Authentication is built and measured; every remaining Phase 0 gate depends on Microsoft Graph.** The Entra registration is created, `BrokerClient`, `SilentAuthService` and the companion's `InteractiveAuthService` exist, gate 8 is split and gate 9 passes. What is left — gates **10, 11, and 12** — needs `GraphMailClient` and the snapshot model: 10 and 12 read mail, and 11 needs a real refresh to invalidate, so it follows them. `docs/phase0-evidence.md` is authoritative for what has actually been measured.
 
 This plan describes a lightweight Windows 11 Outlook inbox widget for a single Microsoft 365 tenant. It incorporates the decisions approved during planning:
 
@@ -43,7 +43,7 @@ Give a Windows 11 user a glanceable, privacy-bounded view of the selected Micros
 
 - **Audience:** one user — the author — on their own devices. Wider internal use is a possible future, not a v1 requirement.
 - **Outlook client:** New Outlook only. Classic Outlook is explicitly out of scope; no Classic Outlook code path, setting, or test is built.
-- **Consent:** the author can self-consent to delegated `Mail.ReadBasic`. No administrator scheduling is on the critical path.
+- **Consent:** self-consent to delegated `Mail.ReadBasic` is the designed path and stays so. It is not marked as requiring admin consent, but the tenant's user-consent policy can override that, and **on the reference tenant it did** — self-consent was refused and an administrator granted consent (measured; see the evidence report). Treat that as a local measurement, not as an expectation for other tenants: attempt sign-in first, and involve an administrator only once a sign-in actually returns `ApprovalRequired`. Pre-granting consent would skip the designed flow and make the outcome unknowable.
 
 Scale is not a v1 engineering concern: the product is local, delegated, read-only, and has no hosted service. User count changes deployment and support work, not the Graph/data architecture.
 
@@ -93,7 +93,7 @@ The plan deliberately separates documented behavior from behavior that must be t
 - Whether any supported system association hands a Graph `webLink` into New Outlook. The product will not depend on this.
 - Observable Widgets-host delivery semantics: whether `UpdateWidget` blocks, queues, or coalesces, and whether the host offers any ordering guarantee. Record what is observed. Absent a demonstrated guarantee, the plan claims only final convergence and documents the transient-render limitation.
 - Actual provider lifetime and cached-first refresh behavior across Board open/close, restart, sleep, sign-out, and package update.
-- Target-device Widgets policy, and that self-consent to delegated `Mail.ReadBasic` actually succeeds against the tenant's user-consent policy.
+- Target-device Widgets policy, and **whether** self-consent to delegated `Mail.ReadBasic` succeeds against the tenant's user-consent policy. Answered during Phase 0: it does not on the reference tenant.
 
 Primary sources:
 
@@ -172,7 +172,8 @@ flowchart LR
 ### OutlookWidget.App
 
 - WinUI 3 companion/settings application, single-instance, serializing its own disclosure-changing operations.
-- Owns every interactive authentication operation.
+- Owns every interactive authentication operation, and owns `InteractiveAuthService` itself — the single `AcquireTokenInteractive` call site in the product. See section 12 for why it is here rather than in the core.
+- Supplies the real parent window handle that brokered sign-in is parented to. Until Phase 2 converts this project to WinUI 3 that window is a minimal Win32 top-level window created for the purpose, because WAM requires a real handle and the packaging probe's ownerless message box could not provide one.
 - Commits state and signals; it never calls `UpdateWidget`. Widget delivery belongs solely to the provider.
 - Displays account, last successful refresh, Graph/permission status, installed New Outlook status, and sanitized diagnostics.
 - Settings:
@@ -199,7 +200,9 @@ flowchart LR
 - Supports multiple pinned instances at different sizes; size and active state are never global. Phase 0 measured that the Widgets Board itself permits only one instance per widget definition, so this is currently unobservable through two simultaneous instances — but it remains a requirement rather than dead code, because the host constraint is the host's and may change, and per-instance keying costs nothing.
 - Returns cached content immediately, then refreshes asynchronously when required.
 - Handles refresh, Open Outlook, open-message, and open-settings actions.
-- Builds its broker-enabled MSAL client with `WithParentActivityOrWindow(() => IntPtr.Zero)` and calls only `AcquireTokenSilent`; Phase 0 must verify this construction on the pinned MSAL/Broker versions.
+- Builds its broker-enabled MSAL client through `BrokerClient`, passing `BrokerClient.NoParentWindow` — a named member rather than an inline `() => IntPtr.Zero`, so the zero handle is searchable and cannot be chosen accidentally — and calls only `AcquireTokenSilent`. **Verified on the pinned MSAL/Broker versions: this is gate 9 and it passes.**
+- Runs its silent acquisition on a background task started **after** `CoRegisterClassObject`, never before. Building the MSAL client opens the shared token cache and a silent acquisition can reach the network, so doing either on the activation path would charge that latency to every cold activation against the section 14 targets, for a result no callback needs in order to render. The task is cancelled and then waited on for a **2-second shutdown bound** before the delivery worker is disposed, after which an unfinished probe is **abandoned** rather than awaited further. That bound is deliberately not the 20-second async deadline: that figure governs a refresh transaction, and using it here delayed process exit by 20 seconds precisely when the broker or token cache was unhealthy, because `BrokerClient.CreateAsync` cannot be cancelled. Do not restore it, and do not claim a stronger shutdown guarantee than abandonment — an unfinished probe has nothing left to deliver to, since the delivery worker is disposed immediately afterwards.
+- **Re-probes authentication on the state-changed signal**, not once per process. The provider lives until its last widget is unpinned, so a single probe at startup means the ordinary flow never converges: a widget rendering sign-in-required launches the companion, the user signs in, and the provider holds its original result with a valid token in the broker. Re-probing is signal-driven with an overlap guard — no timer and no background service, per invariant 3 — and it re-probes in both directions rather than only while unauthenticated, so a status that can only improve is not left as a trap.
 - Has no reference or code path to `AcquireTokenInteractive`. Broker/UI-required failures become a signed-out, sign-in-required, or broker-unavailable card with an action to open the companion.
 - Uses `Action.Execute` for refresh, Outlook, settings, and message actions. A message action carries only its bounded display slot and snapshot generation; it never embeds the Graph `webLink` or message ID in Adaptive Card JSON or `CustomState`.
 - On a message action, reloads the referenced snapshot, rejects a stale generation or invalid slot, validates the cached HTTPS `webLink` against the Outlook-host allowlist, and only then asks the system launcher to open it. `Action.OpenUrl` is not used in v1.
@@ -209,13 +212,17 @@ flowchart LR
 
 ### OutlookWidget.Core
 
-- `InteractiveAuthService`: companion-only WAM/MSAL configuration with a real WinUI HWND, interactive sign-in, logout, and account switching.
-- `SilentAuthService`: provider-safe broker configuration exposing only silent acquisition; it cannot start a browser or authentication UI.
+- `BrokerClient`: the one broker-enabled MSAL client construction both processes use, differing only in the parent-window delegate they pass. Current Microsoft documentation requires a parent window handle on the *builder* in order to use the broker at all, not merely on the interactive call, so both surfaces need the same configuration and the only legitimate difference between them is what that delegate returns. It also attaches the shared token cache, and it contains no interactive acquisition.
+- `SilentAuthService`: provider-safe silent-only acquisition; it cannot start a browser or authentication UI. Tries the cached account first and falls back to the operating-system account, in the order Microsoft documents.
+- `AuthenticationFailures`: maps MSAL failures onto the product's outcome states, classifying by exception type where MSAL provides one and by error code only for the broker-unavailable and consent cases, which have no dedicated type. Branches on exception text; never logs or returns it.
+- `InteractiveAuthService` **lives in `OutlookWidget.App`, not here.** This is a deliberate change from the original layout, recorded in section 12.
 - `GraphMailClient`: the two required reads and optional Focused count.
 - `MailboxSnapshotService`: combines Graph responses into one immutable display snapshot.
 - `RefreshCoordinator`: synchronous package-user named mutex for commits, an expiring lease record for cross-process single-flight, overall deadline, debounce, backoff, cancellation, and change notification. No named primitive is held across an `await`.
 - `ProtectedCache`: DPAPI-protected snapshot and selected MSAL home-account/tenant identifiers, with a generation counter and atomic replacement.
 - `StateChangeListener`: creates the two named notification events and turns either signal into a callback. Required rather than optional: the signalling side opens the events by name and treats absence as "no listener", so without something creating them every cross-process signal is a silent no-op.
+- `AuthorizationStateStore`: carries a terminal interactive authorization outcome from the companion to the provider. Required rather than convenient, because one state is not rediscoverable by design: classification is phase-aware, so a consent failure during *silent* acquisition is reported as interaction-required deliberately, and the provider — which only acquires silently — can therefore never conclude approval-required on its own. Only the companion learns it, by being refused interactively. Not DPAPI-protected: it holds a status enum, a timestamp, and the tenant and client IDs of the registration it is scoped to, in the clear — with no mailbox content, account, or token. Those identifiers add no exposure the package did not already have, because `authentication.json` ships both beside the two executables; they are recorded because consent is granted to a specific application in a specific tenant, so a record without them is not about anything. Refines interaction-required only, so a stale record can never override a working token and needs no expiry.
+- `StateChangeSignal`: raises the state-changed event, extracted so the open-by-name-and-tolerate-no-listener mechanism exists once. `StateCommitCoordinator` still signals only after a successful commit; the companion also signals after a successful sign-in, which is state that is real, changes what the provider can do, and changes no snapshot generation. Without it a pinned widget holds its original authentication result until unpinned, because the provider outlives the sign-in.
 - `OutlookLauncher`: Phase 0-verified New Outlook launch strategy. No Classic Outlook path.
 - `OperationalLogger`: event name, status/category, duration, and record count only; its API has no fields for mailbox or identity metadata.
 - Shared rendering models that contain only approved metadata.
@@ -231,9 +238,9 @@ flowchart LR
 2. The action opens the companion app.
 3. The companion explains why `Mail.ReadBasic` is requested.
 4. The user clicks Sign in.
-5. The companion builds MSAL with `Microsoft.Identity.Client.Broker`, `WithBroker(...)`, and `WithParentActivityOrWindow(realHwnd)`, then invokes WAM. Entra handles MFA, Conditional Access, consent, Windows Hello, or FIDO as required.
+5. The companion builds MSAL with `Microsoft.Identity.Client.Broker`, `WithBroker(...)`, and `WithParentActivityOrWindow(realHwnd)`, then invokes WAM. Entra handles MFA, Conditional Access, consent, Windows Hello, or FIDO as required. It attempts silent acquisition first and prompts only when that reports interaction is required, per Microsoft's integration guidance; a broker-unavailable or approval-required silent outcome is reported rather than escalated to a prompt that cannot succeed.
 6. The app records only the selected MSAL home-account identifier and tenant identifier in DPAPI-protected state.
-7. WAM owns broker token maintenance. The application does not write access or refresh tokens into its own JSON/configuration files.
+7. WAM owns broker token maintenance. The application does not write access or refresh tokens into its own JSON/configuration files. MSAL's shared cache holds ID tokens and account metadata only, which is what lets the provider find in a second process the account the companion selected in the first.
 8. Before every Graph refresh, the companion or provider calls its restricted silent service. The provider never calls an interactive MSAL API; `MsalUiRequiredException` or broker-unavailable failures are terminal for that refresh and cannot fall back to a browser.
 9. An access token exists only in process memory for the Graph call.
 10. The core fetches Inbox counts and newest messages, validates and bounds the response, creates a snapshot, encrypts it, commits it, and requests delivery; the provider's delivery worker renders it.
@@ -280,7 +287,9 @@ Use one registration. A separate production registration is a multi-user concern
 
 Do not add `User.Read` unless a later approved feature calls `/me`. Account display information can come from MSAL’s authentication result rather than a separate profile request.
 
-The author can self-consent to delegated `Mail.ReadBasic`, so no administrator step is on the critical path. Phase 0 still confirms this empirically at first sign-in, because a tenant user-consent policy change would surface as a consent prompt or an approval-required error rather than a code defect. Tenant-wide admin consent belongs to the multi-user step, if it ever happens; it is operational convenience, not evidence that the delegated permission intrinsically requires admin consent.
+Delegated `Mail.ReadBasic` is not marked as requiring admin consent, so self-consent was expected to keep an administrator off the critical path. **Phase 0 measured otherwise and this paragraph is corrected rather than deleted, because the reasoning was sound and the premise was wrong.** The reference tenant's user-consent policy — "Let Microsoft manage your consent settings" with mail-client consent enabled — permits user consent to mail permissions only for a fixed list of Microsoft-chosen mail clients, so a registration of one's own cannot self-consent under it. An administrator granted consent for this registration.
+
+The distinction that paragraph drew still holds and matters more now: admin consent is **operational necessity on some tenants, not evidence that the delegated permission intrinsically requires it.** Nothing about the permission changed, no application permission was added, and the grant covers this one registration's delegated scope. It is also not the multi-user step; that remains section 16 and separately gated.
 
 ## 6. Required Graph permissions
 
@@ -296,6 +305,7 @@ Admin consent:
 
 - Microsoft marks delegated `Mail.ReadBasic` as not inherently requiring admin consent.
 - An organization’s user-consent policy can still require administrator approval.
+- **The approval-required state must survive the companion closing.** The provider cannot derive it: its silent classifier maps consent failures to interaction-required on purpose. So the companion records a terminal approval-required outcome through `AuthorizationStateStore` and signals, and the provider refines its silent result with it. Without that, a pinned card keeps asking for a sign-in that cannot succeed — the same conflation the next bullet forbids, reached through a cross-process gap rather than a classification mistake.
 - **A consent-policy block is an authorization failure, not a Graph failure.** If tenant policy prevents self-consent, the failure surfaces during interactive Entra/MSAL authorization — an approval-required or admin-consent-required condition raised before any access token exists — so no Graph call is ever made and no HTTP 403 is returned. Treat it as a distinct state from a Graph 403, which means a token was issued but the mailbox request was refused. Phase 0 and `docs/troubleshooting.md` must name them separately, or a policy change will be misdiagnosed as a permissions bug in the app.
 
 ### `Mail.Read` — not required
@@ -643,6 +653,8 @@ src/
     ViewModels/
     Services/
     Assets/
+    InteractiveAuthService.cs
+    CompanionWindow.cs
   OutlookWidget.Provider/
     Program.cs
     WidgetProvider.cs
@@ -653,6 +665,7 @@ src/
     Cards/
   OutlookWidget.Packaging/
     PackageIdentity.cs
+    PackagedState.cs
   OutlookWidget.Core/
     Authentication/
     Graph/
@@ -678,6 +691,24 @@ scripts/
 
 `OutlookWidget.Packaging` was added during Phase 0 and is not a surface. It holds only the MSIX package-identity interop, because both executables need the package family name and the core must not acquire it: `CoordinationPaths.Resolve` takes that name as a parameter precisely so the core stays surface-agnostic and free of any knowledge that MSIX exists. Duplicating the interop in the companion and the provider would honour that rule and create a worse problem. See the Phase 0 evidence report for the alternatives considered.
 
+### `InteractiveAuthService` moved to the companion
+
+Section 3 originally listed `InteractiveAuthService` under `OutlookWidget.Core`. It is in `OutlookWidget.App` instead, and this is a change to the stated architecture rather than a filing detail.
+
+The reason is that this plan states a stronger invariant elsewhere: the provider must have **no reference or code path** to `AcquireTokenInteractive`. The provider references the core. Had the interactive service gone into the core, the provider would link an assembly containing the interactive API, and the only thing standing between a background COM server and an authentication window with no owner would be a source grep over provider files. With the service in the companion — which the provider does not reference — the boundary is enforced by the assembly reference graph. That is the strongest available form, and it does not depend on a test remembering to look.
+
+Everything genuinely shared stays in the core: broker configuration, the token cache, silent acquisition, and failure classification. What moved is only the call the provider must never make. The cost is that the interactive service is covered by source-level rather than behavioural tests, which is the same trade already accepted for the provider and for the same reason — Phase 2 converts this project to WinUI 3, and referencing it from the test project would pull the XAML toolchain into the test host.
+
+Three checks now hold the boundary together, and all three are needed: the core contains no interactive API, the provider contains none, and `InteractiveAuthService.cs` is the single file that does.
+
+### The shared MSAL token cache
+
+`Microsoft.Identity.Client.Extensions.Msal` is pinned alongside MSAL and the broker package, and the token cache it manages lives in the coordination root inside the package store.
+
+It is a requirement, not a convenience. Microsoft documents that MSAL keeps ID tokens and account metadata in its own cache even when the broker holds the device-bound refresh token, and that without persisting it "restarting the app means that `GetAccounts` API will miss some of the accounts". The companion signs in and the provider acquires silently in a **different process**, so without a shared cache the provider would enumerate no accounts and report sign-in-required immediately after a successful sign-in — failing gate 9 for a reason unrelated to the zero window handle the gate exists to test.
+
+The file is placed with the rest of the coordination state rather than at the location MSAL's own MSIX example suggests. That example uses `%LocalAppData%\{AppName}`, which Phase 0 measured is **not** redirected into the package store for a packaged full-trust app, so following it would leave account metadata behind after uninstall and contradict section 11.
+
 Keep the Phase 0 spike in the same solution and evolve it into production code only after its evidence is reviewed; do not create a disposable second architecture that obscures what was tested.
 
 ## 13. Development prerequisites
@@ -691,7 +722,7 @@ Reconfirm stable versions immediately before scaffolding. As of the planning dat
 - .NET 10 LTS with the current security patch.
 - **PowerShell 7.6 or later**, which runs on .NET 10. This is a constraint on the host, not the SDK: the packaging script loads the built `OutlookWidget.Core` assembly to validate authentication configuration with the product's own loader, so the host runtime must be at least as new as the framework Core targets. PowerShell 7.0–7.4 run on .NET 3.1–8 and cannot load it even with a .NET 10 SDK present. Both the preflight and the build script check this, deriving the required version from Core's project file rather than hardcoding it.
 - Windows App SDK 2.3.1 stable; do not use Preview or Experimental packages.
-- Centrally pinned `Microsoft.Identity.Client` and `Microsoft.Identity.Client.Broker` packages.
+- Centrally pinned `Microsoft.Identity.Client`, `Microsoft.Identity.Client.Broker`, and `Microsoft.Identity.Client.Extensions.Msal` packages, all at one matching version. The extension carries the cross-platform token cache the two processes share; see section 12 for why it is required rather than optional, and why a hand-rolled DPAPI file was rejected.
 - Repository-scoped `nuget.config` containing only approved package feeds and package-source mapping where practical.
 - Developer Mode on development PCs.
 - Access to create the Entra app registration in the tenant.
@@ -810,7 +841,7 @@ Preconditions: the OneDrive-backed clone is fully available locally; volatile ou
 5. ~~Two pinned instances at different sizes render and update independently.~~ **Superseded during Phase 0.** The Widgets Board was measured to allow only one pinned instance per widget definition on build 26200: the picker entry is greyed out and marked as added once the widget is pinned, despite `AllowMultiple="true"` in the installed manifest. The replacement gate is that **one instance resized through the widget's more-options menu renders correctly at small, medium, and large**, which exercises `OnWidgetContextChanged`, per-instance size tracking, and the card's `$host.widgetSize` conditions. The per-instance design requirement in section 3 is unchanged and unrelaxed — it is simply no longer observable through two simultaneous instances. See `docs/phase0-evidence.md` for the measurement and for why a second widget definition was not added to restore coverage.
 6. Widget action launches the companion.
 7. The Open Outlook action launches New Outlook without a versioned executable path.
-8. Companion WAM sign-in supports MFA/Conditional Access with a real HWND, and self-consent to `Mail.ReadBasic` succeeds without an administrator step. If it does not, the failure is recorded as an approval-required authorization state, not as a Graph error.
+8. Companion WAM sign-in supports MFA/Conditional Access with a real HWND, and self-consent to `Mail.ReadBasic` succeeds without an administrator step. If it does not, the failure is recorded as an approval-required authorization state, not as a Graph error. — **Met in part during Phase 0.** Brokered sign-in with a real HWND passes. **Self-consent does not**: the reference tenant's user-consent policy refused it and an administrator granted consent for the registration. The escape clause was exercised as written, so the criterion behaved correctly even though its first half did not hold. Not a pass; recorded as a split. See `docs/phase0-evidence.md`.
 9. Provider construction with the pinned Broker dependency and zero parent handle supports silent acquisition after companion exit and PC restart, never opens a browser, and fails closed when broker/UI is required.
 10. `Mail.ReadBasic` returns exactly the approved properties and no body data is requested.
 11. Cached-first, activation-driven refresh and cross-process cache invalidation operate across Board activation/deactivation, provider recycle, logout, and privacy changes.
@@ -930,7 +961,9 @@ Phase 1's estimate assumes the accepted Phase 0 provider lifecycle and broker sk
 **Slice 2 — the rest of the core**, on top of a coordination layer that already passes its tests.
 
 - Final models and interfaces.
-- WAM authentication/account lifecycle, including logout and account switch end to end.
+- WAM authentication/account lifecycle, including logout and account switch end to end. **Partly done.** Acquisition is complete both ways — interactive in the companion, silent in the provider, with a shared token cache and failure classification — and gates 8 and 9 measured it. **Logout and account switch are not built**, and they are the half that carries the disclosure-tombstone choreography, so they are the harder half rather than the leftover.
+
+  **One known limitation belongs to this bullet and is live today:** silent acquisition selects the *first* cached account, because the selected home-account identifier from step 6 of section 4 is not yet recorded anywhere. With one account that is correct, and v1 is one user with one mailbox. With more than one it is arbitrary — MSAL guarantees no ordering — so it can pick an account other than the one an interactive sign-in just chose, leaving the companion reporting `Acquired` while the provider stays at interaction-required, and once `GraphMailClient` exists the same ambiguity could read the wrong mailbox. The account count is logged as the operational `recordCount` so a value above 1 identifies a machine where this is live. **Recording the identifier is a prerequisite for gate 10, not optional cleanup**, because reading mail for an arbitrarily chosen account is worse than not reading it.
 - Direct Graph REST client.
 - Snapshot validation.
 - DPAPI cache version-discard recovery; no migration machinery.
@@ -1025,7 +1058,7 @@ The estimate assumes:
 - One tenant, one user, one selected mailbox.
 - New Outlook only; no Classic Outlook code path or test.
 - No managed deployment, enterprise signing, hosted backend, push notifications, message-body access, shared mailbox support, or Store publication.
-- Self-consent works, so no administrator scheduling is on the critical path.
+- ~~Self-consent works, so no administrator scheduling is on the critical path.~~ **Falsified during Phase 0**, with no schedule impact: the reference tenant refused self-consent and an administrator grant was needed, but the author holds that administrator role, so nothing had to be scheduled with anyone else. The estimate stands; the assumption behind it does not, and it would matter on a tenant where the author is not an administrator.
 
 Sharing the tool later is a separate estimate: section 16, enterprise signing, a production registration, and a fleet test pass.
 

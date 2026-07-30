@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+﻿#Requires -Version 7.0
 <#
 .SYNOPSIS
     Builds and signs the MSIX package.
@@ -165,10 +165,255 @@ if (-not $SkipSigning) {
 [xml]$manifest = Get-Content -LiteralPath $manifestPath -Raw
 $manifestPublisher = $manifest.Package.Identity.Publisher
 $identityName = $manifest.Package.Identity.Name
-$identityVersion = $manifest.Package.Identity.Version
+$baseVersion = $manifest.Package.Identity.Version
+
+<#
+.SYNOPSIS
+    Derives the package version, stamping Build and Revision automatically.
+
+.DESCRIPTION
+    Major and minor come from the manifest and stay a deliberate decision. Build and Revision are
+    derived, because a manual edit is the wrong mechanism for a value that must change on every build:
+    forgetting it always fails at install time with HRESULT 0x80073CFB rather than at build time, and
+    the failure names the package rather than the omission.
+
+    Build is the git commit height. Revision counts builds within one commit, from
+    src\OutlookWidget.Package\.package-version.json — beside the package PROJECT, deliberately not in
+    AppPackages, which is build output and exists to be deletable. The revision is also raised past the
+    installed package, which is the authority the file is not.
+
+    Both parts are needed and neither is sufficient. Commit height alone does not change when rebuilding
+    a dirty tree, which is the normal development loop. A counter alone would not be meaningful across
+    clones. Together they are monotonic in the order builds actually happen.
+
+    This exists because it was measured that ANY commit changes EVERY assembly in the package: the .NET
+    SDK embeds the git commit SHA in each assembly's informational version, so a documentation-only
+    commit produces a different payload under the same version. That made a manual bump a per-commit
+    obligation, which is exactly the kind of obligation to remove rather than to remember.
+#>
+function Resolve-PackageVersion {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] [string] $BaseVersion,
+        [Parameter(Mandatory)] [string] $StateDirectory,
+        [Parameter(Mandatory)] [string] $IdentityName,
+
+        # Every git query is scoped to this with -C, never to the ambient working directory. Invoked
+        # from inside a different repository, the unscoped commands answered about *that* repository:
+        # its shallow status and its commit height, stamped into this package with no error raised.
+        # Passed rather than read from the enclosing scope for the same reason $IdentityName is —
+        # dynamic scoping makes the dependency invisible at the call site.
+        [Parameter(Mandatory)] [string] $RepositoryRoot
+    )
+
+    $parts = $BaseVersion.Split('.')
+
+    if ($parts.Count -ne 4) {
+        throw "The manifest version '$BaseVersion' is not four-part. MSIX requires Major.Minor.Build.Revision."
+    }
+
+    $major = [int]$parts[0]
+    $minor = [int]$parts[1]
+
+    # Commit height, with the preconditions checked FIRST rather than inferred from the count.
+    #
+    # An earlier version of this checked only the exit code and claimed in a comment that a shallow
+    # clone would therefore be caught. It would not: `git rev-list --count HEAD` SUCCEEDS in a shallow
+    # clone and returns the fetched depth. A `--depth 1` clone reports 1, so the derived version would
+    # be 0.3.1.0 — lower than anything already installed, and MSIX refuses a downgrade.
+    #
+    # Neither safety net below catches it either. The backward-version guard reads state that a fresh
+    # clone does not have, and the failure surfaces at install time as a version error naming the
+    # package rather than the clone.
+
+    $insideWorkTree = & git -C $RepositoryRoot rev-parse --is-inside-work-tree 2>$null
+
+    if ($LASTEXITCODE -ne 0 -or $insideWorkTree -ne 'true') {
+        throw 'Not inside a git work tree, so the package version cannot be derived. Build from a clone of the repository.'
+    }
+
+    # Shallow is rejected rather than worked around. Deepening the clone here would silently change the
+    # caller's repository, and guessing a floor would produce a version with no relationship to history.
+    $isShallow = & git -C $RepositoryRoot rev-parse --is-shallow-repository 2>$null
+
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Cannot determine whether this repository is shallow, so the package version cannot be derived safely.'
+    }
+
+    if ($isShallow -eq 'true') {
+        throw @'
+This is a shallow clone, so commit height is the fetched depth rather than the real history and the
+derived package version would be too low to install over an existing one.
+
+Fix it with:  git fetch --unshallow
+'@
+    }
+
+    $height = & git -C $RepositoryRoot rev-list --count HEAD 2>$null
+
+    if ($LASTEXITCODE -ne 0 -or -not ($height -match '^\d+$')) {
+        throw 'Cannot determine the git commit height, so the package version cannot be derived.'
+    }
+
+    $build = [int]$height
+
+    $statePath = Join-Path $StateDirectory '.package-version.json'
+    $revision = 0
+    $previousVersion = $null
+
+    if (Test-Path -LiteralPath $statePath) {
+        # Read AND interpret the state in one guarded block that never throws. The deliberate monotonicity
+        # failure is raised after it, further down, and that separation is the point.
+        #
+        # It used to be raised from inside a try like this one, with a `catch [RuntimeException] { throw }`
+        # to let it through. But PowerShell's `throw "string"` produces a RuntimeException, and so does a
+        # missing property under Set-StrictMode, and so does a failed [version] cast — so state that was
+        # valid JSON without a usable `version` (an interrupted write, or an older format) was
+        # indistinguishable from the deliberate failure, got rethrown, and broke every package build until
+        # the file was deleted by hand. Exactly the opposite of the recovery this catch promises.
+        try {
+            $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+
+            # Property bags rather than dotted access, because Set-StrictMode makes a missing property a
+            # terminating error rather than $null.
+            $storedBuild = $state.PSObject.Properties['build']
+            $storedRevision = $state.PSObject.Properties['revision']
+            $storedVersion = $state.PSObject.Properties['version']
+
+            if ($storedBuild -and $storedRevision -and [int]$storedBuild.Value -eq $build) {
+                $revision = [int]$storedRevision.Value + 1
+            }
+
+            if ($storedVersion -and $storedVersion.Value) {
+                $previousVersion = [version]$storedVersion.Value
+            }
+        }
+        catch {
+            # Malformed state costs at most a repeated revision, which the installed-package check below
+            # still catches. It must never fail the build: this file is local, disposable, and not the
+            # authority on anything.
+            Write-Warning "Ignoring unreadable version state at $statePath."
+            $revision = 0
+            $previousVersion = $null
+        }
+    }
+
+    # Also consult the INSTALLED package, because the state file is not the authority on what must be
+    # exceeded — the installed version is.
+    #
+    # The file is deliberately outside source control and can be absent for reasons that have nothing to
+    # do with history: a fresh clone at the same commit, or simply cleaning the package output. Revision
+    # then restarts at 0 and collides with, or falls below, a package already installed from that same
+    # commit — a rebuild of which is likely to differ anyway, through uncommitted source or a different
+    # authentication.json. The shallow-clone check does not help here, because the clone is complete and
+    # the height is correct.
+    #
+    # Asking the machine what is installed makes the counter clone-independent for the case that actually
+    # matters. It only ever raises the revision, so building for a different machine is unaffected.
+    # Absence and failure are different answers, and treating them alike defeated the guard below.
+    #
+    # `Get-AppxPackage -Name` is a filter: a name that matches nothing returns an EMPTY RESULT rather than
+    # an error, verified rather than assumed. So a thrown error never means "not installed" — it means the
+    # question could not be asked. Swallowing it left $installedVersion null, the complete-version guard
+    # was skipped, and with a missing or reset counter the script could emit a version that cannot
+    # upgrade. Absence is representable; ignorance is not, so ignorance stops the build.
+    $installedVersion = $null
+
+    try {
+        $installed = Get-AppxPackage -Name $IdentityName -ErrorAction Stop |
+            Sort-Object -Property { [version]$_.Version } -Descending |
+            Select-Object -First 1
+
+        # Empty is the normal not-installed case and leaves $installedVersion null legitimately.
+        if ($installed) {
+            $installedVersion = [version]$installed.Version
+
+            if ($installedVersion.Build -eq $build -and $installedVersion.Revision -ge $revision) {
+                $revision = $installedVersion.Revision + 1
+            }
+        }
+    }
+    catch [System.Management.Automation.CommandNotFoundException] {
+        # Separated because the remedy is completely different from a failed query, and the generic
+        # message would send someone hunting a package problem that does not exist.
+        throw @'
+Get-AppxPackage is not available, so the installed package version cannot be checked and the derived
+version could be one that will not install.
+
+This script is Windows-only by construction -- it also needs makeappx, signtool and makepri -- so this
+usually means it is running on the wrong platform or a PowerShell edition without the Appx cmdlets.
+'@
+    }
+    catch {
+        throw "Cannot determine the installed package version, so the derived version cannot be checked against it: $($_.Exception.Message)"
+    }
+
+    if ($build -gt 65535 -or $revision -gt 65535) {
+        throw "Derived version component out of range (build $build, revision $revision). MSIX allows 0-65535."
+    }
+
+    $resolved = "$major.$minor.$build.$revision"
+
+    # Compare the WHOLE resolved version against what is installed, not just the revision.
+    #
+    # The revision adjustment above only fires when the installed Build equals this one. A branch whose
+    # commit height is LOWER than the installed package — a fork point, or a fresh clone of a shorter
+    # branch — skips it entirely and derives a version MSIX will refuse as a downgrade. No revision can
+    # rescue that, because Build is compared before Revision: 0.3.20.999 is still below 0.3.30.0.
+    #
+    # So this stops rather than producing an unusable package. Failing here names the cause; failing at
+    # install time names the package, and the tempting remedy there is to uninstall, which loses the pin.
+    if ($installedVersion -and [version]$resolved -le $installedVersion) {
+        throw @"
+Derived version $resolved does not exceed the installed $installedVersion, so the package could not be
+installed over it.
+
+This normally means the current branch's commit height is below the branch the installed package was
+built from. Either:
+
+  1. Build from the branch with the greater height, or merge it in.
+  2. Raise Minor in Package.appxmanifest -- a deliberate identity decision, not a workaround.
+
+Removing the installed package would also let the build through and is deliberately NOT offered: it
+destroys the widget pin and package-local state, and both options above avoid that.
+"@
+    }
+
+    # Refuse to go backwards relative to this machine's own build history, for the same reason.
+    #
+    # Raised out here, on a value already parsed and validated above, rather than from inside a try that
+    # also has to survive a malformed file. There is no exception-type filtering left to get wrong: if
+    # $previousVersion is null the state was absent or unusable and this check simply does not apply.
+    if ($previousVersion -and [version]$resolved -le $previousVersion) {
+        throw "Derived version $resolved does not exceed the previous $previousVersion. Commit, or delete $statePath if the history was rewritten."
+    }
+
+    New-Item -ItemType Directory -Force -Path $StateDirectory | Out-Null
+
+    # Written before packing rather than after. A failed build then burns a revision, which costs
+    # nothing, whereas writing afterwards would let two builds share a number if the first failed late.
+    [ordered]@{
+        version  = $resolved
+        build    = $build
+        revision = $revision
+    } | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding utf8
+
+    return $resolved
+}
+
+# State lives beside the project rather than in AppPackages, which is build output and gets cleaned.
+# Losing the counter is not catastrophic — the installed-package check above covers the case that
+# matters — but there is no reason to store it in the one directory whose whole purpose is to be
+# deletable.
+$identityVersion = Resolve-PackageVersion `
+    -BaseVersion $baseVersion `
+    -StateDirectory $packageProject `
+    -IdentityName $identityName `
+    -RepositoryRoot $repoRoot
 
 Write-Output ''
 Write-Output "Package identity: $identityName / $manifestPublisher / $identityVersion"
+Write-Output "  Version: $identityVersion (base $baseVersion; build.revision derived from git height and build count)"
 
 if (-not $SkipSigning) {
     # Match tolerantly across quoting differences, for the same reason
@@ -424,7 +669,38 @@ Write-Output 'Authentication configuration staged beside both executables and va
 # Assemble the rest of the layout
 # ---------------------------------------------------------------------------
 
-Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $layoutPath 'AppxManifest.xml') -Force
+# The layout manifest carries the derived version; the tracked manifest is not modified. Keeping the
+# committed file stable means the version is not a line that shows up in every diff, and the packaged
+# value stays derived rather than remembered.
+#
+# A scoped text substitution rather than loading and re-saving the XML: the manifest has comments,
+# several namespaces, and three other Version attributes (the target device family and the framework
+# dependency both use MinVersion). Re-serialising would rewrite formatting for no benefit, and a
+# regex that is not scoped to the Identity element would silently retarget the framework dependency.
+$layoutManifestPath = Join-Path $layoutPath 'AppxManifest.xml'
+$manifestText = Get-Content -LiteralPath $manifestPath -Raw
+
+$stampedText = [regex]::Replace(
+    $manifestText,
+    '(?s)(<Identity\b[^>]*?Version=")([^"]*)(")',
+    { param($m) $m.Groups[1].Value + $identityVersion + $m.Groups[3].Value },
+    1)
+
+Set-Content -LiteralPath $layoutManifestPath -Value $stampedText -Encoding utf8 -NoNewline
+
+# Assert the stamp landed. A substitution that silently matched nothing would pack the base version,
+# and the install would then fail with 0x80073CFB naming the package rather than the cause.
+[xml]$stampedManifest = Get-Content -LiteralPath $layoutManifestPath -Raw
+
+if ($stampedManifest.Package.Identity.Version -ne $identityVersion) {
+    throw "Failed to stamp the layout manifest: expected $identityVersion, found $($stampedManifest.Package.Identity.Version)."
+}
+
+# And that nothing else moved: the framework dependency's MinVersion is checked by a test and must
+# still match the pinned runtime.
+if ($stampedManifest.Package.Dependencies.PackageDependency.MinVersion -ne '2.3.1.0') {
+    throw 'Stamping the version altered the framework dependency MinVersion. The substitution is not correctly scoped.'
+}
 Copy-Item -LiteralPath $assetsPath -Destination (Join-Path $layoutPath 'Assets') -Recurse -Force
 
 # The widget AppExtension declares PublicFolder="Public", which names a folder the widget host may

@@ -55,11 +55,70 @@ Distinguish four causes before changing anything:
   **Do not unpin the widget to work around this.** It would let the install proceed, and it
   destroys the pin for no reason — the force-shutdown path preserves it.
 
+- **HRESULT `0x80073CFB`, "the provided package is already installed, and reinstallation of the
+  package was blocked."** The full text is more useful than the code: *the provided package has the
+  same identity as an already-installed package but the contents are different.*
+
+  **This should no longer happen, and there is nothing to edit if it does.**
+  `Build-Package.ps1` stamps Build and Revision itself — Build from git commit height, Revision from a
+  per-commit build counter in `src\OutlookWidget.Package\.package-version.json` — and also raises the
+  revision past whatever is already installed. Every build therefore produces a higher version than the
+  last, without anyone remembering to bump anything.
+
+  **Do not edit `Package.appxmanifest` to recover.** Its Build and Revision digits are placeholders that
+  packaging overwrites, so changing them accomplishes nothing; changing Major or Minor is a durable
+  identity decision, not a workaround for a failed install.
+
+  Causes worth checking if you see this code anyway:
+
+  - **A stale package was installed out of order,** for instance by passing an explicit older `.msix` to
+    the install script. Build again and install the newest.
+  - **The counter was deleted *and* nothing is installed to compare against** — for example packaging on
+    one machine for another. Build again; the counter now advances.
+  - **History was rewritten,** so commit height went down. The script refuses this with a named error
+    rather than producing a downgrade.
+
+  The fix is never to uninstall to force it through: uninstalling loses widget pins and package-local
+  cache and settings, which is a real cost for a problem another build solves.
+
+- **"Derived version … does not exceed the installed …"** from `Build-Package.ps1`, rather than from
+  deployment. This is the same conflict caught early and deliberately: the current branch's commit height
+  is at or below the branch the installed package came from, which happens at a fork point or in a fresh
+  clone of a shorter branch. No revision can fix it, because Build is compared before Revision.
+
+  The message gives two ways out — build from the branch with the greater height, or raise Minor as a
+  deliberate identity decision. **Removing the installed package is not one of them.** It would also let
+  the build through, which is exactly why the message names it as excluded rather than staying silent: it
+  destroys the widget pin and package-local state, and both offered options avoid that. Failing at build
+  time is what keeps the destructive route from being the one discovered first.
+
+  Background on why this is automated at all, because it is not obvious: **any commit changes every
+  assembly in the package.** The .NET SDK embeds the git commit SHA in each assembly's informational
+  version by default, so a documentation-only or comment-only commit produces a different payload.
+  Comparing the 0.3.10.0 and 0.3.11.0 packages showed even `OutlookWidget.Core.dll` differing though its
+  source was untouched. That made a manual bump a per-commit obligation whose omission always surfaced
+  here, at install time, in an error naming the package rather than the forgotten edit.
+
+  `Deterministic=true` does not prevent this and is not meant to: it makes a rebuild of the *same*
+  commit reproducible, not builds across commits.
+
+  It is worth stating what this is *not*, because the failure arrives with a list of plausible
+  neighbours and none of them apply:
+
+  - It is **not** an elevation problem. It fails identically elevated, because nothing about it
+    concerns certificate trust.
+  - It is **not** `0x80073D02`. That one is about running processes and is fixed by
+    `-ForceApplicationShutdown`. Passing that flag does not help here, and its message about
+    terminating the provider can make it look as though it should.
+  - It is **not** the "lower version over higher" case below. The versions are equal, not inverted,
+    so the remedy there — remove and reinstall — is the wrong tool and the expensive one.
+
 ## Sign-in problems
 
 | Symptom | Cause | Action |
 |---|---|---|
 | "Sign in required" on the widget | Silent token acquisition threw `MsalUiRequiredException` | Open the companion and sign in. The provider cannot prompt, by design |
+| Companion reports `Cancelled` but the dialog said **"Approval required"** | Tenant policy withheld consent, and the broker reported the dismissal as an ordinary cancellation | **Retrying will not help.** Grant admin consent for the registration. Measured limitation: the broker does not reliably distinguish a closed dialog from a policy refusal, so this status cannot separate the two — the companion's cancellation text says as much |
 | "Authentication broker unavailable" | WAM broker construction or use failed | Companion diagnostics. No browser will open from the provider under any circumstances |
 | "This app needs approval before it can read your mailbox" | Tenant user-consent policy blocked self-consent | **No token was issued and no Graph call was made.** Request administrator approval for delegated `Mail.ReadBasic` |
 | "Mailbox access needs approval" | Graph returned HTTP 403 | **A token was issued** and the mailbox request was refused. Different cause from the row above; check the mailbox and tenant configuration |
@@ -67,6 +126,90 @@ Distinguish four causes before changing anything:
 
 The two approval rows are the pair most often conflated. The log's status category
 distinguishes them (`ApprovalRequired` versus a recorded 403), and so must any diagnosis.
+
+### "Approval required" despite a permissive-looking user-consent setting
+
+Measured on the reference tenant, and the setting that causes it does not read like a restriction.
+
+**"Let Microsoft manage your consent settings (Recommended)"** with **"Enable user consent for popular
+Mail clients"** checked does *not* mean users may consent to mail permissions for any application. It
+maps to the Microsoft-managed policy `microsoft-user-allow-default-consent-apps`, which permits user
+consent to mail permissions for a **fixed list of Microsoft-chosen application IDs** — Apple Mail,
+Spark Email, eM Client, Android-Samsung, Android-Mail, and Thunderbird. The list is Microsoft's and
+cannot be added to, so your own registration can never self-consent while that setting is in force.
+
+Two things that look like they contradict this and do not:
+
+- The registration's API permissions blade may show `Admin consent required: No`. That column reports
+  the **organization default**, not your tenant's effective policy — the blade says so itself. The
+  permission does not inherently need admin consent; the policy withholds it.
+- The consent dialog lists three permissions where the registration configures one. The extra two are
+  MSAL's automatic OIDC scopes: `offline_access` ("Maintain access to data you have given it access
+  to") and `profile` ("View users' basic profile"). Neither is `User.Read`, which grants the full
+  profile and reads "Sign in and read user profile".
+
+The remedy is to grant admin consent for that single registration, which covers delegated
+`Mail.ReadBasic` for that app only and lets a signed-in user read their own basic mail. Loosening the
+tenant-wide consent policy is a much larger blast radius for the same outcome.
+
+### The reported status does not match the failure
+
+The companion prints a `Signals:` line beneath the status — the exception type, MSAL's error code, and
+any `AADSTS` numbers. Include it in any report of a misclassified sign-in.
+
+It exists because a status word alone was insufficient once: a tenant consent block arrived carrying
+none of the `AADSTS` codes the classifier knew about and reported as a generic `Failed`. If a state is
+reported as `Failed` where a specific one applies, that line is what identifies the missing rule.
+It carries categories only and never the exception message.
+
+### Reading the provider's own token state
+
+The provider has no console and no window, and the operational log records categories rather than a
+running state, so the card is the readout. At the **large** size the diagnostic line ends with
+`silent auth <status>`, where the status is one of `Acquired`, `InteractionRequired`,
+`ApprovalRequired`, `BrokerUnavailable`, `NoConfiguration`, `Cancelled`, or `Failed`, and `pending`
+before the attempt finishes. The medium and large detail line says the same thing in words.
+
+The attempt runs on a background task started after COM registration, and again whenever committed
+state or authentication state changes. If the status reads `pending` and stays there, the acquisition
+has not returned — not that it failed.
+
+### The companion signed in successfully, but the widget still says sign-in required
+
+**This should now resolve itself within moments.** The companion raises the state-changed event after a
+successful sign-in and the provider re-acquires in response, so a pinned widget converges without being
+unpinned. The companion's window says which happened: *"A running provider was notified and will
+re-acquire"* when a provider was listening, or that none was — normal when the companion was opened from
+Start rather than from the widget, since a provider probes on its own start anyway.
+
+If it does **not** resolve, distinguish two causes, because they look identical and one of them is not a
+sign-in problem:
+
+1. **No provider was listening and none has started since.** Opening the Widgets Board activates the
+   provider, which probes on start. The provider's lifetime is demand-driven rather than pin-driven, so
+   it can legitimately not be running even with a widget pinned.
+2. **The two processes are not sharing MSAL's token cache.** WAM keeps the refresh token
+   device-bound inside the broker, but MSAL keeps the *account metadata* in its own cache — and
+   without that cache the provider enumerates no accounts and reports interaction-required no matter
+   what the companion just did. The cache is a DPAPI-protected file in the coordination root; the
+   companion's window prints its full path after a successful sign-in.
+
+   If that file is missing or unreadable while the companion reports `Acquired`, this is the cause,
+   and it is **not** evidence that the provider's zero window handle failed. Distinguishing the two is
+   the whole reason the path is printed.
+
+### The WAM account picker does not appear
+
+Microsoft documents that a Windows update can leave the `Microsoft.AccountsControl` component
+incorrectly registered, and the symptom is that the account picker never comes up. Re-register it from
+an elevated PowerShell session:
+
+```powershell
+if (-not (Get-AppxPackage Microsoft.AccountsControl)) { Add-AppxPackage -Register "$env:windir\SystemApps\Microsoft.AccountsControl_cw5n1h2txyewy\AppxManifest.xml" -DisableDevelopmentMode -ForceApplicationShutdown }
+```
+
+This is a machine-state problem rather than anything about this package, and it presents as a
+cancelled sign-in because the dialog closes without returning an account.
 
 ## Mailbox problems
 

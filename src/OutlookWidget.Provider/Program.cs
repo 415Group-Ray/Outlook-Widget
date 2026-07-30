@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using Microsoft.Windows.Widgets.Providers;
 using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
@@ -104,9 +104,7 @@ internal static partial class Program
         // Read once at startup rather than on the delivery path, and deliberately NOT fatal. A
         // package shipped without configuration cannot authenticate, which is a card the user
         // should see rather than a provider process that dies in the background where the Widgets
-        // host started it. Nothing consumes the options yet — authentication arrives in slice 2 —
-        // so only the status is surfaced, so that "the package shipped without configuration" is
-        // distinguishable on the device from "authentication is not built yet".
+        // host started it.
         AuthenticationConfigurationResult configuration = AuthenticationConfiguration.Load(logger);
         SkeletonCard.ConfigurationStatus = configuration.Status;
 
@@ -121,10 +119,31 @@ internal static partial class Program
 
         using var delivery = new DeliveryWorker(cache, tombstones, sink, logger);
 
+        // Declared before the listener so the listener's callback can reach it, and disposed after it
+        // for the same reason in reverse: the probe must outlive the thing that can ask for one.
+        using var authProbe = new SilentAuthProbe(configuration, paths, delivery, logger);
+
         // The cross-process half of gate 11: the companion commits state and signals, and this is
         // what turns that signal into a delivery pass. Until this listener existed nothing created
         // the named events at all, so every signal the companion sent was discarded.
-        using var listener = new StateChangeListener(paths, delivery.RequestDelivery, logger);
+        //
+        // The signal now also re-probes authentication, which is what makes the ordinary sign-in flow
+        // converge. A pinned widget rendering "sign in required" launches the companion; the user signs
+        // in; the companion signals; this re-probes and delivers. Without it the provider — still the
+        // same process, since it lives until the last widget is unpinned — would hold its original
+        // result forever with a valid token sitting in the broker.
+        //
+        // Ordering: the probe is requested first and returns immediately, then delivery is requested.
+        // The probe asks for its own pass on completion, so the immediate one renders whatever changed
+        // in committed state without waiting on a token acquisition that may reach the network.
+        using var listener = new StateChangeListener(
+            paths,
+            () =>
+            {
+                authProbe.RequestProbe();
+                delivery.RequestDelivery();
+            },
+            logger);
 
         using var lastWidgetDeleted = new ManualResetEventSlim(initialState: false);
 
@@ -185,6 +204,14 @@ internal static partial class Program
                     delivery.RequestDelivery();
                 }
 
+                // Requested AFTER the class object is registered, and deliberately not awaited.
+                //
+                // Building the MSAL client opens the shared token cache and a silent acquisition can
+                // reach the network to refresh a token, so doing either before CoRegisterClassObject
+                // would add that latency to every cold activation — against the nonfunctional
+                // activation targets — for a result no callback needs in order to render.
+                authProbe.RequestProbe();
+
                 // Blocks until DeleteWidget removes the last enabled instance. No timeout: a
                 // provider that exited on its own schedule would stop updating widgets that are
                 // still pinned, and the host would have to reactivate it to recover.
@@ -193,7 +220,8 @@ internal static partial class Program
             finally
             {
                 // Revoked before the using-declared stack unwinds, so no callback can arrive
-                // against a disposed delivery worker or listener.
+                // against a disposed delivery worker or listener. The probe is drained by its own
+                // bounded Dispose as that stack unwinds, which runs before the delivery worker's.
                 revoke = CoRevokeClassObject(cookie);
             }
         }

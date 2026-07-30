@@ -23,14 +23,27 @@
     <SelfContained>false</SelfContained>
 
     <!--
-      Required by LibraryImport, whose generated string marshalling is pointer-based. The
-      remaining P/Invoke here is MessageBoxW; the package-identity interop moved to
-      OutlookWidget.Packaging so the companion and the provider share one copy.
+      Required by LibraryImport, whose generated string marshalling is pointer-based, and by
+      CompanionWindow, which passes its window procedure as a function pointer rather than a
+      marshalled delegate so there is no delegate lifetime to get wrong. The package-identity interop
+      moved to OutlookWidget.Packaging so the companion and the provider share one copy.
 
       OutlookWidget.Core has no unsafe code and must not acquire any.
     -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      MSAL is referenced explicitly rather than taken transitively through the core. This project
+      owns the single interactive acquisition call site, so its dependency on the authentication
+      library is a real one and should be visible here.
+
+      Microsoft.Identity.Client.Broker and .Extensions.Msal are deliberately NOT referenced: broker
+      configuration and the token cache belong to the core, which both executables share.
+    -->
+    <PackageReference Include="Microsoft.Identity.Client" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\OutlookWidget.Core\OutlookWidget.Core.csproj" />

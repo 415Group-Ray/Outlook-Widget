@@ -32,10 +32,15 @@ namespace OutlookWidget.Provider;
 /// last reported, which is exactly the failure gate 5 tests for.
 /// </para>
 /// <para>
-/// <b>Phase 0 scope.</b> There is no authentication, no Graph call, and no refresh here yet: a
-/// refresh action requests a delivery pass over current cached state rather than fetching mail.
-/// The lifecycle, the registration, the single delivery call site, and the cross-process
-/// invalidation path are what this establishes.
+/// <b>Phase 0 scope.</b> There is no Graph call and no refresh transaction here yet: a refresh action
+/// requests a delivery pass over current cached state rather than fetching mail. The lifecycle, the
+/// registration, the single delivery call site, and the cross-process invalidation path are what this
+/// establishes.
+/// </para>
+/// <para>
+/// Authentication does exist, but not in this type. <c>SilentAuthProbe</c> owns it, silently and with a
+/// zero parent window handle, and publishes a status the card renders. Nothing here acquires a token,
+/// and nothing here may ever acquire one interactively.
 /// </para>
 /// </remarks>
 internal sealed class WidgetProvider : IWidgetProvider
@@ -214,8 +219,9 @@ internal sealed class WidgetProvider : IWidgetProvider
         switch (verb)
         {
             case WidgetVerbs.Refresh:
-                // Phase 0: a pass over currently committed state, not a Graph fetch. The refresh
-                // transaction, its debounce, and its lease arrive with authentication in slice 2.
+                // Phase 0: a pass over currently committed state, not a Graph fetch. Authentication
+                // exists now, but the refresh transaction, its debounce, and its lease arrive with the
+                // Graph client — there is still nothing to fetch.
                 _logger.Record(OperationalEventId.RefreshRequested, OperationalOutcome.Success);
                 _delivery.RequestDelivery();
                 break;
