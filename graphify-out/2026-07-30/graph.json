@@ -289,7 +289,7 @@
       "label": "New-RoundedPath()",
       "file_type": "code",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L128",
+      "source_location": "L129",
       "_origin": "ast",
       "id": "scripts_new_assets_new_roundedpath",
       "community": 16,
@@ -300,7 +300,7 @@
       "label": "New-Canvas()",
       "file_type": "code",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L157",
+      "source_location": "L158",
       "_origin": "ast",
       "id": "scripts_new_assets_new_canvas",
       "community": 16,
@@ -311,7 +311,7 @@
       "label": "New-GradientBrush()",
       "file_type": "code",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L171",
+      "source_location": "L172",
       "_origin": "ast",
       "id": "scripts_new_assets_new_gradientbrush",
       "community": 16,
@@ -322,7 +322,7 @@
       "label": "New-AppIcon()",
       "file_type": "code",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L189",
+      "source_location": "L190",
       "_origin": "ast",
       "id": "scripts_new_assets_new_appicon",
       "community": 16,
@@ -333,7 +333,7 @@
       "label": "New-WidgetScreenshot()",
       "file_type": "code",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L275",
+      "source_location": "L276",
       "_origin": "ast",
       "id": "scripts_new_assets_new_widgetscreenshot",
       "community": 16,
@@ -344,7 +344,7 @@
       "label": "Save-Asset()",
       "file_type": "code",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L391",
+      "source_location": "L393",
       "_origin": "ast",
       "id": "scripts_new_assets_save_asset",
       "community": 16,
@@ -485,7 +485,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -557,7 +557,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -585,7 +585,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -602,7 +602,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -630,7 +630,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -647,7 +647,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -664,7 +664,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -682,7 +682,7 @@
         "is_nested_type": true,
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -700,7 +700,7 @@
         "is_nested_type": true,
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -718,7 +718,7 @@
         "is_nested_type": true,
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -735,7 +735,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -763,7 +763,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -780,7 +780,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -797,7 +797,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -814,7 +814,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -831,7 +831,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -859,7 +859,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -876,7 +876,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -893,7 +893,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -910,7 +910,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -927,7 +927,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -944,7 +944,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -961,7 +961,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -978,7 +978,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -995,7 +995,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -1012,7 +1012,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s39"
+          "s41"
         ]
       },
       "_origin": "ast",
@@ -1040,7 +1040,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s113"
+          "s117"
         ]
       },
       "_origin": "ast",
@@ -1068,7 +1068,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s113"
+          "s117"
         ]
       },
       "_origin": "ast",
@@ -1151,7 +1151,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s174"
+          "s180"
         ]
       },
       "_origin": "ast",
@@ -1179,7 +1179,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s174"
+          "s180"
         ]
       },
       "_origin": "ast",
@@ -1207,7 +1207,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s174"
+          "s180"
         ]
       },
       "_origin": "ast",
@@ -1235,7 +1235,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s174"
+          "s180"
         ]
       },
       "_origin": "ast",
@@ -1252,7 +1252,7 @@
       "metadata": {
         "namespace": "OutlookWidget.App",
         "scope_chain": [
-          "s174"
+          "s180"
         ]
       },
       "_origin": "ast",
@@ -1296,7 +1296,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s72"
+          "s75"
         ]
       },
       "_origin": "ast",
@@ -1313,7 +1313,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s72"
+          "s75"
         ]
       },
       "_origin": "ast",
@@ -1337,11 +1337,11 @@
       "label": ".Classify()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L104",
+      "source_location": "L110",
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s72"
+          "s75"
         ]
       },
       "_origin": "ast",
@@ -1365,11 +1365,11 @@
       "label": ".Describe()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L226",
+      "source_location": "L232",
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s72"
+          "s75"
         ]
       },
       "_origin": "ast",
@@ -1382,11 +1382,11 @@
       "label": ".ToOutcome()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L260",
+      "source_location": "L266",
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s72"
+          "s75"
         ]
       },
       "_origin": "ast",
@@ -1589,7 +1589,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s97"
+          "s101"
         ]
       },
       "_origin": "ast",
@@ -1617,7 +1617,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s97"
+          "s101"
         ]
       },
       "_origin": "ast",
@@ -1645,7 +1645,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s97"
+          "s101"
         ]
       },
       "_origin": "ast",
@@ -1662,7 +1662,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s97"
+          "s101"
         ]
       },
       "_origin": "ast",
@@ -1679,7 +1679,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s97"
+          "s101"
         ]
       },
       "_origin": "ast",
@@ -1697,7 +1697,7 @@
         "is_nested_type": true,
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s97"
+          "s101"
         ]
       },
       "_origin": "ast",
@@ -1736,7 +1736,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s185"
+          "s191"
         ]
       },
       "_origin": "ast",
@@ -1764,7 +1764,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s185"
+          "s191"
         ]
       },
       "_origin": "ast",
@@ -1792,7 +1792,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s185"
+          "s191"
         ]
       },
       "_origin": "ast",
@@ -1853,7 +1853,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s72"
+          "s75"
         ]
       },
       "_origin": "ast",
@@ -1881,7 +1881,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s72"
+          "s75"
         ]
       },
       "_origin": "ast",
@@ -1920,7 +1920,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s72"
+          "s75"
         ]
       },
       "_origin": "ast",
@@ -1970,7 +1970,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Authentication",
         "scope_chain": [
-          "s72"
+          "s75"
         ]
       },
       "_origin": "ast",
@@ -4859,7 +4859,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s35"
+          "s37"
         ]
       },
       "_origin": "ast",
@@ -4876,7 +4876,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Refresh",
         "scope_chain": [
-          "s35"
+          "s37"
         ]
       },
       "_origin": "ast",
@@ -5925,7 +5925,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
-          "s370"
+          "s381"
         ]
       },
       "_origin": "ast",
@@ -5975,7 +5975,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
-          "s370"
+          "s381"
         ]
       },
       "_origin": "ast",
@@ -5992,7 +5992,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
-          "s370"
+          "s381"
         ]
       },
       "_origin": "ast",
@@ -6031,7 +6031,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
-          "s370"
+          "s381"
         ]
       },
       "_origin": "ast",
@@ -6227,7 +6227,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
-          "s218"
+          "s225"
         ]
       },
       "_origin": "ast",
@@ -6299,7 +6299,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
-          "s218"
+          "s225"
         ]
       },
       "_origin": "ast",
@@ -6316,7 +6316,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
-          "s218"
+          "s225"
         ]
       },
       "_origin": "ast",
@@ -6333,7 +6333,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
-          "s218"
+          "s225"
         ]
       },
       "_origin": "ast",
@@ -6350,7 +6350,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
-          "s218"
+          "s225"
         ]
       },
       "_origin": "ast",
@@ -6378,7 +6378,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
-          "s218"
+          "s225"
         ]
       },
       "_origin": "ast",
@@ -6638,7 +6638,7 @@
       "label": "WidgetProvider",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L46",
+      "source_location": "L50",
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
@@ -6677,7 +6677,7 @@
       "label": ".RecoverEnabledInstances()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L95",
+      "source_location": "L99",
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
@@ -6694,7 +6694,7 @@
       "label": ".CreateWidget()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L135",
+      "source_location": "L139",
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
@@ -6722,7 +6722,7 @@
       "label": ".DeleteWidget()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L159",
+      "source_location": "L163",
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
@@ -6739,7 +6739,7 @@
       "label": ".Activate()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L173",
+      "source_location": "L177",
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
@@ -6756,7 +6756,7 @@
       "label": ".Deactivate()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L197",
+      "source_location": "L201",
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
@@ -6773,7 +6773,7 @@
       "label": ".OnActionInvoked()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L209",
+      "source_location": "L213",
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
@@ -6801,7 +6801,7 @@
       "label": ".OnWidgetContextChanged()",
       "file_type": "code",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L252",
+      "source_location": "L256",
       "metadata": {
         "namespace": "OutlookWidget.Provider",
         "scope_chain": [
@@ -7170,7 +7170,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7187,7 +7187,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7215,7 +7215,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7232,7 +7232,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7249,7 +7249,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7266,7 +7266,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7283,7 +7283,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7300,7 +7300,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7317,7 +7317,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7356,7 +7356,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7373,7 +7373,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7390,7 +7390,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7407,7 +7407,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7424,7 +7424,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7441,7 +7441,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7458,7 +7458,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7475,7 +7475,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7492,7 +7492,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7509,7 +7509,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7526,7 +7526,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7543,7 +7543,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7560,7 +7560,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7577,7 +7577,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s147"
+          "s152"
         ]
       },
       "_origin": "ast",
@@ -7605,7 +7605,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -7633,7 +7633,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -7661,7 +7661,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -7678,7 +7678,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -7717,7 +7717,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -7734,7 +7734,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -7751,7 +7751,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -7768,7 +7768,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -7785,7 +7785,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -7802,7 +7802,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -7819,7 +7819,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -7836,7 +7836,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -7853,7 +7853,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s96"
+          "s99"
         ]
       },
       "_origin": "ast",
@@ -9907,7 +9907,7 @@
       "label": ".The_windows_app_sdk_framework_dependency_is_declared_and_matches_the_pinned_version()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L217",
+      "source_location": "L221",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -9924,7 +9924,7 @@
       "label": ".The_publisher_keeps_the_quoting_the_certificate_subject_requires()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L239",
+      "source_location": "L243",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -9941,7 +9941,7 @@
       "label": ".Every_image_the_manifest_references_exists_in_the_package_assets()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L256",
+      "source_location": "L260",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -9958,7 +9958,7 @@
       "label": ".The_manifest_requests_no_capability_beyond_internet_and_full_trust()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L324",
+      "source_location": "L328",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -9975,7 +9975,7 @@
       "label": ".The_manifest_is_well_formed_and_declares_the_namespaces_it_uses()",
       "file_type": "code",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L339",
+      "source_location": "L343",
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
@@ -11282,7 +11282,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s89"
         ]
       },
       "_origin": "ast",
@@ -11299,7 +11299,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s89"
         ]
       },
       "_origin": "ast",
@@ -11327,7 +11327,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s89"
         ]
       },
       "_origin": "ast",
@@ -11344,7 +11344,7 @@
       "metadata": {
         "namespace": "OutlookWidget.Core.Tests",
         "scope_chain": [
-          "s86"
+          "s89"
         ]
       },
       "_origin": "ast",
@@ -14837,7 +14837,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L189",
+      "source_location": "L190",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets",
@@ -14848,7 +14848,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L157",
+      "source_location": "L158",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets",
@@ -14859,7 +14859,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L171",
+      "source_location": "L172",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets",
@@ -14870,7 +14870,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L128",
+      "source_location": "L129",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets",
@@ -14881,7 +14881,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L275",
+      "source_location": "L276",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets",
@@ -14892,7 +14892,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L391",
+      "source_location": "L393",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets",
@@ -14903,51 +14903,51 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L224",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets_new_appicon",
-      "target": "scripts_new_assets_new_roundedpath",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L298",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets_new_widgetscreenshot",
-      "target": "scripts_new_assets_new_roundedpath",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L204",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets_new_appicon",
-      "target": "scripts_new_assets_new_canvas",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L290",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "scripts_new_assets_new_widgetscreenshot",
-      "target": "scripts_new_assets_new_canvas",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/New-Assets.ps1",
       "source_location": "L225",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_assets_new_appicon",
+      "target": "scripts_new_assets_new_roundedpath",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-Assets.ps1",
+      "source_location": "L300",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_assets_new_widgetscreenshot",
+      "target": "scripts_new_assets_new_roundedpath",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-Assets.ps1",
+      "source_location": "L205",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_assets_new_appicon",
+      "target": "scripts_new_assets_new_canvas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-Assets.ps1",
+      "source_location": "L292",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "scripts_new_assets_new_widgetscreenshot",
+      "target": "scripts_new_assets_new_canvas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/New-Assets.ps1",
+      "source_location": "L226",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets_new_appicon",
@@ -14958,7 +14958,7 @@
       "relation": "calls",
       "confidence": "EXTRACTED",
       "source_file": "scripts/New-Assets.ps1",
-      "source_location": "L322",
+      "source_location": "L324",
       "weight": 1.0,
       "_origin": "ast",
       "source": "scripts_new_assets_new_widgetscreenshot",
@@ -17372,7 +17372,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L104",
+      "source_location": "L110",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -17387,7 +17387,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L78",
+      "source_location": "L84",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -17402,7 +17402,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L104",
+      "source_location": "L110",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_authentication_authenticationfailures_outlookwidget_core_authentication_authenticationfailures",
@@ -17413,7 +17413,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L226",
+      "source_location": "L232",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_authentication_authenticationfailures_outlookwidget_core_authentication_authenticationfailures",
@@ -17424,7 +17424,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L260",
+      "source_location": "L266",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_core_authentication_authenticationfailures_outlookwidget_core_authentication_authenticationfailures",
@@ -17435,7 +17435,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L104",
+      "source_location": "L110",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -17450,7 +17450,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L104",
+      "source_location": "L110",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -17657,7 +17657,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L226",
+      "source_location": "L232",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -17684,7 +17684,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L260",
+      "source_location": "L266",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -17699,7 +17699,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Core/Authentication/AuthenticationFailures.cs",
-      "source_location": "L260",
+      "source_location": "L266",
       "weight": 1.0,
       "context": "return_type",
       "metadata": {
@@ -21404,7 +21404,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L49",
+      "source_location": "L53",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -21555,7 +21555,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L187",
+      "source_location": "L191",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_activate",
@@ -21567,7 +21567,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L148",
+      "source_location": "L152",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_createwidget",
@@ -21579,7 +21579,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L226",
+      "source_location": "L230",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_onactioninvoked",
@@ -21591,7 +21591,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L260",
+      "source_location": "L264",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_onwidgetcontextchanged",
@@ -22728,7 +22728,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L52",
+      "source_location": "L56",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -22954,7 +22954,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L225",
+      "source_location": "L229",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_onactioninvoked",
@@ -22966,7 +22966,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L127",
+      "source_location": "L131",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_recoverenabledinstances",
@@ -23184,7 +23184,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L50",
+      "source_location": "L54",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -23213,7 +23213,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L230",
+      "source_location": "L234",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_onactioninvoked",
@@ -28620,7 +28620,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L51",
+      "source_location": "L55",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -28649,7 +28649,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L234",
+      "source_location": "L238",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_onactioninvoked",
@@ -29509,7 +29509,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L120",
+      "source_location": "L124",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_recoverenabledinstances",
@@ -29604,7 +29604,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L48",
+      "source_location": "L52",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -29621,7 +29621,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L184",
+      "source_location": "L188",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_activate",
@@ -29633,7 +29633,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L137",
+      "source_location": "L141",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_createwidget",
@@ -29645,7 +29645,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L105",
+      "source_location": "L109",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_recoverenabledinstances",
@@ -29657,7 +29657,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L161",
+      "source_location": "L165",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_deletewidget",
@@ -29684,7 +29684,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L182",
+      "source_location": "L186",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_activate",
@@ -29696,7 +29696,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L198",
+      "source_location": "L202",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_deactivate",
@@ -29708,7 +29708,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L258",
+      "source_location": "L262",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_onwidgetcontextchanged",
@@ -29720,7 +29720,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L214",
+      "source_location": "L218",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider_onactioninvoked",
@@ -29730,7 +29730,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L46",
+      "source_location": "L50",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider",
@@ -29741,7 +29741,7 @@
       "relation": "implements",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L46",
+      "source_location": "L50",
       "weight": 1.0,
       "metadata": {
         "ref_token": "IWidgetProvider"
@@ -29755,7 +29755,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L53",
+      "source_location": "L57",
       "weight": 1.0,
       "context": "field",
       "metadata": {
@@ -29770,7 +29770,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L173",
+      "source_location": "L177",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider",
@@ -29781,7 +29781,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L135",
+      "source_location": "L139",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider",
@@ -29792,7 +29792,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L197",
+      "source_location": "L201",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider",
@@ -29803,7 +29803,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L159",
+      "source_location": "L163",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider",
@@ -29814,7 +29814,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L209",
+      "source_location": "L213",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider",
@@ -29825,7 +29825,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L252",
+      "source_location": "L256",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider",
@@ -29836,7 +29836,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L95",
+      "source_location": "L99",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_outlookwidget_provider_widgetprovider_outlookwidget_provider_widgetprovider",
@@ -29847,7 +29847,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L135",
+      "source_location": "L139",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -29862,7 +29862,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L173",
+      "source_location": "L177",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -29877,7 +29877,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L209",
+      "source_location": "L213",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -29892,7 +29892,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "src/OutlookWidget.Provider/WidgetProvider.cs",
-      "source_location": "L252",
+      "source_location": "L256",
       "weight": 1.0,
       "context": "parameter_type",
       "metadata": {
@@ -35074,7 +35074,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L256",
+      "source_location": "L260",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_packagemanifesttests_outlookwidget_core_tests_packagemanifesttests",
@@ -35162,7 +35162,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L339",
+      "source_location": "L343",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_packagemanifesttests_outlookwidget_core_tests_packagemanifesttests",
@@ -35173,7 +35173,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L324",
+      "source_location": "L328",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_packagemanifesttests_outlookwidget_core_tests_packagemanifesttests",
@@ -35195,7 +35195,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L239",
+      "source_location": "L243",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_packagemanifesttests_outlookwidget_core_tests_packagemanifesttests",
@@ -35228,7 +35228,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L217",
+      "source_location": "L221",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_packagemanifesttests_outlookwidget_core_tests_packagemanifesttests",
@@ -35267,7 +35267,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L268",
+      "source_location": "L272",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_packagemanifesttests_outlookwidget_core_tests_packagemanifesttests_every_image_the_manifest_references_exists_in_the_package_assets",
@@ -35330,7 +35330,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L202",
+      "source_location": "L203",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_packagemanifesttests_outlookwidget_core_tests_packagemanifesttests_the_inbox_widget_declares_all_three_sizes",
@@ -35342,7 +35342,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L345",
+      "source_location": "L349",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_packagemanifesttests_outlookwidget_core_tests_packagemanifesttests_the_manifest_is_well_formed_and_declares_the_namespaces_it_uses",
@@ -35354,7 +35354,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L330",
+      "source_location": "L334",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_packagemanifesttests_outlookwidget_core_tests_packagemanifesttests_the_manifest_requests_no_capability_beyond_internet_and_full_trust",
@@ -35378,7 +35378,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L247",
+      "source_location": "L251",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_packagemanifesttests_outlookwidget_core_tests_packagemanifesttests_the_publisher_keeps_the_quoting_the_certificate_subject_requires",
@@ -35414,7 +35414,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L228",
+      "source_location": "L232",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_outlookwidget_core_tests_packagemanifesttests_outlookwidget_core_tests_packagemanifesttests_the_windows_app_sdk_framework_dependency_is_declared_and_matches_the_pinned_version",
@@ -35440,7 +35440,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L256",
+      "source_location": "L260",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -35515,7 +35515,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L339",
+      "source_location": "L343",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -35530,7 +35530,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L324",
+      "source_location": "L328",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -35545,7 +35545,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L239",
+      "source_location": "L243",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -35590,7 +35590,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "tests/OutlookWidget.Core.Tests/PackageManifestTests.cs",
-      "source_location": "L217",
+      "source_location": "L221",
       "weight": 1.0,
       "context": "attribute",
       "metadata": {
@@ -42047,5 +42047,5 @@
       "source_file": "docs/phase0-evidence.md"
     }
   ],
-  "built_at_commit": "a6e00bb798197cdb2da5c281e5d79763fa64c69c"
+  "built_at_commit": "f632b111f0edaf936324d02a5d5ba91e87020571"
 }

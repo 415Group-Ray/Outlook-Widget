@@ -10,7 +10,9 @@ Implementation status: **Phase 0 in progress; the native surface and packaging a
 
 Gate 11 does not affect the fallback decision, because both surfaces consume the same coordination core. **Gate 9 did**, and it passed: a provider that could not acquire a token silently with a zero parent handle would have rendered sign-in-required forever, since interactive authentication belongs only to the companion, whereas a tray/popover UI process could have authenticated itself. It acquired one. **The fallback proof is not being built, and that now rests on evidence rather than on expectation** — the hedge that used to close this paragraph is gone because the measurement replaced it.
 
-**Authentication is built and measured; every remaining Phase 0 gate depends on Microsoft Graph.** The Entra registration is created, `BrokerClient`, `SilentAuthService` and the companion's `InteractiveAuthService` exist, gate 8 is split and gate 9 passes. What is left — gates **10, 11, and 12** — needs `GraphMailClient` and the snapshot model: 10 and 12 read mail, and 11 needs a real refresh to invalidate, so it follows them. `docs/phase0-evidence.md` is authoritative for what has actually been measured.
+**Authentication is built and measured; every remaining Phase 0 gate depends on Microsoft Graph.** The Entra registration is created, `BrokerClient`, `SilentAuthService` and the companion's `InteractiveAuthService` exist, gate 8 is split and gate 9 passes. Gates **10, 11, and 12** remain, and they need mail: 10 and 12 read it, and 11 needs a real refresh to invalidate, so it follows them.
+
+**`GraphMailClient` and the snapshot model are now built, and no request has yet been issued against Microsoft Graph.** That distinction is the whole of the remaining gap: the client is covered by unit tests against a stub handler, which establish that this repository handles the shapes it expects and establish *nothing* about what `Mail.ReadBasic` actually returns or whether the Focused filter is accepted. Two further pieces are needed before gate 10 can honestly be measured — the selected home-account identifier must be recorded (see the Phase 1 slice 2 note below), and a refresh has to call the client. `docs/phase0-evidence.md` is authoritative for what has actually been measured.
 
 This plan describes a lightweight Windows 11 Outlook inbox widget for a single Microsoft 365 tenant. It incorporates the decisions approved during planning:
 
@@ -216,8 +218,9 @@ flowchart LR
 - `SilentAuthService`: provider-safe silent-only acquisition; it cannot start a browser or authentication UI. Tries the cached account first and falls back to the operating-system account, in the order Microsoft documents.
 - `AuthenticationFailures`: maps MSAL failures onto the product's outcome states, classifying by exception type where MSAL provides one and by error code only for the broker-unavailable and consent cases, which have no dedicated type. Branches on exception text; never logs or returns it.
 - `InteractiveAuthService` **lives in `OutlookWidget.App`, not here.** This is a deliberate change from the original layout, recorded in section 12.
-- `GraphMailClient`: the two required reads and optional Focused count.
-- `MailboxSnapshotService`: combines Graph responses into one immutable display snapshot.
+- `GraphMailClient`: the two required reads and optional Focused count, hand-written over `HttpClient` rather than through the Graph SDK — three GETs against `v1.0` is the whole surface, and a client that cannot express `body` is a stronger privacy guarantee than an SDK model that can and chooses not to. Concurrent, under one `GraphRequestTimeout` linked to the caller's deadline. Each request is reduced to a value rather than a faulted task, which is what makes the optional Focused count optional in *failure* as well as in absence. Nothing about a response leaves it but a status code.
+- `GraphResponseReader`: the section 8 step 5 validation boundary — response types, string lengths, URL scheme, timestamps, and item count — in one internal file, refusing without describing the fault, because the only thing that could describe it is the response text.
+- **`MailboxSnapshotService` was not built as a service.** Combining a readout with the tenant, the selected account, and the refresh time is one construction with nothing to configure and no state to hold, so it is `MailboxSnapshot.Create` instead. A type whose only member is a static factory is a namespace with extra steps. Recorded as a deviation rather than left to look like an omission.
 - `RefreshCoordinator`: synchronous package-user named mutex for commits, an expiring lease record for cross-process single-flight, overall deadline, debounce, backoff, cancellation, and change notification. No named primitive is held across an `await`.
 - `ProtectedCache`: DPAPI-protected snapshot and selected MSAL home-account/tenant identifiers, with a generation counter and atomic replacement.
 - `StateChangeListener`: creates the two named notification events and turns either signal into a callback. Required rather than optional: the signalling side opens the events by name and treats absence as "no listener", so without something creating them every cross-process signal is a silent no-op.
@@ -682,8 +685,8 @@ src/
     Delivery/
     Launching/
     Diagnostics/
-    Graph/            planned — GraphMailClient
-    Models/           planned — snapshot models
+    Graph/            GraphMailClient, GraphMailResult, GraphResponseReader
+    Models/           MailboxSnapshot, MessagePreview, MailboxReadout, MailboxLimits
   OutlookWidget.Package/
     Package.appxmanifest
     .package-version.json
@@ -985,8 +988,8 @@ Phase 1's estimate assumes the accepted Phase 0 provider lifecycle and broker sk
 - WAM authentication/account lifecycle, including logout and account switch end to end. **Partly done.** Acquisition is complete both ways — interactive in the companion, silent in the provider, with a shared token cache and failure classification — and gates 8 and 9 measured it. **Logout and account switch are not built**, and they are the half that carries the disclosure-tombstone choreography, so they are the harder half rather than the leftover.
 
   **One known limitation belongs to this bullet and is live today:** silent acquisition selects the *first* cached account, because the selected home-account identifier from step 6 of section 4 is not yet recorded anywhere. With one account that is correct, and v1 is one user with one mailbox. With more than one it is arbitrary — MSAL guarantees no ordering — so it can pick an account other than the one an interactive sign-in just chose, leaving the companion reporting `Acquired` while the provider stays at interaction-required, and once `GraphMailClient` exists the same ambiguity could read the wrong mailbox. The account count is logged as the operational `recordCount` so a value above 1 identifies a machine where this is live. **Recording the identifier is a prerequisite for gate 10, not optional cleanup**, because reading mail for an arbitrarily chosen account is worse than not reading it.
-- Direct Graph REST client.
-- Snapshot validation.
+- Direct Graph REST client. **Built.** `GraphMailClient` issues the two required reads and the optional Focused count concurrently under one timeout nested in the async deadline, classifies every failure as a state, and returns a `MailboxReadout`. It is not yet called from anywhere: wiring it into `RefreshCoordinator` is the next piece, and until that happens no Graph request has been issued by this product.
+- Snapshot validation. **Built.** `GraphResponseReader` holds the section 8 step 5 checks, and `MailboxSnapshot.TryDeserialize` refuses a payload whose schema version or message count it does not recognise, so a tampered or stale cache is discarded rather than rendered.
 - DPAPI cache version-discard recovery; no migration machinery.
 - Metadata-free operational logging.
 - Unit and contract tests.
