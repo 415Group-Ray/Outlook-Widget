@@ -254,10 +254,8 @@ public sealed class GraphMailClient : IDisposable
 
             if (!response.IsSuccessStatusCode)
             {
-                // The body of an error response is not read. It routinely carries a request URL and a
-                // correlation identifier, and there is nowhere in this product either may be recorded.
                 return new GraphResponse(
-                    ClassifyStatus(response.StatusCode),
+                    await ClassifyFailureAsync(response, cancellationToken).ConfigureAwait(false),
                     Document: null,
                     statusCode,
                     ReadRetryAfter(response));
@@ -346,9 +344,12 @@ public sealed class GraphMailClient : IDisposable
     /// <para>
     /// <see cref="GraphMailStatus.Unauthorized"/> first: it is the only status whose remedy the caller
     /// must not defer, because every retry with the same token repeats it. Then
-    /// <see cref="GraphMailStatus.Forbidden"/>, which is the most terminal thing a mailbox read can
-    /// say and needs surfacing rather than retrying. Then
+    /// <see cref="GraphMailStatus.MailboxNotSupported"/>, the most definitive answer available — the
+    /// account has no mailbox to read, so nothing below it can be the more useful thing to report.
+    /// Then <see cref="GraphMailStatus.Forbidden"/>, which needs surfacing rather than retrying, and
     /// <see cref="GraphMailStatus.Throttled"/>, which carries explicit service guidance.
+    /// <see cref="GraphMailStatus.ItemNotFound"/> sits below those because it is the mildest of the
+    /// named states: the mailbox is healthy and the snapshot is merely stale.
     /// </para>
     /// <para>
     /// The rest rank by how much they narrow the problem: a malformed payload is a contract fault
@@ -360,14 +361,119 @@ public sealed class GraphMailClient : IDisposable
     private static int RemedyRank(GraphMailStatus status) => status switch
     {
         GraphMailStatus.Unauthorized => 0,
-        GraphMailStatus.Forbidden => 1,
-        GraphMailStatus.Throttled => 2,
-        GraphMailStatus.InvalidResponse => 3,
-        GraphMailStatus.NetworkFailure => 4,
-        GraphMailStatus.TimedOut => 5,
-        GraphMailStatus.Cancelled => 6,
-        _ => 7,
+        GraphMailStatus.MailboxNotSupported => 1,
+        GraphMailStatus.Forbidden => 2,
+        GraphMailStatus.Throttled => 3,
+        GraphMailStatus.ItemNotFound => 4,
+        GraphMailStatus.InvalidResponse => 5,
+        GraphMailStatus.NetworkFailure => 6,
+        GraphMailStatus.TimedOut => 7,
+        GraphMailStatus.Cancelled => 8,
+        _ => 9,
     };
+
+    /// <summary>
+    /// The two Graph error codes section 10 requires as their own states.
+    /// </summary>
+    /// <remarks>
+    /// A closed allowlist, and that is what makes reading an error body acceptable here. Nothing else
+    /// in the response is looked at, no other code is recognised, and no string from the body reaches
+    /// a caller — <see cref="TryReadKnownErrorAsync"/> returns a <see cref="GraphMailStatus"/> or
+    /// nothing, so the service's own text cannot escape even by accident.
+    /// </remarks>
+    private static readonly (string Code, GraphMailStatus Status)[] KnownErrorCodes =
+    [
+        ("MailboxNotEnabledForRESTAPI", GraphMailStatus.MailboxNotSupported),
+        ("ErrorItemNotFound", GraphMailStatus.ItemNotFound),
+    ];
+
+    /// <summary>
+    /// How much of an error body is read before giving up. Generous for a Graph error envelope and
+    /// bounded so a hostile or broken response cannot be buffered without limit.
+    /// </summary>
+    private const int MaxErrorBodyBytes = 8 * 1024;
+
+    /// <summary>
+    /// Classifies a failure by its error code where section 10 names one, and by status otherwise.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The error body is now read, narrowly, and the previous version's blanket refusal to read it
+    /// was wrong.</b> That version discarded it entirely on the grounds that it carries a request URL
+    /// and a correlation identifier — true, and it also carries <c>error.code</c>, which section 10's
+    /// recovery table depends on. Collapsing <c>MailboxNotEnabledForRESTAPI</c> into a generic 404
+    /// leaves a user with no supported mailbox reading "try again" forever, and collapsing
+    /// <c>ErrorItemNotFound</c> hides an ordinary stale-snapshot condition inside a service failure.
+    /// </para>
+    /// <para>
+    /// Section 10 is explicit that the remedy is to read the code and <em>not</em> to expose raw
+    /// service text, which is exactly what happens: one enumerated field, matched against a fixed
+    /// allowlist, converted to a status, and the rest of the body discarded unread.
+    /// </para>
+    /// </remarks>
+    private static async Task<GraphMailStatus> ClassifyFailureAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        return await TryReadKnownErrorAsync(response, cancellationToken).ConfigureAwait(false)
+               ?? ClassifyStatus(response.StatusCode);
+    }
+
+    /// <summary>
+    /// Extracts <c>error.code</c> if it is one this product acts on, or answers <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// Every failure mode lands on null and falls back to status classification: a body that is not
+    /// JSON, one truncated past the cap, one with no <c>error.code</c>, a code that is not on the
+    /// allowlist, or a connection that dies mid-body. None of those is worth failing a classification
+    /// that already has a usable answer from the status line.
+    /// </remarks>
+    private static async Task<GraphMailStatus?> TryReadKnownErrorAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using Stream body =
+                await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+
+            byte[] buffer = new byte[MaxErrorBodyBytes];
+
+            int read = await body
+                .ReadAtLeastAsync(buffer, buffer.Length, throwOnEndOfStream: false, cancellationToken)
+                .ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(buffer.AsMemory(0, read));
+
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("error", out JsonElement error)
+                || error.ValueKind != JsonValueKind.Object
+                || !error.TryGetProperty("code", out JsonElement code)
+                || code.ValueKind != JsonValueKind.String)
+            {
+                return null;
+            }
+
+            string? value = code.GetString();
+
+            foreach ((string known, GraphMailStatus status) in KnownErrorCodes)
+            {
+                if (string.Equals(value, known, StringComparison.OrdinalIgnoreCase))
+                {
+                    return status;
+                }
+            }
+
+            return null;
+        }
+        catch (Exception e) when (e is JsonException
+                                     or HttpRequestException
+                                     or IOException
+                                     or OperationCanceledException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>
     /// Maps an HTTP status onto a product state.

@@ -39,6 +39,27 @@ public enum GraphMailStatus
     Forbidden,
 
     /// <summary>
+    /// Graph answered <c>MailboxNotEnabledForRESTAPI</c>. This account has no supported Exchange
+    /// Online mailbox.
+    /// </summary>
+    /// <remarks>
+    /// Terminal, and the most definitive answer a mailbox read can get: no retry, no reacquisition,
+    /// and no permission change helps. Section 10 requires it to surface as its own state rather than
+    /// as a generic 404, because the remedy — use a supported mailbox, or ask the tenant
+    /// administrator — is nothing like "try again".
+    /// </remarks>
+    MailboxNotSupported,
+
+    /// <summary>
+    /// Graph answered <c>ErrorItemNotFound</c>. The folder or message changed underneath the read.
+    /// </summary>
+    /// <remarks>
+    /// Section 10 treats this as changed-or-unavailable rather than as a failure: the mailbox is fine
+    /// and the snapshot is stale, so the recovery is another refresh.
+    /// </remarks>
+    ItemNotFound,
+
+    /// <summary>
     /// HTTP 429 or 503. Retry later, honouring <see cref="GraphMailResult.RetryAfter"/> when the
     /// service supplied one.
     /// </summary>

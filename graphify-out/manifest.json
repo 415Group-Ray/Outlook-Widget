@@ -210,8 +210,8 @@
     "semantic_hash": ""
   },
   "TECHNICAL_PLAN.md": {
-    "mtime": 1785438255.1330144,
-    "ast_hash": "c44667dde3971109af3fb6a0b08a8ffd",
+    "mtime": 1785439921.6263406,
+    "ast_hash": "28058ff977e0b2b7daa90c60f3bf3137",
     "semantic_hash": ""
   },
   "docs/app-registration.md": {
@@ -570,13 +570,13 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Graph/GraphMailClient.cs": {
-    "mtime": 1785438864.0141218,
-    "ast_hash": "58332f8963d7219b482e6dd6f1278915",
+    "mtime": 1785439921.4475772,
+    "ast_hash": "4936da86e12117b0368e23083cc77347",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Graph/GraphMailResult.cs": {
-    "mtime": 1785424139.5342438,
-    "ast_hash": "c9c3d2a12d427e36fc43746137f76069",
+    "mtime": 1785439753.1579182,
+    "ast_hash": "d36432c0838a5cb268963efeb6ea8f51",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Graph/GraphResponseReader.cs": {
@@ -595,8 +595,8 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/GraphMailClientTests.cs": {
-    "mtime": 1785439354.2903626,
-    "ast_hash": "5fb2d11153ebac278d2688c3dfa28ad2",
+    "mtime": 1785439851.914045,
+    "ast_hash": "54430c3645b1a3acde86fb5ed937f1ff",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/MailboxSnapshotTests.cs": {

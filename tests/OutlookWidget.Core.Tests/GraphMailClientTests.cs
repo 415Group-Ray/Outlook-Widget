@@ -258,6 +258,115 @@ public sealed class GraphMailClientTests
         Assert.Equal(TimeSpan.FromSeconds(30), result.RetryAfter);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound, "MailboxNotEnabledForRESTAPI", GraphMailStatus.MailboxNotSupported)]
+    [InlineData(HttpStatusCode.NotFound, "ErrorItemNotFound", GraphMailStatus.ItemNotFound)]
+    [InlineData(HttpStatusCode.BadRequest, "ErrorItemNotFound", GraphMailStatus.ItemNotFound)]
+    [InlineData(HttpStatusCode.NotFound, "mailboxnotenabledforrestapi", GraphMailStatus.MailboxNotSupported)]
+    public async Task A_named_graph_error_code_becomes_its_own_state(
+        HttpStatusCode httpStatus,
+        string code,
+        GraphMailStatus expected)
+    {
+        // Section 10's recovery table names both of these, and status-only classification made them
+        // unreachable: a user with no supported mailbox read "try again" forever, and an ordinary
+        // stale-snapshot condition hid inside a generic service failure. The third case pins that the
+        // code wins over the status rather than only being consulted for 404.
+        var handler = new StubGraphHandler()
+            .Json(MessagesRoute, MessagesJson)
+            .Json(FolderRoute, $$$"""{"error":{"code":"{{{code}}}","message":"human text"}}""", httpStatus);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, result.Status);
+        Assert.Equal((int)httpStatus, result.HttpStatusCode);
+    }
+
+    [Fact]
+    public async Task An_unrecognised_error_code_falls_back_to_the_status()
+    {
+        // The allowlist is closed. A code this product does not act on must not become a new state by
+        // accident, and must not prevent the status line from answering.
+        var handler = new StubGraphHandler()
+            .Json(MessagesRoute, MessagesJson)
+            .Json(
+                FolderRoute,
+                """{"error":{"code":"SomethingElseEntirely","message":"human text"}}""",
+                HttpStatusCode.InternalServerError);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(GraphMailStatus.ServiceFailure, result.Status);
+    }
+
+    [Fact]
+    public async Task An_error_body_that_is_not_json_still_classifies_by_status()
+    {
+        var handler = new StubGraphHandler()
+            .Json(MessagesRoute, MessagesJson)
+            .Json(FolderRoute, "<html>gateway error</html>", HttpStatusCode.BadGateway);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(GraphMailStatus.ServiceFailure, result.Status);
+    }
+
+    [Fact]
+    public async Task Nothing_from_an_error_body_escapes_except_the_state_it_selected()
+    {
+        // Reading the body at all is a narrowing of a rule this client otherwise keeps absolutely, so
+        // the narrowing is asserted rather than described: an error envelope carrying a message, a
+        // request URL, and a correlation identifier must contribute a status and nothing else.
+        var handler = new StubGraphHandler()
+            .Json(MessagesRoute, MessagesJson)
+            .Json(
+                FolderRoute,
+                """
+                {"error":{"code":"MailboxNotEnabledForRESTAPI",
+                 "message":"REST API is not yet supported for dana@example.com",
+                 "innerError":{"request-id":"9f2c-corr-id","client-request-id":"9f2c-corr-id"}}}
+                """,
+                HttpStatusCode.NotFound);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        string rendered = $"{result}";
+
+        Assert.Equal(GraphMailStatus.MailboxNotSupported, result.Status);
+        Assert.DoesNotContain("dana@example.com", rendered, StringComparison.Ordinal);
+        Assert.DoesNotContain("corr-id", rendered, StringComparison.Ordinal);
+        Assert.DoesNotContain("REST API", rendered, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task An_oversized_error_body_does_not_hang_the_classification()
+    {
+        // Bounded read. A body past the cap parses as truncated JSON, which yields no code, which
+        // falls back to the status — degradation rather than a stall or an unbounded buffer.
+        string padding = new('x', 64 * 1024);
+
+        var handler = new StubGraphHandler()
+            .Json(MessagesRoute, MessagesJson)
+            .Json(
+                FolderRoute,
+                $$$"""{"error":{"message":"{{{padding}}}","code":"MailboxNotEnabledForRESTAPI"}}""",
+                HttpStatusCode.NotFound);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(GraphMailStatus.ServiceFailure, result.Status);
+    }
+
     [Fact]
     public async Task A_throttled_response_carries_its_retry_after()
     {
