@@ -291,6 +291,87 @@ Two practical consequences:
 were irrelevant; the commit was what changed the binaries, and the docs-only commit before it would have
 done the same.
 
+## Measured: the selected account is recorded, and the repair path ran to do it
+
+Observed 2026-07-30 on 0.4.11.0, and it answers the one-look check the account-selection work left
+open.
+
+`SelectedAccountStore.Write` depends on the broker returning an account with a `HomeAccountId`. If it
+did not, the file would never be written, and — before the round-five change — nothing would have said
+so. **It does.** After a companion sign-in:
+
+| File | Size | Written |
+|---|---|---|
+| `account-v1.bin` | 422 bytes | 2026-07-30 16:14 local |
+| `msal-v1.bin` | 3510 bytes | 2026-07-30 16:14 local |
+
+Both inside
+`%LocalAppData%\Packages\415Group.OutlookInboxWidget_dgbvqhastx60y\LocalCache\Local\OutlookWidget`,
+so uninstall removes them. The companion reported **`Interactive sign-in result: Acquired`** with a
+`Mail.ReadBasic` token expiring `2026-07-30 21:14:52Z`, and reported that a running provider was
+notified.
+
+**Two things this establishes, and the second was not the one being looked for.**
+
+First, the write path works end to end on this tenant: the broker supplied a `HomeAccountId`, DPAPI
+protection succeeded, and the file landed. The `Acquired` status is itself part of the evidence, because
+a failed write now reports `Failed` with a `SelectedAccountNotRecorded` category rather than claiming
+success — so "Acquired" and "the file exists" are two independent confirmations rather than one.
+
+Second, **the word "Interactive" in that report line is the repair path being exercised.** No record
+existed before this sign-in, so the selection read as absent, and the silent shortcut deliberately
+declined to return — sending the flow interactive so the account could actually be chosen and recorded.
+A prompt appeared where a silent success would otherwise have been returned with nothing written. That
+is the round-five fix running on the device rather than only in tests, and it was not staged: it is
+simply what the first sign-in after the record was introduced looks like.
+
+**What it does not establish.** That the *provider* selects by the recorded identifier. This machine has
+one cached account, so the recorded-selection path and the first-cached-account fallback name the same
+account and a card reading `silent auth Acquired` cannot distinguish them. That remains covered by unit
+tests over the selection rule and unproven against a real multi-account machine — which is the shape
+this limitation has always had, and the reason the refusal-on-ambiguity behaviour exists rather than a
+guess.
+
+## Measured: a squash merge drops commit height below the installed package
+
+Recorded 2026-07-30, and it is the failure the version derivation's own guard was built to catch —
+now observed rather than reasoned about.
+
+A feature branch reached commit height 24 and a build from it was installed as **0.3.22.0**.
+Squash-merging that branch collapsed its commits into a single commit on `main`, whose height is
+**11**. The next build derived `0.3.11.0`, and `Build-Package.ps1` refused it:
+
+```
+Derived version 0.3.11.0 does not exceed the installed 0.3.22.0, so the package could not be
+installed over it.
+```
+
+**The assumption that broke is worth stating exactly.** Commit height is monotonic *along a branch*
+and is not monotonic *across a squash merge*, because the merge replaces many commits with one. The
+derivation treats height as ever-increasing, which holds for linear history and for merge commits,
+and does not hold for the squash workflow this repository actually uses.
+
+**Resolved by raising Minor from 0.3 to 0.4**, which the build script names as the deliberate identity
+decision and which section 15 treats as a durable one. `0.4.11.0` then installed over `0.3.22.0` as an
+upgrade, non-elevated, with the widget pinned and `-ForceApplicationShutdown` supplied — observed as
+`Status: Ok` at `0.4.11.0`.
+
+Two things this does and does not fix:
+
+- **It stays fixed while installs come from `main`,** whose height now climbs from 11 with nothing
+  above it.
+- **It recurs the moment a feature-branch build is installed again** and that branch is later
+  squashed. The remedy each time is another Minor, which spends a version digit on a mechanism rather
+  than on the product. Re-deriving Build from something monotonic across squashes — a per-machine
+  counter, or height plus a persisted offset — is the alternative and was deliberately not taken here:
+  the derivation was reviewed and documented at length, and changing it under an install request is
+  the wrong moment.
+
+**Uninstalling would also have unblocked the build, and is the one remedy the script refuses to
+offer.** It destroys the widget pin and package-local state. That refusal is load-bearing rather than
+cautious: uninstalling is the first thing a version error suggests, and it is the only option here
+that loses something.
+
 ## Implemented: the package version is derived, not edited
 
 `Build-Package.ps1` now stamps `Build` and `Revision` at package time. Major and minor stay in the
@@ -628,19 +709,18 @@ silent acquisition asks for the account the user chose instead of whichever one 
 It refuses rather than falling back when the recorded account is no longer cached, because a fallback
 there would read a different mailbox and look exactly like success.
 
-**This is implemented and not measured, and the distinction matters more here than usual.** On this
-reference machine the account count is 1, so the old first-account behaviour and the new recorded
-selection agree by construction and a green run proves nothing about the difference between them. The
-unit tests cover the selection rule against real `IAccount` values, which is the part that is ours.
-What is unobserved is the write path on a real WAM sign-in: whether `AuthenticationResult.Account`
-carries a `HomeAccountId` through the broker on this tenant. If it does not, the file is never written,
-the fallback would stand. That is no longer silent in either direction: a write that fails now fails the
-sign-in, so the companion reports it rather than claiming success, and with more than one cached account
-a missing record refuses instead of guessing. What remains unobserved is the ordinary path — whether the
-broker returns a `HomeAccountId` at all on this tenant. **Confirm `account-v1.bin` exists in the
-package store after the next companion sign-in** — that is a one-look check and it is the only evidence
-this works. Existence is all that can be checked by eye: the record is DPAPI-protected, per section 4
-step 6, so its contents are not readable in a text editor.
+**The write path is now measured and the read path is not, which is a narrower gap than this section
+used to describe.** The open question was whether `AuthenticationResult.Account` carries a
+`HomeAccountId` through the broker on this tenant at all — if it did not, the file would never be
+written. It does: `account-v1.bin` appeared after a sign-in on 0.4.11.0, and the sign-in reported
+`Acquired` rather than the `SelectedAccountNotRecorded` failure a bad write now produces. See the
+measurement section above.
+
+What stays unobserved is the *provider* selecting by that identifier. This machine has one cached
+account, so the recorded-selection path and the first-cached-account fallback name the same account and
+no card can distinguish them. That is covered by unit tests over the selection rule and remains unproven
+against a real multi-account machine — the shape this limitation has always had, and the reason the
+behaviour on ambiguity is a refusal rather than a guess.
 
 This section previously listed the manual steps for gates 8 and 9. All of them are done, and the
 measurements are recorded above rather than as instructions here.

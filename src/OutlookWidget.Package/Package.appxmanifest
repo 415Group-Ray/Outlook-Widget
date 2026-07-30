@@ -42,6 +42,18 @@
 
     Editing Build or Revision here achieves nothing. Raising major or minor is a real decision.
 
+    Minor was raised 0.3 -> 0.4 on 2026-07-30, and the reason is worth keeping because it will recur.
+    A feature branch reached commit height 24 and its build was installed as 0.3.22.0. Squash-merging
+    it collapsed those commits into one, so main's height fell to 11 and the derivation produced
+    0.3.11.0 — below the installed package, which MSIX refuses. Commit height is monotonic along a
+    branch and NOT across a squash merge, which is the assumption the derivation makes and the one
+    this workflow breaks. Uninstalling would also have unblocked it and is what the build script
+    refuses to offer, because it destroys the widget pin.
+
+    This stays fixed while installs come from main, whose height now climbs from 11 unopposed.
+    Installing a feature-branch build again re-creates the same collision and will need the same
+    decision.
+
     The reason it is derived: any commit changes every assembly in the package, because the .NET SDK
     embeds the git commit SHA in each assembly's informational version. So a documentation-only commit
     produces a different payload, and a manual bump became a per-commit obligation whose omission always
@@ -51,7 +63,7 @@
   <Identity
     Name="415Group.OutlookInboxWidget"
     Publisher="CN=&quot;415 Group, Inc.&quot;"
-    Version="0.3.0.0"
+    Version="0.4.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
