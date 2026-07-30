@@ -10,8 +10,8 @@
     "semantic_hash": ""
   },
   "scripts/Build-Package.ps1": {
-    "mtime": 1785419336.7291431,
-    "ast_hash": "cca14e205a429290f992bbcbd9b2be6b",
+    "mtime": 1785421130.4623177,
+    "ast_hash": "84f92bf1cb44cc6ab53939043b0b23ce",
     "semantic_hash": ""
   },
   "scripts/Install-DevelopmentPackage.ps1": {
@@ -210,8 +210,8 @@
     "semantic_hash": ""
   },
   "TECHNICAL_PLAN.md": {
-    "mtime": 1785419841.6878524,
-    "ast_hash": "0c876612675d1093c92353c0786870b7",
+    "mtime": 1785421190.3662224,
+    "ast_hash": "ff55050f84362af5415087cbabba13f3",
     "semantic_hash": ""
   },
   "docs/app-registration.md": {
@@ -530,8 +530,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Authentication/SilentAuthService.cs": {
-    "mtime": 1785347035.2932365,
-    "ast_hash": "3254d5509f645b9718a345ead4d2e038",
+    "mtime": 1785421212.568028,
+    "ast_hash": "af90a79d33dbad0ddc39051570451025",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Authentication/TokenAcquisition.cs": {

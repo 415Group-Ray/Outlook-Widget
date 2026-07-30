@@ -177,8 +177,10 @@ $baseVersion = $manifest.Package.Identity.Version
     forgetting it always fails at install time with HRESULT 0x80073CFB rather than at build time, and
     the failure names the package rather than the omission.
 
-    Build is the git commit height. Revision counts builds within one commit, from state kept beside the
-    package output.
+    Build is the git commit height. Revision counts builds within one commit, from
+    src\OutlookWidget.Package\.package-version.json — beside the package PROJECT, deliberately not in
+    AppPackages, which is build output and exists to be deletable. The revision is also raised past the
+    installed package, which is the authority the file is not.
 
     Both parts are needed and neither is sufficient. Commit height alone does not change when rebuilding
     a dirty tree, which is the normal development loop. A counter alone would not be meaningful across

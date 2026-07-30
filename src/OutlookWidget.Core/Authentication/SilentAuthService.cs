@@ -64,9 +64,14 @@ public sealed class SilentAuthService
     {
         long started = System.Diagnostics.Stopwatch.GetTimestamp();
 
+        // Declared outside the try so the failure path can report it too: the count is most useful
+        // exactly when acquisition failed, because that is when selecting the wrong account is the
+        // likeliest explanation.
+        int cachedAccounts = 0;
+
         try
         {
-            IAccount account = await FindAccountAsync().ConfigureAwait(false);
+            (IAccount account, cachedAccounts) = await FindAccountAsync().ConfigureAwait(false);
 
             AuthenticationResult result = await _client
                 .AcquireTokenSilent(AuthenticationOptions.Scopes, account)
@@ -76,7 +81,8 @@ public sealed class SilentAuthService
             _logger.Record(
                 OperationalEventId.SilentTokenAcquired,
                 OperationalOutcome.Success,
-                System.Diagnostics.Stopwatch.GetElapsedTime(started));
+                System.Diagnostics.Stopwatch.GetElapsedTime(started),
+                recordCount: cachedAccounts);
 
             return TokenAcquisitionResult.Acquired(result.AccessToken, result.ExpiresOn);
         }
@@ -89,27 +95,51 @@ public sealed class SilentAuthService
             _logger.Record(
                 EventFor(status),
                 AuthenticationFailures.ToOutcome(status),
-                System.Diagnostics.Stopwatch.GetElapsedTime(started));
+                System.Diagnostics.Stopwatch.GetElapsedTime(started),
+                recordCount: cachedAccounts);
 
             return TokenAcquisitionResult.Unavailable(status);
         }
     }
 
     /// <summary>
-    /// The account to attempt silent acquisition for.
+    /// The account to attempt silent acquisition for, and how many the cache held.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <c>GetAccountsAsync</c> can itself fail when the broker is unavailable, and that failure is
     /// deliberately not caught here. It propagates to <see cref="AcquireAsync"/>, whose handler
     /// classifies it as broker-unavailable. Catching it here and returning "no account cached" would
     /// treat a broken broker as an empty cache and produce an interaction-required card for a problem
     /// that signing in cannot fix.
+    /// </para>
+    /// <para>
+    /// <b>Selecting the first cached account is provisional, and it is a known limitation rather than a
+    /// considered choice.</b> With one account — the v1 shape, single user and single mailbox — it is
+    /// correct. With more than one it is arbitrary: MSAL guarantees no ordering, so this can pick an
+    /// account other than the one an interactive sign-in just selected. The companion would then report
+    /// <c>Acquired</c> while the provider retried a stale account and stayed at interaction-required, and
+    /// once Graph exists the same ambiguity could read the wrong mailbox.
+    /// </para>
+    /// <para>
+    /// The fix is the one section 4 already specifies — record the selected MSAL home-account identifier
+    /// and acquire for that account — and its home is the account-lifecycle work that also brings logout
+    /// and account switching, alongside the state those need. Adding a fourth ad-hoc state file for it
+    /// here would have to be unpicked then. So the count is returned and logged instead: a
+    /// <c>recordCount</c> above 1 is the signal that this limitation is live on a machine, which turns a
+    /// silent wrong-account failure into a diagnosable one.
+    /// </para>
     /// </remarks>
-    private async Task<IAccount> FindAccountAsync()
+    private async Task<(IAccount Account, int CachedCount)> FindAccountAsync()
     {
-        IEnumerable<IAccount> accounts = await _client.GetAccountsAsync().ConfigureAwait(false);
+        List<IAccount> accounts =
+            (await _client.GetAccountsAsync().ConfigureAwait(false)).ToList();
 
-        return accounts.FirstOrDefault() ?? PublicClientApplication.OperatingSystemAccount;
+        IAccount account = accounts.Count > 0
+            ? accounts[0]
+            : PublicClientApplication.OperatingSystemAccount;
+
+        return (account, accounts.Count);
     }
 
     /// <summary>
