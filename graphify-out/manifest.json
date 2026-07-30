@@ -580,8 +580,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Graph/GraphResponseReader.cs": {
-    "mtime": 1785424139.4080539,
-    "ast_hash": "57ccf26738928877fd77ed145c9489b3",
+    "mtime": 1785439413.1990938,
+    "ast_hash": "2d8309882ba0f7de734d76126e419467",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Models/MailboxReadout.cs": {
@@ -595,8 +595,8 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/GraphMailClientTests.cs": {
-    "mtime": 1785438769.1594918,
-    "ast_hash": "0c7626d7610f68a2a0b69d00f27cb3da",
+    "mtime": 1785439354.2903626,
+    "ast_hash": "5fb2d11153ebac278d2688c3dfa28ad2",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/MailboxSnapshotTests.cs": {

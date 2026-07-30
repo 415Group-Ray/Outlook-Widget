@@ -111,6 +111,18 @@ internal static class GraphResponseReader
 
         // Required. A message that cannot be dated cannot be ordered or aged out, and the 24-hour
         // stale-detail rule depends on ages being real.
+        //
+        // The style pair is deliberate and it is NOT the combination that is invalid on DateTime.
+        // DateTime.TryParse rejects RoundtripKind together with AssumeUniversal and throws
+        // ArgumentException for it; DateTimeOffset.TryParse validates styles differently and accepts
+        // the pair. Verified rather than assumed, and pinned by a test, because it reads like a bug
+        // and has already been reported as one.
+        //
+        // Both flags earn their place. Graph documents UTC with a trailing Z, and every value that
+        // carries an offset is honoured by RoundtripKind. AssumeUniversal covers the case Graph does
+        // not promise never to send: a timestamp with no offset at all, which RoundtripKind alone
+        // would read as *local time* — silently shifting a received time by the machine's UTC offset
+        // and, near midnight, onto the wrong day in the card's date formatting.
         if (!element.TryGetProperty("receivedDateTime", out JsonElement received)
             || received.ValueKind != JsonValueKind.String
             || !DateTimeOffset.TryParse(

@@ -528,6 +528,35 @@ public sealed class GraphMailClientTests
     }
 
     [Fact]
+    public async Task A_timestamp_with_no_offset_is_read_as_utc_rather_than_local()
+    {
+        // Two things pinned at once, and the first exists because it was reported as a defect.
+        //
+        // The reader parses with RoundtripKind | AssumeUniversal. That pair *is* invalid on
+        // DateTime.TryParse, which throws ArgumentException for it — but DateTimeOffset.TryParse
+        // validates styles differently and accepts it. If that ever stopped being true, this test
+        // fails rather than the whole client throwing on the first message it is given.
+        //
+        // The second is the reason both flags are there. Graph documents a trailing Z, but an
+        // offset-less value under RoundtripKind alone is read as *local* time, which shifts a received
+        // time by the machine's UTC offset and, near midnight, onto the wrong day.
+        var handler = new StubGraphHandler()
+            .Json(
+                MessagesRoute,
+                """{"value":[{"id":"1","subject":"S","receivedDateTime":"2026-07-30T09:15:00","isRead":false}]}""")
+            .Json(FolderRoute, FolderJson);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            new DateTimeOffset(2026, 7, 30, 9, 15, 0, TimeSpan.Zero),
+            Assert.Single(result.Readout!.Messages).ReceivedAt);
+    }
+
+    [Fact]
     public async Task Received_times_are_normalised_to_utc()
     {
         var handler = new StubGraphHandler()
