@@ -36,16 +36,20 @@ internal sealed class InteractiveAuthService
     private readonly IPublicClientApplication _client;
     private readonly SilentAuthService _silent;
     private readonly IOperationalLogger _logger;
+    private readonly SelectedAccountStore _selectedAccounts;
 
     public InteractiveAuthService(
         IPublicClientApplication client,
+        SelectedAccountStore selectedAccounts,
         IOperationalLogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(selectedAccounts);
 
         _client = client;
+        _selectedAccounts = selectedAccounts;
         _logger = logger ?? NullOperationalLogger.Instance;
-        _silent = new SilentAuthService(client, _logger);
+        _silent = new SilentAuthService(client, _logger, selectedAccounts);
     }
 
     /// <summary>
@@ -83,6 +87,15 @@ internal sealed class InteractiveAuthService
                 .AcquireTokenInteractive(AuthenticationOptions.Scopes)
                 .ExecuteAsync(cancellationToken)
                 .ConfigureAwait(false);
+
+            // The one moment the product knows which account the user picked, rather than inferring
+            // it. Recorded before the result is returned, because the provider may re-probe on the
+            // state-changed signal the caller raises immediately afterwards and would otherwise read a
+            // file that is not there yet.
+            if (result.Account?.HomeAccountId?.Identifier is { Length: > 0 } homeAccountId)
+            {
+                _selectedAccounts.Write(homeAccountId);
+            }
 
             _logger.Record(
                 OperationalEventId.SignInCompleted,

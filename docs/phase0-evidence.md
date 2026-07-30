@@ -618,16 +618,25 @@ been read:
   exactly the "implemented is not a gate status" rule this document opens with.
 - **Gate 11** needs a real refresh to invalidate, so it follows 10.
 
-Two pieces stand between here and a first real request, and they are the honest definition of "next":
+One piece stands between here and a first real request:
 
-1. **`RefreshCoordinator` has to call the client**, inside the section 8 refresh algorithm, and commit
-   the resulting snapshot through `ProtectedCache`.
-2. **The selected MSAL home-account identifier has to be recorded.** `SilentAuthService` still picks the
-   *first* cached account, which is correct on a machine with one account and arbitrary on any other.
-   The plan names this a prerequisite for gate 10 rather than cleanup, because reading mail for an
-   arbitrarily chosen account is worse than not reading it. On this reference machine the account count
-   is 1, so the limitation is not live here — which is a reason to fix it before the gate is measured,
-   not a reason to consider it measured.
+- **`RefreshCoordinator` has to call the client**, inside the section 8 refresh algorithm, and commit
+  the resulting snapshot through `ProtectedCache`.
+
+The second prerequisite is done. **The selected MSAL home-account identifier is now recorded**, so
+silent acquisition asks for the account the user chose instead of whichever one MSAL enumerates first.
+It refuses rather than falling back when the recorded account is no longer cached, because a fallback
+there would read a different mailbox and look exactly like success.
+
+**This is implemented and not measured, and the distinction matters more here than usual.** On this
+reference machine the account count is 1, so the old first-account behaviour and the new recorded
+selection agree by construction and a green run proves nothing about the difference between them. The
+unit tests cover the selection rule against real `IAccount` values, which is the part that is ours.
+What is unobserved is the write path on a real WAM sign-in: whether `AuthenticationResult.Account`
+carries a `HomeAccountId` through the broker on this tenant. If it does not, the file is never written,
+the fallback silently stands, and nothing surfaces it. **Confirm `account-v1.json` exists in the
+package store after the next companion sign-in** — that is a one-look check and it is the only evidence
+this works.
 
 This section previously listed the manual steps for gates 8 and 9. All of them are done, and the
 measurements are recorded above rather than as instructions here.

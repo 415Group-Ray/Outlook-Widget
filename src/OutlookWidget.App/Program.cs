@@ -89,7 +89,9 @@ internal static class Program
                 .CreateAsync(configuration.Options!, paths, () => CompanionWindow.Handle)
                 .ConfigureAwait(false);
 
-            var service = new InteractiveAuthService(_client);
+            var service = new InteractiveAuthService(
+                _client,
+                new SelectedAccountStore(paths, configuration.Options!));
             result = await service.SignInAsync().ConfigureAwait(false);
             failureDetail = service.LastFailure;
         }

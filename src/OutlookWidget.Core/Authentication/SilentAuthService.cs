@@ -31,13 +31,25 @@ public sealed class SilentAuthService
 {
     private readonly IPublicClientApplication _client;
     private readonly IOperationalLogger _logger;
+    private readonly SelectedAccountStore? _selectedAccounts;
 
-    public SilentAuthService(IPublicClientApplication client, IOperationalLogger? logger = null)
+    /// <param name="client">The broker-enabled MSAL client.</param>
+    /// <param name="logger">Metadata-free operational logging.</param>
+    /// <param name="selectedAccounts">
+    /// Where the account the user actually chose is recorded. Optional so the type stays constructible
+    /// without configuration, and supplied at every real call site: without it this falls back to
+    /// selecting the first cached account, which is correct only on a machine with exactly one.
+    /// </param>
+    public SilentAuthService(
+        IPublicClientApplication client,
+        IOperationalLogger? logger = null,
+        SelectedAccountStore? selectedAccounts = null)
     {
         ArgumentNullException.ThrowIfNull(client);
 
         _client = client;
         _logger = logger ?? NullOperationalLogger.Instance;
+        _selectedAccounts = selectedAccounts;
     }
 
     /// <summary>
@@ -71,7 +83,23 @@ public sealed class SilentAuthService
 
         try
         {
-            (IAccount account, cachedAccounts) = await FindAccountAsync().ConfigureAwait(false);
+            AccountSelection selection = await FindAccountAsync().ConfigureAwait(false);
+            cachedAccounts = selection.CachedCount;
+
+            if (selection.Account is not { } account)
+            {
+                // The recorded account is not in the cache. Falling back to another one is the exact
+                // failure this selection exists to prevent, and it would be silent, so this refuses
+                // instead: the remedy is a fresh interactive sign-in, which is what
+                // InteractionRequired means.
+                _logger.Record(
+                    OperationalEventId.SilentTokenUiRequired,
+                    OperationalOutcome.Failed,
+                    System.Diagnostics.Stopwatch.GetElapsedTime(started),
+                    recordCount: cachedAccounts);
+
+                return TokenAcquisitionResult.Unavailable(TokenAcquisitionStatus.InteractionRequired);
+            }
 
             AuthenticationResult result = await _client
                 .AcquireTokenSilent(AuthenticationOptions.Scopes, account)
@@ -102,8 +130,16 @@ public sealed class SilentAuthService
         }
     }
 
+    /// <summary>The account to attempt silent acquisition for, and how many the cache held.</summary>
+    /// <param name="Account">
+    /// The account to ask for, or <see langword="null"/> when a selection was recorded and no cached
+    /// account matches it. Null is a refusal, not an absence — see <see cref="FindAccountAsync"/>.
+    /// </param>
+    /// <param name="CachedCount">How many accounts the cache held, for the operational record.</param>
+    private readonly record struct AccountSelection(IAccount? Account, int CachedCount);
+
     /// <summary>
-    /// The account to attempt silent acquisition for, and how many the cache held.
+    /// The account to attempt silent acquisition for.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -114,32 +150,63 @@ public sealed class SilentAuthService
     /// that signing in cannot fix.
     /// </para>
     /// <para>
-    /// <b>Selecting the first cached account is provisional, and it is a known limitation rather than a
-    /// considered choice.</b> With one account — the v1 shape, single user and single mailbox — it is
-    /// correct. With more than one it is arbitrary: MSAL guarantees no ordering, so this can pick an
-    /// account other than the one an interactive sign-in just selected. The companion would then report
-    /// <c>Acquired</c> while the provider retried a stale account and stayed at interaction-required, and
-    /// once Graph exists the same ambiguity could read the wrong mailbox.
+    /// <b>Three cases, and the middle one is the whole reason this is not a one-liner.</b> When the
+    /// companion has recorded which account the user chose, that account is the only acceptable answer:
+    /// if it is present, use it; if it is <em>not</em>, return null so the caller reports
+    /// interaction-required. Falling back to another cached account there would silently read a
+    /// different mailbox, which is the failure the recorded selection exists to prevent, and it would
+    /// look exactly like success.
     /// </para>
     /// <para>
-    /// The fix is the one section 4 already specifies — record the selected MSAL home-account identifier
-    /// and acquire for that account — and its home is the account-lifecycle work that also brings logout
-    /// and account switching, alongside the state those need. Adding a fourth ad-hoc state file for it
-    /// here would have to be unpicked then. So the count is returned and logged instead: a
-    /// <c>recordCount</c> above 1 is the signal that this limitation is live on a machine, which turns a
-    /// silent wrong-account failure into a diagnosable one.
+    /// When nothing is recorded — a fresh install, or state written before the selection existed — the
+    /// prior behaviour stands: first cached account, then
+    /// <see cref="PublicClientApplication.OperatingSystemAccount"/>, which Microsoft recommends as the
+    /// fallback and which is a real convenience on a domain-joined device. It remains a guess about
+    /// intent rather than a recorded choice, which is why it is now the last resort rather than the
+    /// normal path. The count is still returned and logged: a <c>recordCount</c> above 1 with no
+    /// recorded selection identifies a machine where the guess is live.
     /// </para>
     /// </remarks>
-    private async Task<(IAccount Account, int CachedCount)> FindAccountAsync()
+    private async Task<AccountSelection> FindAccountAsync()
     {
         List<IAccount> accounts =
             (await _client.GetAccountsAsync().ConfigureAwait(false)).ToList();
 
-        IAccount account = accounts.Count > 0
-            ? accounts[0]
-            : PublicClientApplication.OperatingSystemAccount;
+        return new AccountSelection(Select(accounts, _selectedAccounts?.TryRead()), accounts.Count);
+    }
 
-        return (account, accounts.Count);
+    /// <summary>
+    /// The selection rule itself, separated from the MSAL call so it can be tested directly.
+    /// </summary>
+    /// <remarks>
+    /// Pure and synchronous on purpose. Stubbing <see cref="IPublicClientApplication"/> to reach this
+    /// logic would mean implementing a large interface to exercise four lines, and the resulting test
+    /// would be mostly stub. <see cref="IAccount"/> is three properties, so the rule is tested against
+    /// real inputs instead.
+    /// </remarks>
+    internal static IAccount? Select(IReadOnlyList<IAccount> accounts, string? selectedHomeAccountId)
+    {
+        ArgumentNullException.ThrowIfNull(accounts);
+
+        if (selectedHomeAccountId is { Length: > 0 })
+        {
+            // No fallback on a miss. Returning another account here would read a different mailbox and
+            // look like success; null becomes interaction-required in AcquireAsync.
+            foreach (IAccount candidate in accounts)
+            {
+                if (string.Equals(
+                        candidate.HomeAccountId?.Identifier,
+                        selectedHomeAccountId,
+                        StringComparison.Ordinal))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        return accounts.Count > 0 ? accounts[0] : PublicClientApplication.OperatingSystemAccount;
     }
 
     /// <summary>
