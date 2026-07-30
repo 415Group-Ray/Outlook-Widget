@@ -34,8 +34,10 @@ pinned**, so upgrades require `Add-AppxPackage -ForceApplicationShutdown`. Do no
 instead; that loses the pin for no reason.
 
 **The package version is derived, not edited.** `Build-Package.ps1` stamps Build and Revision at package
-time — Build from git commit height, Revision from a per-commit build counter beside the package output —
-and it does **not** modify the tracked manifest. Major and minor in `Package.appxmanifest` remain a
+time — Build from git commit height, Revision from a per-commit build counter at
+`src\OutlookWidget.Package\.package-version.json` — and it does **not** modify the tracked manifest. That
+counter deliberately sits beside the package **project** and not in `AppPackages`, which is build output
+and exists to be deletable; do not "tidy" it into the output directory. Major and minor in `Package.appxmanifest` remain a
 deliberate decision; the Build and Revision digits there are placeholders and editing them achieves
 nothing.
 

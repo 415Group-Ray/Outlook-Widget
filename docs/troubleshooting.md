@@ -86,9 +86,11 @@ Distinguish four causes before changing anything:
   is at or below the branch the installed package came from, which happens at a fork point or in a fresh
   clone of a shorter branch. No revision can fix it, because Build is compared before Revision.
 
-  The message lists the options — build from the branch with the greater height, raise Minor as a
-  deliberate decision, or remove the installed package accepting the loss of pins. It fails at build time
-  precisely so the third option is not the one you discover first.
+  The message gives two ways out — build from the branch with the greater height, or raise Minor as a
+  deliberate identity decision. **Removing the installed package is not one of them.** It would also let
+  the build through, which is exactly why the message names it as excluded rather than staying silent: it
+  destroys the widget pin and package-local state, and both offered options avoid that. Failing at build
+  time is what keeps the destructive route from being the one discovered first.
 
   Background on why this is automated at all, because it is not obvious: **any commit changes every
   assembly in the package.** The .NET SDK embeds the git commit SHA in each assembly's informational

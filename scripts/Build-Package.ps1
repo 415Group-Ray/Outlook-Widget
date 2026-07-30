@@ -344,11 +344,13 @@ Derived version $resolved does not exceed the installed $installedVersion, so th
 installed over it.
 
 This normally means the current branch's commit height is below the branch the installed package was
-built from. Options, in order of preference:
+built from. Either:
 
   1. Build from the branch with the greater height, or merge it in.
   2. Raise Minor in Package.appxmanifest -- a deliberate identity decision, not a workaround.
-  3. Remove the installed package first, accepting that this loses widget pins and package-local state.
+
+Removing the installed package would also let the build through and is deliberately NOT offered: it
+destroys the widget pin and package-local state, and both options above avoid that.
 "@
     }
 
