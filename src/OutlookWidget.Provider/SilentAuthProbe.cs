@@ -218,7 +218,14 @@ internal sealed class SilentAuthProbe : IDisposable
                 .CreateAsync(_configuration.Options!, _paths, BrokerClient.NoParentWindow)
                 .ConfigureAwait(false);
 
-            var silent = new SilentAuthService(_client, _logger);
+            // The recorded selection is what makes this ask for the account the user actually chose
+            // rather than whichever one MSAL happens to enumerate first. On a machine with one account
+            // the two agree; on any other they need not, and the provider is the process that would
+            // silently read the wrong mailbox.
+            var silent = new SilentAuthService(
+                _client,
+                _logger,
+                new SelectedAccountStore(_paths, _configuration.Options!, _logger));
 
             TokenAcquisitionStatus status =
                 (await silent.AcquireAsync(_shutdown.Token).ConfigureAwait(false)).Status;

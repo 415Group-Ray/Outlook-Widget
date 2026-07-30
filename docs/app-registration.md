@@ -6,7 +6,8 @@ is a multi-user concern and is created only if the tool is shared beyond the aut
 Status: **created, and exercised.** The identifiers are configured and ship in the package. Gate 9
 passes and gate 8 is split — brokered sign-in works, self-consent was refused by tenant policy and an
 administrator granted consent; see the Consent section below, which is the part most likely to surprise
-you. Gates 10 and 12 now wait on the Graph client rather than on authentication.
+you. Gates 10 and 12 wait on a refresh calling the Graph client, not on authentication and no longer on the
+client itself — `GraphMailClient` exists and nothing calls it yet.
 
 ## Settings
 

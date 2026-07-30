@@ -27,9 +27,11 @@ companion wrote the account metadata and the provider found it.
 cannot be observed until there is something to refresh. It is not a surface-choice gate; both surfaces
 consume the same coordination core, so it would be equally unproven either way.
 
-There is still no Microsoft Graph access, so the provider draws a placeholder card describing
-coordination and authentication state — **nothing here shows real mail.** That is the next slice. See
-the evidence report for exactly what has and has not been proven, and
+**No Microsoft Graph request has been made yet, so the provider still draws a placeholder card
+describing coordination and authentication state — nothing here shows real mail.** The Graph client,
+the response validation, and the cached snapshot model are now built and unit-tested, but nothing calls
+them: a refresh has to, and that is the next slice. Treat the client's existence as code rather than as
+mail on the card. See the evidence report for exactly what has and has not been proven, and
 [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
 
 ### Known platform limitation: one widget instance only

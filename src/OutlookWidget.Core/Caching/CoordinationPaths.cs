@@ -147,6 +147,20 @@ public sealed class CoordinationPaths
     public string AuthorizationStateFilePath =>
         Path.Combine(RootDirectory, $"authorization-{_scope}.json");
 
+    /// <summary>
+    /// The MSAL home-account identifier the user actually chose, written by the companion for the
+    /// provider.
+    /// </summary>
+    /// <remarks>
+    /// Separate from both the snapshot and the authorization record. It has to outlive a cleared
+    /// snapshot — silent acquisition needs to know which account to ask for <em>before</em> any
+    /// refresh has ever succeeded — and it says nothing about consent, so folding it into either
+    /// would make that file mean two things. DPAPI-protected like the snapshot and unlike the
+    /// authorization record, because section 4 step 6 requires it. See <c>SelectedAccountStore</c>.
+    /// </remarks>
+    public string SelectedAccountFilePath =>
+        Path.Combine(RootDirectory, $"account-{_scope}.bin");
+
     /// <summary>Guards synchronous local state commits. Bounded waits only.</summary>
     public string MutationMutexName => $"OutlookWidget-Mutation-{_scope}";
 

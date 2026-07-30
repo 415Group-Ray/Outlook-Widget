@@ -29,7 +29,9 @@ policy refused it and an administrator had to grant consent for the registration
 questions and they got different answers, so it is not a PASS and not a FAIL.
 
 **Gate 9 passes** — see its row below. Gates 10 and 12 still need
-`GraphMailClient`, and gate 11 needs a real refresh. The Entra app registration is **created** and its identifiers ship in the package, so
+a Graph request to have been issued, and gate 11 needs a real refresh. `GraphMailClient` and the snapshot
+model now exist and nothing calls them, so the blocker has moved rather than closed — code is not a gate
+status. The Entra app registration is **created** and its identifiers ship in the package, so
 nothing waits on a portal task any more. There is no outstanding *activation, lifecycle, rendering,
 launch, or packaging* question. Nothing below is a projection; each row records what was actually
 observed, and unproven items say so rather than being marked pass.
@@ -80,7 +82,7 @@ Gates are grouped per section 17, because the group determines what a failure me
 |---|---|---|
 | 1 — signed MSIX installs; certificate can be trusted | **PASS** | Managed-device policy **does** permit trusting a certificate in `LocalMachine\TrustedPeople` on this PC, and sideload installation succeeded. Installed as `415Group.OutlookInboxWidget_0.1.0.0_x64__dgbvqhastx60y`, family `415Group.OutlookInboxWidget_dgbvqhastx60y`, signed by `CN="415 Group, Inc."`. `signtool verify /pa` succeeds once the certificate is trusted, and the RFC 3161 timestamp verifies against DigiCert. Developer Mode was **off** throughout, so it is not required for this workflow |
 | 8 — WAM sign-in with MFA/CA, self-consent to `Mail.ReadBasic` | **SPLIT: sign-in PASSES, self-consent FAILS** | Measured 2026-07-29 on 0.3.7.0. **Brokered sign-in works:** the companion acquired a delegated `Mail.ReadBasic` token through WAM with a real parent window, reporting `Acquired` with an expiry an hour out. **Self-consent does not:** the tenant's Microsoft-managed consent policy refused it, and the token was only obtainable after an administrator granted consent for the registration. Both halves are recorded below. This row must not be reduced to "PASS" — the gate asks two questions and they got different answers |
-| 10 — `Mail.ReadBasic` returns exactly the approved properties | **Not started** | The registration exists and a token is obtainable — gate 8's half that passed, plus gate 9, cover that. What is missing is `GraphMailClient`: nothing has issued a Graph request yet |
+| 10 — `Mail.ReadBasic` returns exactly the approved properties | **Not started. `GraphMailClient` now exists and has never been called against Graph** | The registration exists and a token is obtainable — gate 8's half that passed, plus gate 9, cover that. The client, the response validation, and the snapshot model are now implemented and unit-tested against a stub handler. **That is code, not evidence**, and this row is the same distinction gates 8 and 9 carried before they were measured: the responses those tests assert against are ones this repository wrote, so they say what the client does with a shape it expects and nothing about what Graph returns. One thing is still missing before the gate can be measured: a refresh that calls the client. The plan's other prerequisite, the recorded home-account identifier, is implemented — and is itself unmeasured, for the reason recorded under "What is still blocking" |
 
 A failure in this group stops the product rather than triggering the tray fallback, because
 the fallback is also a packaged MSIX using the same certificate and the same delegated
@@ -222,6 +224,14 @@ on every Outlook update.
 ### Gate 12 — Focused count
 
 **Not started.** Optional; gates only the Focused unread setting.
+
+The query is now implemented, which changes nothing about the gate's status and is worth one note.
+The gate asks four questions — whether the filter syntax is accepted for this tenant and mailbox,
+whether the count agrees with New Outlook, whether latency is acceptable, and whether any
+undocumented header such as `ConsistencyLevel: eventual` is required. **The client deliberately sends
+no such header**, and a test holds that absence, because sending one pre-emptively would answer the
+fourth question by hiding it. If the filter is later found to need one, that is a measurement to
+record here and a change to make then.
 
 ## Measured: a token was acquired, and what that does and does not prove
 
@@ -598,13 +608,39 @@ script fails if any key file appears under the repository root.
 
 ## What is still blocking, and what unblocks it
 
-**Graph access.** Nothing about authentication or the native surface is outstanding any more. Gates 1
-through 9 are settled — 8 as a split, the rest as passes — and what remains needs a Microsoft Graph
-client that does not exist yet:
+**A Graph request.** Nothing about authentication or the native surface is outstanding any more. Gates 1
+through 9 are settled — 8 as a split, the rest as passes — and what remains needs mail to have actually
+been read:
 
-- **Gates 10 and 12** need `GraphMailClient`: the approved-properties read and the optional Focused
-  count.
+- **Gates 10 and 12** need a Graph request to have been issued and its response observed.
+  `GraphMailClient` now exists, so the blocker has moved: it is no longer a missing client, it is that
+  nothing calls the client. **Do not read the client's existence as progress on either gate** — this is
+  exactly the "implemented is not a gate status" rule this document opens with.
 - **Gate 11** needs a real refresh to invalidate, so it follows 10.
+
+One piece stands between here and a first real request:
+
+- **`RefreshCoordinator` has to call the client**, inside the section 8 refresh algorithm, and commit
+  the resulting snapshot through `ProtectedCache`.
+
+The second prerequisite is done. **The selected MSAL home-account identifier is now recorded**, so
+silent acquisition asks for the account the user chose instead of whichever one MSAL enumerates first.
+It refuses rather than falling back when the recorded account is no longer cached, because a fallback
+there would read a different mailbox and look exactly like success.
+
+**This is implemented and not measured, and the distinction matters more here than usual.** On this
+reference machine the account count is 1, so the old first-account behaviour and the new recorded
+selection agree by construction and a green run proves nothing about the difference between them. The
+unit tests cover the selection rule against real `IAccount` values, which is the part that is ours.
+What is unobserved is the write path on a real WAM sign-in: whether `AuthenticationResult.Account`
+carries a `HomeAccountId` through the broker on this tenant. If it does not, the file is never written,
+the fallback would stand. That is no longer silent in either direction: a write that fails now fails the
+sign-in, so the companion reports it rather than claiming success, and with more than one cached account
+a missing record refuses instead of guessing. What remains unobserved is the ordinary path — whether the
+broker returns a `HomeAccountId` at all on this tenant. **Confirm `account-v1.bin` exists in the
+package store after the next companion sign-in** — that is a one-look check and it is the only evidence
+this works. Existence is all that can be checked by eye: the record is DPAPI-protected, per section 4
+step 6, so its contents are not readable in a text editor.
 
 This section previously listed the manual steps for gates 8 and 9. All of them are done, and the
 measurements are recorded above rather than as instructions here.
@@ -625,7 +661,7 @@ it is neither an elevation problem nor the running-process case `-ForceApplicati
 needed for upgrades — the certificate is already trusted, so `-SkipCertificateTrust` applies — but a
 pinned widget holds the package open, so `-ForceApplicationShutdown` is.
 
-Gates 10 and 12 still need `GraphMailClient`, so they follow gate 8 as before.
+Gates 10 and 12 still need a Graph request to have been issued, so they follow gate 8 as before.
 
 **The shared-cache requirement is no longer an argument from documentation.** MSAL keeps ID tokens and
 account metadata in its own cache even when the broker holds the device-bound refresh token, and
