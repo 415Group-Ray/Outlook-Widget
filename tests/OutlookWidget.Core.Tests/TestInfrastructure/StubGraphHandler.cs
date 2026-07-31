@@ -103,6 +103,20 @@ internal sealed class StubGraphHandler : HttpMessageHandler
         return this;
     }
 
+    /// <summary>
+    /// Answers with an error status whose body read is cancelled, as a nested Graph deadline does
+    /// after the response headers have arrived.
+    /// </summary>
+    public StubGraphHandler BodyCancellation(string match, HttpStatusCode status)
+    {
+        _routes.Add((match, () => new HttpResponseMessage(status)
+        {
+            Content = new StreamContent(new CancellingStream()),
+        }));
+
+        return this;
+    }
+
     /// <summary>Never answers, so whichever bound the caller set is what ends the request.</summary>
     public StubGraphHandler Hang(string match)
     {
@@ -167,6 +181,43 @@ internal sealed class StubGraphHandler : HttpMessageHandler
             Memory<byte> buffer,
             CancellationToken cancellationToken = default) =>
             throw new IOException("simulated mid-response connection failure");
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+    }
+
+    /// <summary>A readable stream whose body read is ended by cancellation.</summary>
+    private sealed class CancellingStream : Stream
+    {
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new OperationCanceledException("simulated nested Graph deadline");
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default) =>
+            throw new OperationCanceledException("simulated nested Graph deadline");
 
         public override void Flush()
         {

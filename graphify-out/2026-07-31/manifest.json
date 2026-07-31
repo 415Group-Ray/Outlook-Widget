@@ -570,8 +570,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Graph/GraphMailClient.cs": {
-    "mtime": 1785496001.7148745,
-    "ast_hash": "021473ca5b08b8eaf348c4803f1f9101",
+    "mtime": 1785440667.1682065,
+    "ast_hash": "90a0801e6daff03ac094de13af64f90a",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Graph/GraphMailResult.cs": {
@@ -595,8 +595,8 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/GraphMailClientTests.cs": {
-    "mtime": 1785495947.1398015,
-    "ast_hash": "ad902d4a5b609fc197df140687137b9d",
+    "mtime": 1785440667.1763744,
+    "ast_hash": "764c0bb4ef0ab99198eaccc5f57c7679",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/MailboxSnapshotTests.cs": {
@@ -605,8 +605,8 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/TestInfrastructure/StubGraphHandler.cs": {
-    "mtime": 1785495944.6000755,
-    "ast_hash": "e558507606918cb5d73cbcbb393ff831",
+    "mtime": 1785440667.1793773,
+    "ast_hash": "47b9949e5081e653811fb9a9b322993d",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Authentication/SelectedAccountStore.cs": {

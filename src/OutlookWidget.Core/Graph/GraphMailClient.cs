@@ -423,10 +423,11 @@ public sealed class GraphMailClient : IDisposable
     /// Extracts <c>error.code</c> if it is one this product acts on, or answers <see langword="null"/>.
     /// </summary>
     /// <remarks>
-    /// Every failure mode lands on null and falls back to status classification: a body that is not
-    /// JSON, one truncated past the cap, one with no <c>error.code</c>, a code that is not on the
-    /// allowlist, or a connection that dies mid-body. None of those is worth failing a classification
-    /// that already has a usable answer from the status line.
+    /// Malformed and transport failure modes land on null and fall back to status classification: a
+    /// body that is not JSON, one truncated past the cap, one with no <c>error.code</c>, a code that is
+    /// not on the allowlist, or a connection that dies mid-body. Cancellation deliberately escapes to
+    /// <see cref="SendAsync"/>, which distinguishes the nested timeout from caller cancellation; an
+    /// HTTP status must not hide that the body exceeded the client's deadline.
     /// </remarks>
     private static async Task<GraphMailStatus?> TryReadKnownErrorAsync(
         HttpResponseMessage response,
@@ -468,8 +469,7 @@ public sealed class GraphMailClient : IDisposable
         }
         catch (Exception e) when (e is JsonException
                                      or HttpRequestException
-                                     or IOException
-                                     or OperationCanceledException)
+                                     or IOException)
         {
             return null;
         }
