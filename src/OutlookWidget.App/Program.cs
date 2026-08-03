@@ -54,7 +54,8 @@ internal static class Program
         return CompanionWindow.Run(
             report,
             () => SignInAsync(state, configuration),
-            () => SignOutAsync(state, configuration));
+            () => SignOutAsync(state, configuration),
+            () => Task.FromResult(ClearInterruptedOperations(state)));
     }
 
     private static async Task<string> SignOutAsync(
@@ -106,13 +107,20 @@ internal static class Program
                     + "does not remove the Windows account or an identity-provider browser session.",
 
                 SignOutOutcome.StateCommitFailed =>
-                    "Could not complete sign-out — it will finish when the widget board is closed; "
-                    + "try again. Message details remain hidden until the local signed-out state can "
-                    + $"be committed. Commit outcome: {result.CommitOutcome}.",
+                    "Could not complete sign-out. Message details remain hidden by an interrupted-"
+                    + "operation marker. Use Clear interrupted operations to restore the prior "
+                    + "display, then try sign-out again. "
+                    + $"Commit outcome: {result.CommitOutcome}.",
+
+                SignOutOutcome.SuppressionClearFailed =>
+                    "Sign-out committed, but its interrupted-operation marker could not be removed. "
+                    + "The account and cached mailbox state are cleared; use Clear interrupted "
+                    + "operations to finish the local cleanup.",
 
                 _ =>
                     "Could not remove the account from this app's MSAL cache. Message details remain "
-                    + "hidden; try sign-out again.",
+                    + "hidden by an interrupted-operation marker. Use Clear interrupted operations "
+                    + "to restore the prior display, then try sign-out again.",
             };
         }
         catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
@@ -121,6 +129,30 @@ internal static class Program
                    + "hidden if suppression had already begun. Signals: "
                    + AuthenticationFailures.Describe(e);
         }
+    }
+
+    private static string ClearInterruptedOperations(PackagedStateResult state)
+    {
+        if (!state.IsResolved)
+        {
+            return "Cannot clear interrupted operations safely: this process has no package identity. "
+                   + "Launch the installed package rather than the build output.";
+        }
+
+        var tombstones = new DisclosureTombstoneStore(state.Paths!);
+        int removed = tombstones.ClearAllOrphans();
+        int remaining = tombstones.CountSuppressionFiles();
+
+        return remaining switch
+        {
+            0 => $"Recovery result: Cleared\r\n\r\nRemoved {removed} interrupted-operation "
+                 + "marker(s). The provider was notified and will re-read committed state.",
+            -1 => "Recovery result: Unknown\r\n\r\nThe suppression directory could not be read. "
+                  + "Message details remain hidden; close the Widgets Board and try again.",
+            _ => $"Recovery result: Incomplete\r\n\r\nRemoved {removed} interrupted-operation "
+                 + $"marker(s); {remaining} active or unreadable marker(s) remain. Message details "
+                 + "remain hidden.",
+        };
     }
 
     private static async Task RemoveSelectedAccountAsync(

@@ -40,8 +40,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.App/Program.cs": {
-    "mtime": 1785783648.8005466,
-    "ast_hash": "848ffbbd03f27399e75c127ad61596df",
+    "mtime": 1785785827.4012218,
+    "ast_hash": "d8bc20ef3103b75189105e0216d9ab87",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Caching/CoordinationPaths.cs": {
@@ -205,8 +205,8 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785785016.4462357,
-    "ast_hash": "5b2ac529b08074e799a225ea64282788",
+    "mtime": 1785785885.8550186,
+    "ast_hash": "8d6632a035309829757f403d24894f57",
     "semantic_hash": ""
   },
   "TECHNICAL_PLAN.md": {
@@ -225,13 +225,13 @@
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
-    "mtime": 1785421605.682129,
-    "ast_hash": "f68adff780439198951dbbf97ebf9306",
+    "mtime": 1785785983.5776308,
+    "ast_hash": "5b4edbda5e5ad0a0a62db0f4bb0509ab",
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1785785023.4214966,
-    "ast_hash": "7f19e8132c05fc5b804fdf841a5cb34a",
+    "mtime": 1785785888.8231862,
+    "ast_hash": "46b510f2d78e77cb134ddbb3ed9c98eb",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -510,8 +510,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.App/CompanionWindow.cs": {
-    "mtime": 1785783550.7038171,
-    "ast_hash": "82d392b01aaf28aaeba645cdb09bccf2",
+    "mtime": 1785785830.290527,
+    "ast_hash": "f53b7e30ee24b22a3f6e8dd9948abe67",
     "semantic_hash": ""
   },
   "src/OutlookWidget.App/InteractiveAuthService.cs": {
@@ -660,13 +660,13 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Authentication/SignOutCoordinator.cs": {
-    "mtime": 1785783465.9729898,
-    "ast_hash": "4b289ef89b8dcf188d831dba9e4fa4f7",
+    "mtime": 1785785824.2332773,
+    "ast_hash": "93a9ee82081be03322ca829e41f812fa",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/SignOutCoordinatorTests.cs": {
-    "mtime": 1785783697.6813319,
-    "ast_hash": "c4e0afddc64d00eb0be4977ca1407a83",
+    "mtime": 1785785833.1529324,
+    "ast_hash": "51dffc899f23b5e23ffb7e206b0efd24",
     "semantic_hash": ""
   },
   "graphify-out/memory/query_20260803_190437_proceed_with_next_steps.md": {

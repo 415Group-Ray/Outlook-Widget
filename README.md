@@ -32,6 +32,10 @@ that state and the app-local MSAL cache remained unchanged. The marker therefore
 authentication from immediately falling back to the Windows account. Account switching remains the next
 Phase 1 account-lifecycle slice.
 
+If sign-out cannot commit or cannot remove its suppression marker, the companion keeps message details
+hidden and reports that explicit recovery is required. Its **Clear interrupted operations** button removes
+only completed/orphaned markers; it does not clear a disclosure operation that is still running.
+
 **Gates 10 and 11 pass on installed package 0.4.13.2.** A real provider refresh acquired silently,
 issued the required Graph reads, validated and DPAPI-cached a snapshot, and advanced the cache
 generation. A stale Board activation refreshed it; after a forced provider recycle the existing pin was

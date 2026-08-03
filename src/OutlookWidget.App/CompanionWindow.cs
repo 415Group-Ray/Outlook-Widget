@@ -48,6 +48,9 @@ internal static partial class CompanionWindow
     /// <summary>The sign-out button's control identifier.</summary>
     private const int SignOutButtonId = 2;
 
+    /// <summary>The interrupted-operation recovery button's control identifier.</summary>
+    private const int ClearInterruptedButtonId = 3;
+
     /// <summary>
     /// Posted to the window when the sign-in task completes. <c>WM_APP</c> is the range Windows
     /// reserves for an application's own messages, so it cannot collide with a control notification.
@@ -58,12 +61,16 @@ internal static partial class CompanionWindow
     private static IntPtr _report;
     private static IntPtr _signInButton;
     private static IntPtr _signOutButton;
+    private static IntPtr _clearInterruptedButton;
 
     /// <summary>The sign-in operation, supplied by the composition root.</summary>
     private static Func<Task<string>>? _signIn;
 
     /// <summary>The sign-out operation, supplied by the composition root.</summary>
     private static Func<Task<string>>? _signOut;
+
+    /// <summary>The explicit orphaned-suppression recovery action.</summary>
+    private static Func<Task<string>>? _clearInterruptedOperations;
 
     /// <summary>
     /// The completed sign-in report, handed from the worker to the message loop.
@@ -100,14 +107,17 @@ internal static partial class CompanionWindow
     public static unsafe int Run(
         string report,
         Func<Task<string>> signIn,
-        Func<Task<string>> signOut)
+        Func<Task<string>> signOut,
+        Func<Task<string>> clearInterruptedOperations)
     {
         ArgumentNullException.ThrowIfNull(report);
         ArgumentNullException.ThrowIfNull(signIn);
         ArgumentNullException.ThrowIfNull(signOut);
+        ArgumentNullException.ThrowIfNull(clearInterruptedOperations);
 
         _signIn = signIn;
         _signOut = signOut;
+        _clearInterruptedOperations = clearInterruptedOperations;
 
         IntPtr instance = GetModuleHandleW(null);
 
@@ -175,6 +185,7 @@ internal static partial class CompanionWindow
     private const int WindowHeight = 560;
     private const int Margin = 12;
     private const int ButtonWidth = 150;
+    private const int RecoveryButtonWidth = 220;
     private const int ButtonHeight = 34;
 
     /// <summary>
@@ -255,12 +266,31 @@ internal static partial class CompanionWindow
                 IntPtr.Zero);
         }
 
+        fixed (char* buttonClass = "BUTTON")
+        fixed (char* caption = "Clear interrupted operations")
+        {
+            _clearInterruptedButton = CreateWindowExW(
+                0,
+                (IntPtr)buttonClass,
+                (IntPtr)caption,
+                WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+                Margin + (ButtonWidth * 2) + (Margin * 2),
+                height - ButtonHeight - Margin,
+                RecoveryButtonWidth,
+                ButtonHeight,
+                _window,
+                (IntPtr)ClearInterruptedButtonId,
+                instance,
+                IntPtr.Zero);
+        }
+
         // Without this the controls render in the 1980s bitmap system font. The stock GUI font is not
         // the modern UI font either, but it is legible, and this window is replaced in Phase 2.
         IntPtr font = GetStockObject(DEFAULT_GUI_FONT);
         SendMessageW(_report, WM_SETFONT, font, 1);
         SendMessageW(_signInButton, WM_SETFONT, font, 1);
         SendMessageW(_signOutButton, WM_SETFONT, font, 1);
+        SendMessageW(_clearInterruptedButton, WM_SETFONT, font, 1);
     }
 
     [UnmanagedCallersOnly]
@@ -274,6 +304,14 @@ internal static partial class CompanionWindow
 
             case WM_COMMAND when (wParam.ToInt64() & 0xFFFF) == SignOutButtonId:
                 BeginOperation(_signOut!, _signOutButton, "Signing out…", "Sign-out");
+                return IntPtr.Zero;
+
+            case WM_COMMAND when (wParam.ToInt64() & 0xFFFF) == ClearInterruptedButtonId:
+                BeginOperation(
+                    _clearInterruptedOperations!,
+                    _clearInterruptedButton,
+                    "Clearing…",
+                    "Recovery");
                 return IntPtr.Zero;
 
             case WmOperationFinished:
@@ -339,6 +377,7 @@ internal static partial class CompanionWindow
 
         SetButtonText(_signInButton, "Sign in");
         SetButtonText(_signOutButton, "Sign out");
+        SetButtonText(_clearInterruptedButton, "Clear interrupted operations");
         Volatile.Write(ref _operationRunning, 0);
     }
 

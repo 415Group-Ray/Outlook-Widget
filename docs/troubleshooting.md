@@ -238,16 +238,17 @@ Message details are suppressed by design in several situations. Check them in th
    part-way through cannot leave the previous account's subjects on screen. If the operation's
    process was killed, its marker persists — which is the safe direction.
 
-For case 4 the companion's diagnostics show *"message details are suppressed by an interrupted
-operation"* with a clear button. Recovery requires that explicit action on purpose: an
+For case 4 the companion exposes **Clear interrupted operations**. Recovery requires that explicit
+action on purpose: an
 automatic timeout would re-disclose the previous account's subjects at exactly the moment
 nobody was watching.
 
 ## Sign-out reported a failure
 
-"Could not complete sign-out — it will finish when the widget board is closed; try again"
-means the local state commit could not acquire the coordination mutex within its bound, because
-another process was wedged inside a critical section.
+"Could not complete sign-out" means the local state commit failed, commonly because it could not
+acquire the coordination mutex within its bound while another process was wedged inside a critical
+section. "Sign-out committed, but its interrupted-operation marker could not be removed" instead
+means the signed-out state is durable but local marker cleanup encountered a sharing or access error.
 
 What is true in that state:
 
@@ -258,8 +259,13 @@ What is true in that state:
   on the signed-out card regardless.
 - The failure is reported rather than swallowed. A sign-out that silently did nothing while
   reporting success would be a privacy failure, not an inconvenience.
+- The failed operation is marked complete without deleting its fail-closed marker. Select
+  **Clear interrupted operations** to remove completed/orphaned markers. If the commit itself
+  failed, do that before retrying sign-out; retrying creates a separate marker and cannot safely
+  claim ownership of the original one.
 
-Retrying usually succeeds. Closing the Widgets Board releases the provider process.
+After clearing the completed marker, retrying usually succeeds. Closing the Widgets Board releases
+the provider process if mutex contention persists.
 
 ## The widget shows stale content while "Refresh already in progress" persists
 

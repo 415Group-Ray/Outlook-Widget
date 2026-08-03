@@ -82,6 +82,8 @@ public sealed class SignOutCoordinatorTests
         Assert.Equal(CacheReadStatus.Success, fixture.Cache.Read().Status);
         Assert.Equal(SelectedAccountStatus.Recorded, selected.Read().Status);
         Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
+        Assert.Equal(1, fixture.Tombstones.ClearAllOrphans());
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
         Assert.True(fixture.Logger.Saw(
             Diagnostics.OperationalEventId.SignOutFailed,
             Diagnostics.OperationalOutcome.Failed));
@@ -114,6 +116,54 @@ public sealed class SignOutCoordinatorTests
         Assert.Equal(StateCommitOutcome.CommitFailed, result.CommitOutcome);
         Assert.Equal(CacheReadStatus.Success, fixture.Cache.Read().Status);
         Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
+        Assert.Equal(1, fixture.Tombstones.ClearAllOrphans());
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+    }
+
+    [Fact]
+    public async Task Committed_sign_out_reports_recovery_needed_when_its_tombstone_cannot_be_cleared()
+    {
+        using var fixture = new CoordinationFixture();
+        var selected = new SelectedAccountStore(fixture.Paths, Registration, fixture.Logger);
+        Assert.True(selected.Write("object.tenant"));
+        fixture.SeedState("mailbox"u8.ToArray());
+
+        var coordinator = new SignOutCoordinator(
+            fixture.Tombstones,
+            fixture.Commits,
+            new CommitSignedOutStateAction(
+                fixture.Paths,
+                fixture.Cache,
+                selected,
+                fixture.Logger),
+            fixture.Logger);
+
+        FileStream? blocker = null;
+
+        try
+        {
+            SignOutResult result = await coordinator.SignOutAsync(
+                () =>
+                {
+                    string marker = Assert.Single(
+                        Directory.GetFiles(fixture.Paths.SuppressionDirectory, "*.suppress"));
+                    blocker = new FileStream(marker, FileMode.Open, FileAccess.Read, FileShare.None);
+                    return Task.CompletedTask;
+                });
+
+            Assert.Equal(SignOutOutcome.SuppressionClearFailed, result.Outcome);
+            Assert.Equal(StateCommitOutcome.Committed, result.CommitOutcome);
+            Assert.Equal(CacheReadStatus.Cleared, fixture.Cache.Read().Status);
+            Assert.Equal(SelectedAccountStatus.SignedOut, selected.Read().Status);
+            Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
+        }
+        finally
+        {
+            blocker?.Dispose();
+        }
+
+        Assert.Equal(1, fixture.Tombstones.ClearAllOrphans());
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
     }
 
     private sealed class FailingProtector : IDataProtector

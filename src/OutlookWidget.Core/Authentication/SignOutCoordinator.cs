@@ -10,6 +10,7 @@ public enum SignOutOutcome
     SignedOut,
     AccountRemovalFailed,
     StateCommitFailed,
+    SuppressionClearFailed,
 }
 
 /// <summary>The bounded result the companion can describe without exposing account data.</summary>
@@ -64,6 +65,7 @@ public sealed class SignOutCoordinator
         }
         catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
         {
+            suppression.CompleteWithoutClearing();
             _logger.Record(OperationalEventId.SignOutFailed, OperationalOutcome.Failed);
             return new SignOutResult(SignOutOutcome.AccountRemovalFailed);
         }
@@ -72,11 +74,29 @@ public sealed class SignOutCoordinator
 
         if (!commit.IsCommitted)
         {
+            suppression.CompleteWithoutClearing();
             _logger.Record(OperationalEventId.SignOutFailed, OperationalOutcome.Failed);
             return new SignOutResult(SignOutOutcome.StateCommitFailed, commit.Outcome);
         }
 
         suppression.CommitAndClear();
+
+        if (!suppression.IsCleared)
+        {
+            // A sharing violation can be transient, so give this handle one bounded retry before
+            // handing recovery back to the user. If it still fails, unregister the completed
+            // operation without deleting its fail-closed marker; the companion's explicit orphan
+            // recovery action can then remove it safely.
+            suppression.CommitAndClear();
+        }
+
+        if (!suppression.IsCleared)
+        {
+            suppression.CompleteWithoutClearing();
+            _logger.Record(OperationalEventId.SignOutFailed, OperationalOutcome.Failed);
+            return new SignOutResult(SignOutOutcome.SuppressionClearFailed, commit.Outcome);
+        }
+
         _logger.Record(OperationalEventId.SignOutCompleted, OperationalOutcome.Success);
         return new SignOutResult(SignOutOutcome.SignedOut, commit.Outcome);
     }
