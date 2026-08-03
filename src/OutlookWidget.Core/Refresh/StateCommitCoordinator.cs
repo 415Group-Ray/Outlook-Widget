@@ -111,8 +111,10 @@ public sealed class ClearStateAction(ProtectedCache cache) : IStateCommitAction
 
 /// <summary>
 /// Commits the durable local signed-out state: no selected identifier, no stale authorization
-/// outcome, and no mailbox snapshot. The cache clear is last so its generation advance and signal
-/// publish only after the companion state is already authoritative.
+/// outcome, and no mailbox snapshot. The selected identifier is replaced last: if authorization or
+/// cache mutation fails, a retry can still target only the account the user chose instead of falling
+/// back to removing every account in this application's MSAL cache. The coordinator publishes the
+/// state-changed signal only after this whole action succeeds.
 /// </summary>
 public sealed class CommitSignedOutStateAction : IStateCommitAction
 {
@@ -146,13 +148,21 @@ public sealed class CommitSignedOutStateAction : IStateCommitAction
             _cache.RemoveOrphanedTemporaryFiles(heldLock);
         }
 
-        if (!_selectedAccounts.MarkSignedOut(heldLock)
-            || !AuthorizationStateStore.TryClear(_paths, _logger))
+        if (!AuthorizationStateStore.TryClear(_paths, _logger))
         {
             return new CacheCommitResult(CacheCommitStatus.Failed, _cache.ReadGeneration());
         }
 
-        return _cache.Clear(heldLock);
+        CacheCommitResult cleared = _cache.Clear(heldLock);
+
+        if (!cleared.IsSuccess)
+        {
+            return cleared;
+        }
+
+        return _selectedAccounts.MarkSignedOut(heldLock)
+            ? cleared
+            : new CacheCommitResult(CacheCommitStatus.Failed, cleared.Generation);
     }
 }
 
@@ -174,7 +184,11 @@ public enum StateCommitOutcome
     /// </summary>
     ContentionTimeout,
 
-    /// <summary>The mutex was acquired but the commit itself failed. Prior state is intact.</summary>
+    /// <summary>
+    /// The mutex was acquired but the commit action did not finish. Its own ordering must preserve
+    /// enough identity for a safe retry; independently persisted components may already reflect the
+    /// requested change, while the disclosure tombstone remains authoritative until recovery.
+    /// </summary>
     CommitFailed,
 
     /// <summary>The deadline expired before the mutex was acquired. Nothing was owned.</summary>

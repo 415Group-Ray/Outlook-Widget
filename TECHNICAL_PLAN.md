@@ -256,7 +256,7 @@ Order matters here, and suppression genuinely goes first — `RemoveAsync` is aw
 
 1. Write this operation's disclosure tombstone and set the suppress-details event. Nothing else happens until the provider has been given the means to fail closed.
 2. Call MSAL `RemoveAsync` for the selected account.
-3. Set an explicit local signed-out state so the provider does not immediately reacquire the Windows operating-system account silently, and commit it under the bounded mutation mutex.
+3. Set an explicit local signed-out state so the provider does not immediately reacquire the Windows operating-system account silently, and commit it under the bounded mutation mutex. Within that multi-file local commit, replace the selected account identifier last: an authorization or cache mutation failure must retain the original selection so a retry remains scoped to that account rather than removing every account in the app-local MSAL cache.
 4. Remove this operation's own tombstone only after that commit succeeds, because committed state is authoritative from then on.
 
 Additional behavior:

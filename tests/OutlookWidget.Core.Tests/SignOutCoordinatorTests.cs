@@ -93,7 +93,10 @@ public sealed class SignOutCoordinatorTests
     public async Task Local_commit_failure_leaves_the_signed_out_tombstone_in_force()
     {
         using var fixture = new CoordinationFixture();
-        var selected = new SelectedAccountStore(
+        var selected = new SelectedAccountStore(fixture.Paths, Registration, fixture.Logger);
+        Assert.True(selected.Write("object.tenant"));
+
+        var failingSelectionWriter = new SelectedAccountStore(
             fixture.Paths,
             Registration,
             fixture.Logger,
@@ -106,7 +109,7 @@ public sealed class SignOutCoordinatorTests
             new CommitSignedOutStateAction(
                 fixture.Paths,
                 fixture.Cache,
-                selected,
+                failingSelectionWriter,
                 fixture.Logger),
             fixture.Logger);
 
@@ -114,8 +117,93 @@ public sealed class SignOutCoordinatorTests
 
         Assert.Equal(SignOutOutcome.StateCommitFailed, result.Outcome);
         Assert.Equal(StateCommitOutcome.CommitFailed, result.CommitOutcome);
-        Assert.Equal(CacheReadStatus.Success, fixture.Cache.Read().Status);
+        Assert.Equal(CacheReadStatus.Cleared, fixture.Cache.Read().Status);
+        Assert.Equal(SelectedAccountStatus.Recorded, selected.Read().Status);
+        Assert.Equal("object.tenant", selected.Read().HomeAccountId);
         Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
+        Assert.Equal(1, fixture.Tombstones.ClearAllOrphans());
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+    }
+
+    [Fact]
+    public async Task Cache_clear_failure_preserves_the_selected_account_for_a_scoped_retry()
+    {
+        using var fixture = new CoordinationFixture();
+        var selected = new SelectedAccountStore(fixture.Paths, Registration, fixture.Logger);
+        Assert.True(selected.Write("object.tenant"));
+        fixture.SeedState("mailbox"u8.ToArray());
+
+        var coordinator = new SignOutCoordinator(
+            fixture.Tombstones,
+            fixture.Commits,
+            new CommitSignedOutStateAction(
+                fixture.Paths,
+                fixture.Cache,
+                selected,
+                fixture.Logger),
+            fixture.Logger);
+
+        using (var blocker = new FileStream(
+                   fixture.Paths.StateFilePath,
+                   FileMode.Open,
+                   FileAccess.Read,
+                   FileShare.None))
+        {
+            SignOutResult result = await coordinator.SignOutAsync(() => Task.CompletedTask);
+
+            Assert.Equal(SignOutOutcome.StateCommitFailed, result.Outcome);
+            Assert.Equal(StateCommitOutcome.CommitFailed, result.CommitOutcome);
+            Assert.Equal(SelectedAccountStatus.Recorded, selected.Read().Status);
+            Assert.Equal("object.tenant", selected.Read().HomeAccountId);
+            Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
+        }
+
+        Assert.Equal(CacheReadStatus.Success, fixture.Cache.Read().Status);
+        Assert.Equal(1, fixture.Tombstones.ClearAllOrphans());
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+    }
+
+    [Fact]
+    public async Task Authorization_clear_failure_preserves_the_selected_account_and_mailbox_state()
+    {
+        using var fixture = new CoordinationFixture();
+        var selected = new SelectedAccountStore(fixture.Paths, Registration, fixture.Logger);
+        Assert.True(selected.Write("object.tenant"));
+        fixture.SeedState("mailbox"u8.ToArray());
+        AuthorizationStateStore.Write(
+            fixture.Paths,
+            Registration,
+            TokenAcquisitionStatus.ApprovalRequired,
+            DateTimeOffset.UtcNow,
+            fixture.Logger);
+
+        var coordinator = new SignOutCoordinator(
+            fixture.Tombstones,
+            fixture.Commits,
+            new CommitSignedOutStateAction(
+                fixture.Paths,
+                fixture.Cache,
+                selected,
+                fixture.Logger),
+            fixture.Logger);
+
+        using (var blocker = new FileStream(
+                   fixture.Paths.AuthorizationStateFilePath,
+                   FileMode.Open,
+                   FileAccess.Read,
+                   FileShare.None))
+        {
+            SignOutResult result = await coordinator.SignOutAsync(() => Task.CompletedTask);
+
+            Assert.Equal(SignOutOutcome.StateCommitFailed, result.Outcome);
+            Assert.Equal(StateCommitOutcome.CommitFailed, result.CommitOutcome);
+            Assert.Equal(SelectedAccountStatus.Recorded, selected.Read().Status);
+            Assert.Equal("object.tenant", selected.Read().HomeAccountId);
+            Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
+        }
+
+        Assert.Equal(CacheReadStatus.Success, fixture.Cache.Read().Status);
+        Assert.NotNull(AuthorizationStateStore.TryRead(fixture.Paths, Registration));
         Assert.Equal(1, fixture.Tombstones.ClearAllOrphans());
         Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
     }

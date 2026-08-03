@@ -125,8 +125,8 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Refresh/StateCommitCoordinator.cs": {
-    "mtime": 1785783462.798295,
-    "ast_hash": "17ab8ce378b85202b78b02df51db2db8",
+    "mtime": 1785786545.788327,
+    "ast_hash": "a2ae6cb596771a4c34681fbcfa62114d",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/BootSessionStampTests.cs": {
@@ -205,13 +205,13 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785785885.8550186,
-    "ast_hash": "8d6632a035309829757f403d24894f57",
+    "mtime": 1785786457.086238,
+    "ast_hash": "d94e1aef540d4fceb7f2158d3e8c7563",
     "semantic_hash": ""
   },
   "TECHNICAL_PLAN.md": {
-    "mtime": 1785785019.8842835,
-    "ast_hash": "fdbaea92ce970dd5f5442c1c18ba0e28",
+    "mtime": 1785786460.241059,
+    "ast_hash": "d7d1b206955a7b095aa4e3b33be5d32a",
     "semantic_hash": ""
   },
   "docs/app-registration.md": {
@@ -230,8 +230,8 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1785785888.8231862,
-    "ast_hash": "46b510f2d78e77cb134ddbb3ed9c98eb",
+    "mtime": 1785786463.3206663,
+    "ast_hash": "96c3c9f94cb9d8420941e88d057dc4b7",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -665,8 +665,8 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/SignOutCoordinatorTests.cs": {
-    "mtime": 1785785833.1529324,
-    "ast_hash": "51dffc899f23b5e23ffb7e206b0efd24",
+    "mtime": 1785786414.7960067,
+    "ast_hash": "2dd9a986b15c1c2ba0b9968d8e2e2f61",
     "semantic_hash": ""
   },
   "graphify-out/memory/query_20260803_190437_proceed_with_next_steps.md": {

@@ -52,7 +52,9 @@ actually chose rather than whichever one MSAL enumerates first. **Logout is impl
 installed package 0.4.19.0**: the companion suppresses first, removes the selected account from the app's
 MSAL cache, commits a durable signed-out marker plus cleared mailbox state, and then clears only its own
 tombstone. Cold provider activation left the cleared generation and app-local token cache unchanged, so
-the signed-out marker blocked the operating-system-account fallback. Account switching remains unbuilt.
+the signed-out marker blocked the operating-system-account fallback. The local commit must replace the
+selected identifier last, preserving it across any earlier mutation failure so retry cannot broaden into
+removing every cached account. Account switching remains unbuilt.
 
 **The narrow production refresh is wired and measured.** Stale activation, post-sign-in convergence,
 manual actions, and the opportunistic five-minute active timer call `GraphMailClient` through

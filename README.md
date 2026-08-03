@@ -34,7 +34,10 @@ Phase 1 account-lifecycle slice.
 
 If sign-out cannot commit or cannot remove its suppression marker, the companion keeps message details
 hidden and reports that explicit recovery is required. Its **Clear interrupted operations** button removes
-only completed/orphaned markers; it does not clear a disclosure operation that is still running.
+only completed/orphaned markers; it does not clear a disclosure operation that is still running. The
+selected account identifier is replaced only after authorization and mailbox-cache mutations succeed, so
+a failed commit retains the account needed for a scoped retry rather than broadening removal to every
+account in the app-local MSAL cache.
 
 **Gates 10 and 11 pass on installed package 0.4.13.2.** A real provider refresh acquired silently,
 issued the required Graph reads, validated and DPAPI-cached a snapshot, and advanced the cache
