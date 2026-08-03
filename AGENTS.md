@@ -69,9 +69,10 @@ provider still renders the Phase 0 placeholder card rather than the cached mail;
 trigger also remains a later slice.
 
 The current companion is a packaging and authentication probe with a minimal Win32 window and Sign in,
-Sign out, and Clear interrupted operations controls, not the finished WinUI experience. A failed sign-out
-must complete its in-process suppression handle without deleting the marker, so the explicit recovery
-control can remove that orphan without touching a disclosure operation still in flight.
+Sign out, and Clear interrupted operations controls, not the finished WinUI experience. Every failed
+sign-out path after suppression is published, whether it returns or throws, must complete its in-process
+suppression handle without deleting the marker, so the explicit recovery control can remove that orphan
+without touching a disclosure operation still in flight.
 
 Two authentication invariants that are easy to break and were each already broken once:
 

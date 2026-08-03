@@ -126,6 +126,24 @@ public sealed class SignOutCoordinatorTests
     }
 
     [Fact]
+    public async Task Thrown_commit_failure_unregisters_its_suppression_for_explicit_recovery()
+    {
+        using var fixture = new CoordinationFixture();
+        var coordinator = new SignOutCoordinator(
+            fixture.Tombstones,
+            fixture.Commits,
+            new ThrowingCommitAction(),
+            fixture.Logger);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => coordinator.SignOutAsync(() => Task.CompletedTask));
+
+        Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
+        Assert.Equal(1, fixture.Tombstones.ClearAllOrphans());
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+    }
+
+    [Fact]
     public async Task Cache_clear_failure_preserves_the_selected_account_for_a_scoped_retry()
     {
         using var fixture = new CoordinationFixture();
@@ -260,5 +278,11 @@ public sealed class SignOutCoordinatorTests
             throw new System.Security.Cryptography.CryptographicException("simulated");
 
         public byte[] Unprotect(byte[] ciphertext, byte[] entropy) => ciphertext;
+    }
+
+    private sealed class ThrowingCommitAction : IStateCommitAction
+    {
+        public CacheCommitResult Execute(in MutationLock heldLock) =>
+            throw new UnauthorizedAccessException("simulated");
     }
 }

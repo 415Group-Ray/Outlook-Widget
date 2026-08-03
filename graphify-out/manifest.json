@@ -230,8 +230,8 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1785787608.3922267,
-    "ast_hash": "761b92ee7d826d656dab9022ad7822f8",
+    "mtime": 1785788290.910889,
+    "ast_hash": "e0cd0b3e7aad84657542c76bfcd9827f",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -660,13 +660,13 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Authentication/SignOutCoordinator.cs": {
-    "mtime": 1785785824.2332773,
-    "ast_hash": "93a9ee82081be03322ca829e41f812fa",
+    "mtime": 1785788284.2421713,
+    "ast_hash": "e5b708d97be9b9da5e8b6d33c8bd2b09",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/SignOutCoordinatorTests.cs": {
-    "mtime": 1785786414.7960067,
-    "ast_hash": "2dd9a986b15c1c2ba0b9968d8e2e2f61",
+    "mtime": 1785788287.5787492,
+    "ast_hash": "ba1211d08a68884161e41591f828317d",
     "semantic_hash": ""
   },
   "graphify-out/memory/query_20260803_190437_proceed_with_next_steps.md": {
