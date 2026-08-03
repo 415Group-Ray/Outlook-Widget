@@ -4,6 +4,7 @@ using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Delivery;
 using OutlookWidget.Core.Diagnostics;
+using OutlookWidget.Core.Graph;
 using OutlookWidget.Core.Launching;
 using OutlookWidget.Core.Refresh;
 using OutlookWidget.Packaging;
@@ -123,6 +124,35 @@ internal static partial class Program
         // for the same reason in reverse: the probe must outlive the thing that can ask for one.
         using var authProbe = new SilentAuthProbe(configuration, paths, delivery, logger);
 
+        using var mutation = new MutationMutex(paths.MutationMutexName, logger);
+        var leases = new RefreshLeaseStore(paths, mutation, logger: logger);
+        var commits = new StateCommitCoordinator(paths, mutation, logger);
+        var coordinator = new RefreshCoordinator(cache, leases, commits, delivery, logger: logger);
+        using var graph = new GraphMailClient(logger);
+
+        ProviderRefreshWorker? refresh = null;
+
+        if (configuration is { IsLoaded: true, Options: { } options })
+        {
+            var fetcher = new MailboxRefreshFetcher(
+                async cancellationToken =>
+                {
+                    TokenAcquisitionResult token =
+                        await authProbe.AcquireTokenAsync(cancellationToken).ConfigureAwait(false);
+
+                    return token.IsAcquired && token.HomeAccountId is { Length: > 0 } homeAccountId
+                        ? new MailboxRefreshAccess(token.AccessToken!, homeAccountId)
+                        : null;
+                },
+                graph.ReadAsync,
+                options.TenantId,
+                includeFocusedCount: true);
+
+            refresh = new ProviderRefreshWorker(coordinator, fetcher, cache, logger);
+        }
+
+        using var refreshLifetime = refresh;
+
         // The cross-process half of gate 11: the companion commits state and signals, and this is
         // what turns that signal into a delivery pass. Until this listener existed nothing created
         // the named events at all, so every signal the companion sent was discarded.
@@ -142,6 +172,7 @@ internal static partial class Program
             {
                 authProbe.RequestProbe();
                 delivery.RequestDelivery();
+                refresh?.RequestIfStale(RefreshTrigger.SignIn);
             },
             logger);
 
@@ -150,6 +181,7 @@ internal static partial class Program
         var provider = new WidgetProvider(
             registry,
             delivery,
+            refresh,
             new OutlookLauncher(logger),
             new CompanionLauncher(packageFamilyName, logger),
             lastWidgetDeleted,

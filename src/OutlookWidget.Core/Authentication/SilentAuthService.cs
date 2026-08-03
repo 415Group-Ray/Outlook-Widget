@@ -112,7 +112,10 @@ public sealed class SilentAuthService
                 System.Diagnostics.Stopwatch.GetElapsedTime(started),
                 recordCount: cachedAccounts);
 
-            return TokenAcquisitionResult.Acquired(result.AccessToken, result.ExpiresOn);
+            return TokenAcquisitionResult.Acquired(
+                result.AccessToken,
+                result.ExpiresOn,
+                account.HomeAccountId?.Identifier);
         }
         catch (Exception e) when (e is MsalException or OperationCanceledException)
         {

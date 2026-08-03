@@ -486,6 +486,37 @@ public sealed class CoordinationStaticAnalysisTests
     }
 
     [Fact]
+    public void The_provider_wires_real_Graph_reads_through_the_refresh_transaction()
+    {
+        string composition = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "Program.cs"));
+        string provider = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "WidgetProvider.cs"));
+
+        Assert.Contains("new GraphMailClient", composition, StringComparison.Ordinal);
+        Assert.Contains("new MailboxRefreshFetcher", composition, StringComparison.Ordinal);
+        Assert.Contains("new RefreshCoordinator", composition, StringComparison.Ordinal);
+        Assert.Contains("graph.ReadAsync", composition, StringComparison.Ordinal);
+        Assert.Contains("includeFocusedCount: true", composition, StringComparison.Ordinal);
+
+        Assert.Contains("RequestIfStale(RefreshTrigger.Activation)", provider, StringComparison.Ordinal);
+        Assert.Contains("Request(RefreshTrigger.ManualAction)", provider, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Silent_acquisition_pairs_the_token_with_the_account_that_was_selected()
+    {
+        string service = File.ReadAllText(
+            Path.Combine(
+                RepositorySources.CoreSourceDirectory,
+                "Authentication",
+                "SilentAuthService.cs"));
+
+        Assert.Contains("account.HomeAccountId?.Identifier", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("result.Account.HomeAccountId", service, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_logging_api_exposes_no_field_capable_of_carrying_mailbox_or_identity_metadata()
     {
         MethodInfo record = typeof(IOperationalLogger).GetMethod(nameof(IOperationalLogger.Record))!;

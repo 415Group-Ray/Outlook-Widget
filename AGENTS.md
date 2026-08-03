@@ -16,11 +16,10 @@ launches New Outlook and the companion, and its provider exits when unpinned. Ga
 parent handle, observed as `silent auth Acquired` on the pinned card.
 
 **The surface decision is settled on evidence.** Gate 9 was the one gate that could have reopened it,
-and it passed, so the tray/popover fallback branch is closed. Do not build it. **Gate 11 remains open**
-— cached-first refresh and cross-process invalidation across real Board activation and provider recycle
-— but it is not a surface-choice gate, because the fallback consumes the same coordination core and it
-would be equally unproven there. Still do not say the native group is complete; say "every
-native-surface gate **except 11**".
+and it passed, so the tray/popover fallback branch is closed. Do not build it. **Gate 11 now passes**
+on installed package 0.4.13.2: stale activation refreshed, provider recycle recovered the existing pin
+and fresh cache without another Graph request, and a separate process's state-change signal reached the
+provider. Every native-surface gate now passes.
 
 **Gate 8 is split, and this matters for any future deployment.** Brokered WAM sign-in passes. **Self-consent
 does not** on the reference tenant: "Let Microsoft manage your consent settings" permits user consent to
@@ -51,14 +50,12 @@ The cross-process coordination core is implemented and tested, and **authenticat
 companion signs in interactively through WAM and the provider acquires silently, for the account the user
 actually chose rather than whichever one MSAL enumerates first.
 
-**`GraphMailClient`, the response validation, and the snapshot models now exist, and nothing calls them.**
-No Microsoft Graph request has been issued by this product, so the provider still renders a placeholder
-card describing coordination and authentication state rather than mail. Hold that distinction precisely:
-the blocker on gates **10 and 12** has moved from "the client does not exist" to "nothing calls the
-client", and **code is not a gate status**. Their unit tests run against a stub handler and establish
-nothing about what `Mail.ReadBasic` actually returns or whether the Focused filter is accepted. Gate **11**
-still needs a real refresh, so it follows them. The remaining work before any of the three can be measured
-is wiring the client into `RefreshCoordinator`.
+**The narrow production refresh is wired and measured.** Stale activation, post-sign-in convergence,
+and manual actions call `GraphMailClient` through `MailboxRefreshFetcher` and `RefreshCoordinator`, then
+commit a validated snapshot. Gate 10 and gate 11 pass. Gate 12's filter syntax, header independence, and
+warm latency pass; comparing its returned Focused count with New Outlook remains manual. The provider
+still renders the Phase 0 placeholder card rather than the cached mail; the five-minute active timer and
+settings-change trigger also remain later slices.
 
 The current companion is a packaging and authentication probe with a minimal Win32 window, not the
 finished WinUI experience.

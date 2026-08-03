@@ -81,11 +81,13 @@ public sealed class TokenAcquisitionResult
     private TokenAcquisitionResult(
         TokenAcquisitionStatus status,
         string? accessToken,
-        DateTimeOffset? expiresOn)
+        DateTimeOffset? expiresOn,
+        string? homeAccountId)
     {
         Status = status;
         AccessToken = accessToken;
         ExpiresOn = expiresOn;
+        HomeAccountId = homeAccountId;
     }
 
     /// <summary>Why the acquisition ended as it did.</summary>
@@ -100,6 +102,9 @@ public sealed class TokenAcquisitionResult
     /// <summary>When the token expires, for callers deciding whether to reacquire.</summary>
     public DateTimeOffset? ExpiresOn { get; }
 
+    /// <summary>The opaque account identifier paired with this exact token acquisition.</summary>
+    public string? HomeAccountId { get; }
+
     /// <summary>Whether a token is present and usable.</summary>
     public bool IsAcquired => Status == TokenAcquisitionStatus.Acquired && AccessToken is not null;
 
@@ -112,10 +117,17 @@ public sealed class TokenAcquisitionResult
     public bool IsResolvedBySigningIn => Status is TokenAcquisitionStatus.InteractionRequired
         or TokenAcquisitionStatus.Cancelled;
 
-    public static TokenAcquisitionResult Acquired(string accessToken, DateTimeOffset expiresOn)
+    public static TokenAcquisitionResult Acquired(
+        string accessToken,
+        DateTimeOffset expiresOn,
+        string? homeAccountId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
-        return new TokenAcquisitionResult(TokenAcquisitionStatus.Acquired, accessToken, expiresOn);
+        return new TokenAcquisitionResult(
+            TokenAcquisitionStatus.Acquired,
+            accessToken,
+            expiresOn,
+            homeAccountId);
     }
 
     /// <summary>
@@ -131,7 +143,7 @@ public sealed class TokenAcquisitionResult
                 "An acquired result must carry a token; use Acquired instead.");
         }
 
-        return new TokenAcquisitionResult(status, accessToken: null, expiresOn: null);
+        return new TokenAcquisitionResult(status, accessToken: null, expiresOn: null, homeAccountId: null);
     }
 
     /// <summary>

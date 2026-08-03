@@ -317,10 +317,12 @@ public sealed class AuthenticationOutcomeTests
 
         TokenAcquisitionResult result = TokenAcquisitionResult.Acquired(
             token,
-            DateTimeOffset.UnixEpoch.AddYears(56));
+            DateTimeOffset.UnixEpoch.AddYears(56),
+            "home-account-that-must-never-be-printed");
 
         Assert.DoesNotContain(token, result.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain(token, $"{result}", StringComparison.Ordinal);
+        Assert.DoesNotContain("home-account", result.ToString(), StringComparison.Ordinal);
         Assert.Contains("Acquired", result.ToString(), StringComparison.Ordinal);
     }
 
