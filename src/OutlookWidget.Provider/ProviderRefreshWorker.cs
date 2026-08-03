@@ -1,3 +1,4 @@
+using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Delivery;
 using OutlookWidget.Core.Diagnostics;
@@ -14,6 +15,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
     private readonly RefreshCoordinator _coordinator;
     private readonly IRefreshFetcher _fetcher;
     private readonly ProtectedCache _cache;
+    private readonly SelectedAccountStore _selectedAccounts;
     private readonly IDeliveryRequester _delivery;
     private readonly IOperationalLogger _logger;
     private readonly CancellationTokenSource _shutdown = new();
@@ -27,17 +29,20 @@ internal sealed class ProviderRefreshWorker : IDisposable
         RefreshCoordinator coordinator,
         IRefreshFetcher fetcher,
         ProtectedCache cache,
+        SelectedAccountStore selectedAccounts,
         IDeliveryRequester delivery,
         IOperationalLogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(fetcher);
         ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(selectedAccounts);
         ArgumentNullException.ThrowIfNull(delivery);
 
         _coordinator = coordinator;
         _fetcher = fetcher;
         _cache = cache;
+        _selectedAccounts = selectedAccounts;
         _delivery = delivery;
         _logger = logger ?? NullOperationalLogger.Instance;
     }
@@ -88,6 +93,22 @@ internal sealed class ProviderRefreshWorker : IDisposable
         if (snapshot is null
             || snapshot.RefreshedAtUtc > now
             || now - snapshot.RefreshedAtUtc > CoordinationBounds.ActivationStaleness)
+        {
+            return true;
+        }
+
+        SelectedAccountResult selected = _selectedAccounts.Read();
+
+        // A newly selected account is authoritative even while the prior snapshot is young. An
+        // unreadable selection also fails closed by forcing the refresh/auth path; a genuinely absent
+        // legacy selection retains the timestamp rule because SilentAuthService may still use its
+        // single-account fallback.
+        if (selected.Status == SelectedAccountStatus.Unreadable
+            || (selected.Status == SelectedAccountStatus.Recorded
+                && !string.Equals(
+                    selected.HomeAccountId,
+                    snapshot.HomeAccountId,
+                    StringComparison.Ordinal)))
         {
             return true;
         }

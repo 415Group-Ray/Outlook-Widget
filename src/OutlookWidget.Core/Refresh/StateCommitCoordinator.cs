@@ -1,3 +1,4 @@
+using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Diagnostics;
 
@@ -27,6 +28,65 @@ public sealed class CommitSnapshotAction(ProtectedCache cache, byte[] payload, l
 {
     public CacheCommitResult Execute(in MutationLock heldLock) =>
         cache.Commit(heldLock, payload, expectedGeneration);
+}
+
+/// <summary>
+/// Commits a mailbox snapshot only while the account selected by the companion still matches the
+/// account whose token produced it.
+/// </summary>
+public sealed class CommitMailboxSnapshotAction : IStateCommitAction
+{
+    private readonly ProtectedCache _cache;
+    private readonly byte[] _payload;
+    private readonly long? _expectedGeneration;
+    private readonly SelectedAccountStore _selectedAccounts;
+    private readonly string _expectedHomeAccountId;
+    private readonly IOperationalLogger _logger;
+
+    public CommitMailboxSnapshotAction(
+        ProtectedCache cache,
+        byte[] payload,
+        long? expectedGeneration,
+        SelectedAccountStore selectedAccounts,
+        string expectedHomeAccountId,
+        IOperationalLogger? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(payload);
+        ArgumentNullException.ThrowIfNull(selectedAccounts);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedHomeAccountId);
+
+        _cache = cache;
+        _payload = payload;
+        _expectedGeneration = expectedGeneration;
+        _selectedAccounts = selectedAccounts;
+        _expectedHomeAccountId = expectedHomeAccountId;
+        _logger = logger ?? NullOperationalLogger.Instance;
+    }
+
+    public CacheCommitResult Execute(in MutationLock heldLock)
+    {
+        heldLock.ThrowIfNotHeld();
+
+        SelectedAccountResult selected = _selectedAccounts.Read();
+
+        if (selected.Status != SelectedAccountStatus.Recorded
+            || !string.Equals(
+                selected.HomeAccountId,
+                _expectedHomeAccountId,
+                StringComparison.Ordinal))
+        {
+            _logger.Record(
+                OperationalEventId.RefreshDiscardedStateChanged,
+                OperationalOutcome.Discarded);
+
+            return new CacheCommitResult(
+                CacheCommitStatus.GenerationMismatch,
+                _cache.ReadGeneration());
+        }
+
+        return _cache.Commit(heldLock, _payload, _expectedGeneration);
+    }
 }
 
 /// <summary>

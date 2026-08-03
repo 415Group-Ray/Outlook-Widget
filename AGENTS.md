@@ -100,8 +100,9 @@ identify the mismatch and update every affected source as part of the approved c
   at all; see the deviation note above.
 - `src/OutlookWidget.Provider` — the packaged COM Windows Widgets provider: lifecycle, the six
   callbacks, the instance registry, the single `UpdateWidget` call site, and `SilentAuthProbe`, which
-  acquires silently with a zero parent handle and re-probes on the state-changed signal. **Silent-only
-  and no Graph access**; it must never gain an interactive path.
+  acquires silently with a zero parent handle and re-probes on the state-changed signal. The provider
+  owns the narrow background Graph refresh composition, while widget callbacks only enqueue work.
+  **Authentication remains silent-only**; it must never gain an interactive path.
 - `src/OutlookWidget.Package` — MSIX identity, assets, COM server and widget registration.
 - `tests/OutlookWidget.Core.Tests` — unit, source-level, and genuine cross-process tests.
 - `scripts` — prerequisites, signing, packaging, installation, asset, and Outlook-launch

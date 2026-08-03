@@ -37,10 +37,9 @@ namespace OutlookWidget.Provider;
 /// costs nothing.
 /// </para>
 /// <para>
-/// <b>Phase 0 scope.</b> There is no Graph call and no refresh transaction here yet: a refresh action
-/// requests a delivery pass over current cached state rather than fetching mail. The lifecycle, the
-/// registration, the single delivery call site, and the cross-process invalidation path are what this
-/// establishes.
+/// <b>Refresh ownership.</b> This callback type still makes no Graph call itself. It queues activation
+/// and manual triggers to <c>ProviderRefreshWorker</c>, which runs the core refresh transaction away
+/// from the host callback and commits validated mail before requesting delivery.
 /// </para>
 /// <para>
 /// Authentication does exist, but not in this type. <c>SilentAuthProbe</c> owns it, silently and with a

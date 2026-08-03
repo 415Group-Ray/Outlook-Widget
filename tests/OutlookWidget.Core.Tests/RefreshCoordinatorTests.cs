@@ -1,4 +1,5 @@
 using System.Text;
+using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Refresh;
 using OutlookWidget.Core.Tests.TestInfrastructure;
 
@@ -52,6 +53,43 @@ public sealed class RefreshCoordinatorTests
         Assert.Equal(1, result.Generation);
         Assert.Equal(1, delivery.Requests);
         Assert.Equal("fresh", Encoding.UTF8.GetString(fixture.Cache.Read().Payload!));
+    }
+
+    [Fact]
+    public async Task An_old_account_result_is_discarded_when_interactive_selection_changes_in_flight()
+    {
+        using var fixture = new CoordinationFixture();
+        AuthenticationOptions options = AuthenticationOptions.TryCreate(
+            Guid.Parse("11111111-2222-3333-4444-555555555555"),
+            Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))!;
+        var selectedAccounts = new SelectedAccountStore(fixture.Paths, options, fixture.Logger);
+        Assert.True(selectedAccounts.Write("account-a"));
+
+        var delivery = new CountingDeliveryRequester();
+        var coordinator = new RefreshCoordinator(
+            fixture.Cache,
+            fixture.Leases,
+            fixture.Commits,
+            delivery,
+            fixture.Clock,
+            fixture.Logger,
+            selectedAccounts);
+
+        var racing = new StubFetcher(_ =>
+        {
+            Assert.True(selectedAccounts.Write("account-b"));
+            return Task.FromResult<RefreshPayload?>(
+                new RefreshPayload(Payload("account-a mail"), 5, "account-a"));
+        });
+
+        RefreshResult result = await coordinator.RefreshAsync(racing, RefreshTrigger.SignIn);
+
+        Assert.Equal(RefreshOutcome.Discarded, result.Outcome);
+        Assert.Equal(Caching.CacheReadStatus.Absent, fixture.Cache.Read().Status);
+        Assert.Equal(0, delivery.Requests);
+        Assert.True(fixture.Logger.Saw(
+            Diagnostics.OperationalEventId.RefreshDiscardedStateChanged,
+            Diagnostics.OperationalOutcome.Discarded));
     }
 
     [Fact]

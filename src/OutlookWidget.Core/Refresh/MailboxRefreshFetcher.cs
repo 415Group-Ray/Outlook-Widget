@@ -83,6 +83,9 @@ public sealed class MailboxRefreshFetcher : IRefreshFetcher
             access.HomeAccountId,
             _clock.UtcNow);
 
-        return new RefreshPayload(snapshot.Serialize(), readout.Messages.Count);
+        return new RefreshPayload(
+            snapshot.Serialize(),
+            readout.Messages.Count,
+            access.HomeAccountId);
     }
 }

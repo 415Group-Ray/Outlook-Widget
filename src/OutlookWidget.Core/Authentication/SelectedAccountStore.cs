@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Diagnostics;
+using OutlookWidget.Core.Refresh;
 
 namespace OutlookWidget.Core.Authentication;
 
@@ -135,6 +136,19 @@ public sealed class SelectedAccountStore
 
         try
         {
+            // Selection writes participate in the same mutex as snapshot commits. A refresh commit
+            // re-reads this record while holding that mutex; without the matching writer lock, an
+            // account switch could land between that read and the cache replace and still allow the
+            // previous account's Graph result to commit.
+            using var mutex = new MutationMutex(_paths.MutationMutexName, _logger);
+            using MutationLock heldLock = mutex.Acquire();
+
+            if (!heldLock.IsHeld)
+            {
+                _logger.Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Timeout);
+                return false;
+            }
+
             Directory.CreateDirectory(_paths.RootDirectory);
 
             byte[] json = JsonSerializer.SerializeToUtf8Bytes(
