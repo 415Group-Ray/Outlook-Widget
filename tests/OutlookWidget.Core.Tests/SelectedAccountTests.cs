@@ -53,6 +53,9 @@ public sealed class SelectedAccountTests : IDisposable
     private static SelectedAccountResult Unreadable =>
         new(SelectedAccountStatus.Unreadable, null);
 
+    private static SelectedAccountResult SignedOut =>
+        new(SelectedAccountStatus.SignedOut, null);
+
     [Fact]
     public void A_recorded_selection_round_trips()
     {
@@ -60,6 +63,15 @@ public sealed class SelectedAccountTests : IDisposable
 
         Assert.True(store.Write("object-id.tenant-id"));
         Assert.Equal(Recorded("object-id.tenant-id"), store.Read());
+    }
+
+    [Fact]
+    public void An_explicit_signed_out_marker_never_falls_back_to_a_cached_or_windows_account()
+    {
+        IAccount only = new StubAccount("only.tenant");
+
+        Assert.Null(SilentAuthService.Select([], SignedOut));
+        Assert.Null(SilentAuthService.Select([only], SignedOut));
     }
 
     [Fact]

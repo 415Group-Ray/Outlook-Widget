@@ -48,7 +48,11 @@ pin. Measured; see the evidence report.
 
 The cross-process coordination core is implemented and tested, and **authentication now exists**: the
 companion signs in interactively through WAM and the provider acquires silently, for the account the user
-actually chose rather than whichever one MSAL enumerates first.
+actually chose rather than whichever one MSAL enumerates first. **Logout is implemented and measured on
+installed package 0.4.19.0**: the companion suppresses first, removes the selected account from the app's
+MSAL cache, commits a durable signed-out marker plus cleared mailbox state, and then clears only its own
+tombstone. Cold provider activation left the cleared generation and app-local token cache unchanged, so
+the signed-out marker blocked the operating-system-account fallback. Account switching remains unbuilt.
 
 **The narrow production refresh is wired and measured.** Stale activation, post-sign-in convergence,
 manual actions, and the opportunistic five-minute active timer call `GraphMailClient` through
@@ -61,8 +65,8 @@ and warm latency pass; comparing its returned Focused count with New Outlook rem
 provider still renders the Phase 0 placeholder card rather than the cached mail; the settings-change
 trigger also remains a later slice.
 
-The current companion is a packaging and authentication probe with a minimal Win32 window, not the
-finished WinUI experience.
+The current companion is a packaging and authentication probe with a minimal Win32 window and Sign in /
+Sign out controls, not the finished WinUI experience.
 
 Two authentication invariants that are easy to break and were each already broken once:
 

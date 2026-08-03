@@ -23,6 +23,15 @@ last gate that could have sent this design to a tray/popover surface, so **that 
 evidence rather than on expectation.** It also proves the shared token cache works cross-process: the
 companion wrote the account metadata and the provider found it.
 
+**Logout is implemented and measured on installed package 0.4.19.0.** The companion's Sign out action
+publishes a signed-out disclosure tombstone before awaiting MSAL cache removal, then commits a durable
+signed-out marker, clears cached mailbox data and the selected account identifier, signals the provider,
+and only then lifts its own tombstone. On the reference machine, the installed action left generation 20
+explicitly cleared with no mailbox payload or retained account identifier; after cold provider activation,
+that state and the app-local MSAL cache remained unchanged. The marker therefore prevented silent
+authentication from immediately falling back to the Windows account. Account switching remains the next
+Phase 1 account-lifecycle slice.
+
 **Gates 10 and 11 pass on installed package 0.4.13.2.** A real provider refresh acquired silently,
 issued the required Graph reads, validated and DPAPI-cached a snapshot, and advanced the cache
 generation. A stale Board activation refreshed it; after a forced provider recycle the existing pin was

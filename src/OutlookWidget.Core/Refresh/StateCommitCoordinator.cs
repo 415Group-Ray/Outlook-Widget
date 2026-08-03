@@ -109,6 +109,53 @@ public sealed class ClearStateAction(ProtectedCache cache) : IStateCommitAction
     }
 }
 
+/// <summary>
+/// Commits the durable local signed-out state: no selected identifier, no stale authorization
+/// outcome, and no mailbox snapshot. The cache clear is last so its generation advance and signal
+/// publish only after the companion state is already authoritative.
+/// </summary>
+public sealed class CommitSignedOutStateAction : IStateCommitAction
+{
+    private readonly CoordinationPaths _paths;
+    private readonly ProtectedCache _cache;
+    private readonly SelectedAccountStore _selectedAccounts;
+    private readonly IOperationalLogger _logger;
+
+    public CommitSignedOutStateAction(
+        CoordinationPaths paths,
+        ProtectedCache cache,
+        SelectedAccountStore selectedAccounts,
+        IOperationalLogger? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(selectedAccounts);
+
+        _paths = paths;
+        _cache = cache;
+        _selectedAccounts = selectedAccounts;
+        _logger = logger ?? NullOperationalLogger.Instance;
+    }
+
+    public CacheCommitResult Execute(in MutationLock heldLock)
+    {
+        heldLock.ThrowIfNotHeld();
+
+        if (heldLock.StateIsSuspect)
+        {
+            _cache.RemoveOrphanedTemporaryFiles(heldLock);
+        }
+
+        if (!_selectedAccounts.MarkSignedOut(heldLock)
+            || !AuthorizationStateStore.TryClear(_paths, _logger))
+        {
+            return new CacheCommitResult(CacheCommitStatus.Failed, _cache.ReadGeneration());
+        }
+
+        return _cache.Clear(heldLock);
+    }
+}
+
 /// <summary>How a bounded commit attempt ended.</summary>
 public enum StateCommitOutcome
 {

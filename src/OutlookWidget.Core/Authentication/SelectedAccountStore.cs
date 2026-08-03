@@ -19,6 +19,13 @@ public enum SelectedAccountStatus
     Recorded,
 
     /// <summary>
+    /// The user explicitly signed out. No account identifier is retained, and silent acquisition
+    /// must not fall back to the Windows operating-system account until an interactive sign-in
+    /// records a new selection.
+    /// </summary>
+    SignedOut,
+
+    /// <summary>
     /// A record exists and could not be trusted — unreadable, malformed, or carrying no identifier.
     /// <b>The caller must not fall back.</b> See <see cref="SelectedAccountStore.Read"/> for why this
     /// is not folded into <see cref="Absent"/>.
@@ -29,7 +36,8 @@ public enum SelectedAccountStatus
 /// <summary>The outcome of one selection read.</summary>
 /// <param name="Status">Why the read ended as it did.</param>
 /// <param name="HomeAccountId">
-/// The identifier, present only on <see cref="SelectedAccountStatus.Recorded"/>.
+/// The identifier, present only on <see cref="SelectedAccountStatus.Recorded"/>. An explicit
+/// <see cref="SelectedAccountStatus.SignedOut"/> result deliberately retains no identifier.
 /// </param>
 public readonly record struct SelectedAccountResult(
     SelectedAccountStatus Status,
@@ -50,11 +58,11 @@ public readonly record struct SelectedAccountResult(
 /// </para>
 /// <para>
 /// <b>Its own file, not the snapshot and not the authorization record.</b> The snapshot is DPAPI
-/// state that logout and account switch clear, and this value has to survive that: silent acquisition
-/// needs to know which account to ask for <em>before</em> any refresh has ever succeeded, which is
-/// exactly the fresh-install and post-logout case. The authorization record answers a question about
-/// consent, and a file that answers two unrelated questions is one that gets cleared for the wrong
-/// reason.
+/// state that logout and account switch clear, while authentication needs an answer before any refresh
+/// has succeeded. On sign-in this file identifies the chosen account; on logout it retains only an
+/// explicit signed-out marker so silent acquisition cannot reinterpret a cleared cache as a fresh
+/// install and reacquire the Windows account. The authorization record answers a question about
+/// consent, and folding either answer into it would make that file mean unrelated things.
 /// </para>
 /// <para>
 /// <b>What it holds:</b> an opaque MSAL home-account identifier — a directory object ID and a tenant
@@ -149,18 +157,7 @@ public sealed class SelectedAccountStore
                 return false;
             }
 
-            Directory.CreateDirectory(_paths.RootDirectory);
-
-            byte[] json = JsonSerializer.SerializeToUtf8Bytes(
-                new AccountRecord
-                {
-                    HomeAccountId = homeAccountId,
-                    TenantId = _options.TenantId,
-                    ClientId = _options.ClientId,
-                });
-
-            File.WriteAllBytes(_paths.SelectedAccountFilePath, _protector.Protect(json, Entropy));
-            return true;
+            return WriteRecord(heldLock, homeAccountId, signedOut: false);
         }
         catch (Exception e) when (e is IOException
                                      or UnauthorizedAccessException
@@ -218,6 +215,11 @@ public sealed class SelectedAccountStore
                 return new SelectedAccountResult(SelectedAccountStatus.Absent, null);
             }
 
+            if (record.SignedOut)
+            {
+                return new SelectedAccountResult(SelectedAccountStatus.SignedOut, null);
+            }
+
             return string.IsNullOrWhiteSpace(record.HomeAccountId)
                 ? new SelectedAccountResult(SelectedAccountStatus.Unreadable, null)
                 : new SelectedAccountResult(SelectedAccountStatus.Recorded, record.HomeAccountId);
@@ -261,9 +263,47 @@ public sealed class SelectedAccountStore
         }
     }
 
+    /// <summary>
+    /// Replaces the selected identifier with an explicit signed-out marker while the caller owns
+    /// the shared mutation lock.
+    /// </summary>
+    internal bool MarkSignedOut(in MutationLock heldLock) =>
+        WriteRecord(heldLock, homeAccountId: null, signedOut: true);
+
+    private bool WriteRecord(in MutationLock heldLock, string? homeAccountId, bool signedOut)
+    {
+        heldLock.ThrowIfNotHeld();
+
+        try
+        {
+            Directory.CreateDirectory(_paths.RootDirectory);
+
+            byte[] json = JsonSerializer.SerializeToUtf8Bytes(
+                new AccountRecord
+                {
+                    HomeAccountId = homeAccountId,
+                    SignedOut = signedOut,
+                    TenantId = _options.TenantId,
+                    ClientId = _options.ClientId,
+                });
+
+            File.WriteAllBytes(_paths.SelectedAccountFilePath, _protector.Protect(json, Entropy));
+            return true;
+        }
+        catch (Exception e) when (e is IOException
+                                     or UnauthorizedAccessException
+                                     or CryptographicException)
+        {
+            _logger.Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Failed);
+            return false;
+        }
+    }
+
     private sealed class AccountRecord
     {
         public string? HomeAccountId { get; init; }
+
+        public bool SignedOut { get; init; }
 
         /// <summary>
         /// The registration this selection belongs to. Default (empty) on a record written before

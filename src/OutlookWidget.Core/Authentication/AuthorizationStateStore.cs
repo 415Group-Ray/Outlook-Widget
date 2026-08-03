@@ -126,18 +126,26 @@ public static class AuthorizationStateStore
     }
 
     /// <summary>Removes any recorded outcome. Safe when none exists.</summary>
-    public static void Clear(CoordinationPaths paths, IOperationalLogger? logger = null)
+    public static void Clear(CoordinationPaths paths, IOperationalLogger? logger = null) =>
+        TryClear(paths, logger);
+
+    /// <summary>
+    /// Removes any recorded outcome and reports whether the local mutation succeeded.
+    /// </summary>
+    internal static bool TryClear(CoordinationPaths paths, IOperationalLogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(paths);
 
         try
         {
             File.Delete(paths.AuthorizationStateFilePath);
+            return true;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             (logger ?? NullOperationalLogger.Instance)
                 .Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Failed);
+            return false;
         }
     }
 
