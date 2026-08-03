@@ -3,12 +3,12 @@
 A glanceable Windows 11 widget showing Microsoft 365 Inbox counts and the newest few email
 messages, without opening Outlook.
 
-**Status: early implementation, native surface proven, brokered sign-in working.** The cross-process
+**Status: early implementation, native surface and production refresh proven.** The cross-process
 coordination core is built and tested, and a signed MSIX registers a COM widget provider that appears
 in the Widgets Board, pins, renders at small, medium, and large, survives both a reboot and a package
 upgrade with its instance restored, launches New Outlook and the companion from its actions, and exits
-when unpinned. **Every native-surface Phase 0 gate except gate 11 has passed on the reference
-machine**, so the tray/popover fallback is not being built.
+when unpinned. **Every native-surface Phase 0 gate has passed on the reference machine**, so the
+tray/popover fallback is not being built.
 
 **Sign-in works, and gate 8 split.** The companion has a real window and acquires a delegated
 `Mail.ReadBasic` token through WAM — measured on the reference tenant. But **self-consent does not
@@ -23,15 +23,18 @@ last gate that could have sent this design to a tray/popover surface, so **that 
 evidence rather than on expectation.** It also proves the shared token cache works cross-process: the
 companion wrote the account metadata and the provider found it.
 
-**Gate 11** — cached-first refresh and cross-process invalidation across a real host — remains open and
-cannot be observed until there is something to refresh. It is not a surface-choice gate; both surfaces
-consume the same coordination core, so it would be equally unproven either way.
+**Gates 10 and 11 pass on installed package 0.4.13.2.** A real provider refresh acquired silently,
+issued the required Graph reads, validated and DPAPI-cached a snapshot, and advanced the cache
+generation. A stale Board activation refreshed it; after a forced provider recycle the existing pin was
+recovered from cache without an unnecessary Graph request; and a state-change signal from another
+process reached the provider. Gate 12 is partly measured: its Focused query succeeds without an
+undocumented consistency header and the warm production refresh completed in 1.36 seconds, but the
+returned count still needs one visual comparison with New Outlook.
 
-**No Microsoft Graph request has been made yet, so the provider still draws a placeholder card
-describing coordination and authentication state — nothing here shows real mail.** The Graph client,
-the response validation, and the cached snapshot model are now built and unit-tested, but nothing calls
-them: a refresh has to, and that is the next slice. Treat the client's existence as code rather than as
-mail on the card. See the evidence report for exactly what has and has not been proven, and
+**The provider now performs a narrow production refresh and caches real mailbox state, but it still
+draws the Phase 0 placeholder card rather than rendering that mail.** Stale activation, post-sign-in,
+and manual actions reach `GraphMailClient` through `RefreshCoordinator`; the five-minute active timer
+and finished mail card remain later slices. See the evidence report for exactly what has been proven, and
 [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
 
 ### Known platform limitation: one widget instance only

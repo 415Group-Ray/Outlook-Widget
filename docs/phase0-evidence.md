@@ -1,6 +1,6 @@
 # Phase 0 evidence report
 
-Status: **in progress.** **Every native-surface gate except 11 now passes.** Gates 2, 3, 5 (as
+Status: **in progress.** **Every native-surface gate now passes.** Gates 2, 3, 5 (as
 superseded), 4, 6, and the native half of 7 all passed; gate 1 passed in the universal group. The
 widget is discoverable, pinnable, renders at all three sizes, survives a reboot and a package upgrade
 with its instance restored, restores its `CustomState` through the host, launches New Outlook and the
@@ -14,11 +14,10 @@ and the provider must fail closed, whereas a tray/popover UI process could have 
 It did not fail. **The tray/popover branch is closed on evidence rather than on expectation**, which is
 the distinction earlier versions of this report were careful about and can now stop hedging.
 
-**One native-surface gate remains open: gate 11** — cached-first refresh and cross-process invalidation
-across real Board activation and provider recycle. Its signalling half is real and now exercised in both
-directions, but a refresh needs Graph, so it cannot close in Phase 0's native work. Gate 11 is **not** a
-surface-choice gate: it would be equally unproven on the fallback surface, because both consume the same
-coordination core, so it cannot reopen the decision gate 9 just settled.
+**Gate 11 passes on installed package 0.4.13.2.** A stale Board activation advanced the real protected
+snapshot generation, a forced provider recycle recovered the existing pin and cached generation without
+an unnecessary Graph request, and a separate process signalled the state-changed event and caused the
+provider to react. Gate 11 was not a surface-choice gate, but it is no longer an open qualification.
 
 Gate 5 was superseded after the Board was measured to allow only one instance per widget definition.
 Two rendering defects were found by the resize test and fixed in 0.2.1.0.
@@ -28,19 +27,17 @@ token was acquired on 0.3.7.0. **Self-consent fails** on this tenant: the Micros
 policy refused it and an administrator had to grant consent for the registration. The gate asks two
 questions and they got different answers, so it is not a PASS and not a FAIL.
 
-**Gate 9 passes** — see its row below. Gates 10 and 12 still need
-a Graph request to have been issued, and gate 11 needs a real refresh. `GraphMailClient` and the snapshot
-model now exist and nothing calls them, so the blocker has moved rather than closed — code is not a gate
-status. The Entra app registration is **created** and its identifiers ship in the package, so
+**Gates 9, 10, and 11 pass** — see their rows below. Gate 12 is partly measured and needs only the
+visible Focused-count comparison with New Outlook. The Entra app registration is **created** and its identifiers ship in the package, so
 nothing waits on a portal task any more. There is no outstanding *activation, lifecycle, rendering,
 launch, or packaging* question. Nothing below is a projection; each row records what was actually
 observed, and unproven items say so rather than being marked pass.
 
-**"Implemented" is not a gate status.** Gates 8 and 9 have code, a build, an install, and a readout,
-and no measurement. Two rows below say so explicitly, and the distinction is the whole point of this
-document.
+**"Implemented" is not a gate status.** Gates 8 through 11 are described from installed-package
+measurements, not inferred from their unit tests. Gate 12 remains partial for exactly the same reason:
+its last criterion has not yet been observed in New Outlook.
 
-Reference machine: the author's own Entra-managed PC. Recorded 2026-07-28.
+Reference machine: the author's own Entra-managed PC. Recorded 2026-07-28; updated 2026-08-03.
 
 Reproduce with:
 
@@ -82,7 +79,7 @@ Gates are grouped per section 17, because the group determines what a failure me
 |---|---|---|
 | 1 — signed MSIX installs; certificate can be trusted | **PASS** | Managed-device policy **does** permit trusting a certificate in `LocalMachine\TrustedPeople` on this PC, and sideload installation succeeded. Installed as `415Group.OutlookInboxWidget_0.1.0.0_x64__dgbvqhastx60y`, family `415Group.OutlookInboxWidget_dgbvqhastx60y`, signed by `CN="415 Group, Inc."`. `signtool verify /pa` succeeds once the certificate is trusted, and the RFC 3161 timestamp verifies against DigiCert. Developer Mode was **off** throughout, so it is not required for this workflow |
 | 8 — WAM sign-in with MFA/CA, self-consent to `Mail.ReadBasic` | **SPLIT: sign-in PASSES, self-consent FAILS** | Measured 2026-07-29 on 0.3.7.0. **Brokered sign-in works:** the companion acquired a delegated `Mail.ReadBasic` token through WAM with a real parent window, reporting `Acquired` with an expiry an hour out. **Self-consent does not:** the tenant's Microsoft-managed consent policy refused it, and the token was only obtainable after an administrator granted consent for the registration. Both halves are recorded below. This row must not be reduced to "PASS" — the gate asks two questions and they got different answers |
-| 10 — `Mail.ReadBasic` returns exactly the approved properties | **Not started. `GraphMailClient` now exists and has never been called against Graph** | The registration exists and a token is obtainable — gate 8's half that passed, plus gate 9, cover that. The client, the response validation, and the snapshot model are now implemented and unit-tested against a stub handler. **That is code, not evidence**, and this row is the same distinction gates 8 and 9 carried before they were measured: the responses those tests assert against are ones this repository wrote, so they say what the client does with a shape it expects and nothing about what Graph returns. One thing is still missing before the gate can be measured: a refresh that calls the client. The plan's other prerequisite, the recorded home-account identifier, is implemented — and is itself unmeasured, for the reason recorded under "What is still blocking" |
+| 10 — `Mail.ReadBasic` returns exactly the approved properties | **PASS** | Measured 2026-08-03 on installed package `0.4.13.2`. A Board activation started the provider, silent acquisition succeeded, the two required Graph reads returned successfully, validation produced five previews, and `RefreshCoordinator` committed generation 1. The DPAPI payload was inspected under the same Windows user without printing mailbox values: schema 1, valid total/unread counts, and message fields exactly `DisplaySender`, `IsRead`, `ReceivedAt`, `Subject`, and `WebLink`; no body, body preview, recipients, attachments, message ID, or inference classification were cached. This is the first real Graph response from the product, not a stub-handler result |
 
 A failure in this group stops the product rather than triggering the tray fallback, because
 the fallback is also a packaged MSIX using the same certificate and the same delegated
@@ -99,14 +96,14 @@ permission.
 | 6 — widget action launches the companion | **PASS** | Clicking **Open companion** on the pinned widget launched the companion, which displayed package identity `415Group.OutlookInboxWidget_0.2.0.0_x64__dgbvqhastx60y` and its coordination root inside the package store. Note that the companion did **not** report a launch argument, which is the correct outcome and is explained below: the documented shell-activation candidate succeeded, and that path carries no arguments |
 | 9 — provider silent-only acquisition with a zero parent handle | **PASS** | Observed on the pinned large card: `config Loaded · silent auth Acquired · widget 07879d4c-…`, with the detail line reading "The provider acquired a token silently with no window of its own, so
 gate 9 passes." The provider built its client through `BrokerClient` passing `BrokerClient.NoParentWindow`, ran `SilentAuthService` on a background task after `CoRegisterClassObject`, and got a token — **in a different process from the one that signed in, with a zero parent handle.** This also proves the shared token cache end to end rather than by documentation: the companion wrote the account metadata and the provider found it. Three source-level tests enforce the boundary: no interactive API in the core, none in the provider, and the zero-handle helper is what the provider passes |
-| 11 — cached-first refresh and cross-process invalidation | **Partly established; NOT passed** | The coordination subsystem passes the automated suite — 213 tests at the time of writing — including genuine multi-process contention. Separately, and new: **the named events now exist.** Both `OutlookWidget-StateChanged-v1` and `OutlookWidget-SuppressDetails-v1` were confirmed present while the installed provider ran. Until `StateChangeListener` was written nothing created them, so `StateCommitCoordinator` and `DisclosureTombstoneStore` were opening a non-existent event and swallowing the failure — every cross-process signal in the product was a silent no-op. **The gate itself is not met:** it requires cached-first refresh and cross-process invalidation observed across real Board activation and provider recycle, and neither a refresh nor a state commit can happen until authentication and Graph exist. It cannot be closed in Phase 0's native work |
+| 11 — cached-first refresh and cross-process invalidation | **PASS** | Measured 2026-08-03 on installed package `0.4.13.2`. With generation 1 older than the 60-second threshold, real Board activation committed generation 2. The provider was then force-stopped; the Widgets host restarted it under the existing pin, recovered generation 2, and left it unchanged while fresh, proving the recycle path did not gate cached state on another Graph read. Finally, a separate PowerShell process opened and set `OutlookWidget-StateChanged-v1`; provider PID 33540 reacted by re-running its silent acquisition, observed as the package token-cache timestamp moving from 13:53:56Z to 13:54:54Z. The automated suite now has 311 tests, including genuine multi-process coordination |
 
-**One native-surface gate has not passed: 11.** Any status claim elsewhere must say "every
-native-surface gate **except 11**", and must not say the native group is complete.
+**Every native-surface gate has passed.** Gate 11 was the final open row and is now closed by the
+installed-package measurement above.
 
-**Gate 11 is not a surface-choice gate.** It asks whether refresh and invalidation behave correctly
-across a real host, which would be equally unproven on the fallback surface because both consume the
-same coordination core. It cannot decide between them.
+The final callback-thread offload was packaged as `0.4.13.3` after that measurement. It upgraded over
+`0.4.13.2` with `-ForceApplicationShutdown`; opening the Board started the provider from the
+`0.4.13.3` install location under the existing pin and advanced the real cache to generation 5.
 
 Gate 9 was the gate that could, and it passed — so unlike every earlier version of this section, the
 sentence "the fallback branch is not taken" now rests on a measurement rather than an expectation. The
@@ -223,15 +220,14 @@ on every Outlook update.
 
 ### Gate 12 — Focused count
 
-**Not started.** Optional; gates only the Focused unread setting.
+**Partly passed; one manual comparison remains.** Optional; gates only the Focused unread setting.
 
-The query is now implemented, which changes nothing about the gate's status and is worth one note.
-The gate asks four questions — whether the filter syntax is accepted for this tenant and mailbox,
-whether the count agrees with New Outlook, whether latency is acceptable, and whether any
-undocumented header such as `ConsistencyLevel: eventual` is required. **The client deliberately sends
-no such header**, and a test holds that absence, because sending one pre-emptively would answer the
-fourth question by hiding it. If the filter is later found to need one, that is a measurement to
-record here and a change to make then.
+The production query was issued on 2026-08-03 and Graph accepted its filter syntax without
+`ConsistencyLevel: eventual`. It returned a Focused unread count of **4**. A warm production refresh,
+including silent token acquisition, all three concurrent Graph reads, validation, and commit, advanced
+generation 3 to 4 in **1.36 seconds**, under the plan's three-second normal-refresh target. The only
+remaining question is whether New Outlook visibly reports 4 Focused unread messages for the same
+mailbox at the comparison moment; Graph cannot answer that comparison for Outlook.
 
 ## Measured: a token was acquired, and what that does and does not prove
 
@@ -689,20 +685,9 @@ script fails if any key file appears under the repository root.
 
 ## What is still blocking, and what unblocks it
 
-**A Graph request.** Nothing about authentication or the native surface is outstanding any more. Gates 1
-through 9 are settled — 8 as a split, the rest as passes — and what remains needs mail to have actually
-been read:
-
-- **Gates 10 and 12** need a Graph request to have been issued and its response observed.
-  `GraphMailClient` now exists, so the blocker has moved: it is no longer a missing client, it is that
-  nothing calls the client. **Do not read the client's existence as progress on either gate** — this is
-  exactly the "implemented is not a gate status" rule this document opens with.
-- **Gate 11** needs a real refresh to invalidate, so it follows 10.
-
-One piece stands between here and a first real request:
-
-- **`RefreshCoordinator` has to call the client**, inside the section 8 refresh algorithm, and commit
-  the resulting snapshot through `ProtectedCache`.
+The production refresh exists and gates 10 and 11 pass. Gate 12's Graph syntax, header independence,
+and latency checks pass; its only remaining evidence is a visual comparison of the measured Focused
+unread count (**4**) with New Outlook for the same mailbox.
 
 The second prerequisite is done. **The selected MSAL home-account identifier is now recorded**, so
 silent acquisition asks for the account the user chose instead of whichever one MSAL enumerates first.
@@ -741,7 +726,7 @@ it is neither an elevation problem nor the running-process case `-ForceApplicati
 needed for upgrades — the certificate is already trusted, so `-SkipCertificateTrust` applies — but a
 pinned widget holds the package open, so `-ForceApplicationShutdown` is.
 
-Gates 10 and 12 still need a Graph request to have been issued, so they follow gate 8 as before.
+Gate 10 now passes. Gate 12 has only the New Outlook visual count comparison left.
 
 **The shared-cache requirement is no longer an argument from documentation.** MSAL keeps ID tokens and
 account metadata in its own cache even when the broker holds the device-bound refresh token, and

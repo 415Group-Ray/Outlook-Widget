@@ -73,7 +73,8 @@ internal sealed class SilentAuthProbe : IDisposable
     private int _pending;
 
     /// <summary>The MSAL client, built once and reused across probes.</summary>
-    private IPublicClientApplication? _client;
+    private readonly Lock _clientGate = new();
+    private Task<IPublicClientApplication>? _client;
 
     /// <summary>
     /// The drainer, so shutdown can wait on it instead of polling.
@@ -183,7 +184,8 @@ internal sealed class SilentAuthProbe : IDisposable
     {
         try
         {
-            TokenAcquisitionStatus status = await AcquireAsync().ConfigureAwait(false);
+            TokenAcquisitionStatus status =
+                (await AcquireTokenAsync(_shutdown.Token).ConfigureAwait(false)).Status;
 
             SkeletonCard.SilentAuthStatus = status;
             Completed++;
@@ -202,33 +204,32 @@ internal sealed class SilentAuthProbe : IDisposable
         }
     }
 
-    private async Task<TokenAcquisitionStatus> AcquireAsync()
+    internal async Task<TokenAcquisitionResult> AcquireTokenAsync(CancellationToken cancellationToken)
     {
         try
         {
             if (!_configuration.IsLoaded)
             {
-                return TokenAcquisitionStatus.NoConfiguration;
+                return TokenAcquisitionResult.Unavailable(TokenAcquisitionStatus.NoConfiguration);
             }
 
             // BrokerClient.NoParentWindow is the whole of gate 9: this process owns no window and runs
             // no message loop, so there is nothing else it could truthfully pass. The service it builds
             // exposes only silent acquisition, so no path from here can open a browser or a dialog.
-            _client ??= await BrokerClient
-                .CreateAsync(_configuration.Options!, _paths, BrokerClient.NoParentWindow)
-                .ConfigureAwait(false);
+            IPublicClientApplication client = await GetClientAsync().ConfigureAwait(false);
 
             // The recorded selection is what makes this ask for the account the user actually chose
             // rather than whichever one MSAL happens to enumerate first. On a machine with one account
             // the two agree; on any other they need not, and the provider is the process that would
             // silently read the wrong mailbox.
             var silent = new SilentAuthService(
-                _client,
+                client,
                 _logger,
                 new SelectedAccountStore(_paths, _configuration.Options!, _logger));
 
-            TokenAcquisitionStatus status =
-                (await silent.AcquireAsync(_shutdown.Token).ConfigureAwait(false)).Status;
+            TokenAcquisitionResult result =
+                await silent.AcquireAsync(cancellationToken).ConfigureAwait(false);
+            TokenAcquisitionStatus status = result.Status;
 
             AuthenticationOptions options = _configuration.Options!;
 
@@ -252,7 +253,12 @@ internal sealed class SilentAuthProbe : IDisposable
             // classifier maps consent failures to InteractionRequired on purpose, because self-consent
             // may still be available and this process cannot find out. Only the companion learns the
             // difference, by being refused interactively, and it records it for exactly this read.
-            return AuthorizationStateStore.Refine(status, _paths, options);
+            TokenAcquisitionStatus refined = AuthorizationStateStore.Refine(status, _paths, options);
+            SkeletonCard.SilentAuthStatus = refined;
+
+            return refined == TokenAcquisitionStatus.Acquired
+                ? result
+                : TokenAcquisitionResult.Unavailable(refined);
         }
         catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
         {
@@ -260,7 +266,42 @@ internal sealed class SilentAuthProbe : IDisposable
             // whose native runtime will not initialise — which happen before there is any acquisition
             // to classify. The classifier handles what it recognises and everything else lands as a
             // generic failure, which is the correct card either way.
-            return AuthenticationFailures.Classify(e, AuthenticationPhase.Silent);
+            TokenAcquisitionStatus status = AuthenticationFailures.Classify(e, AuthenticationPhase.Silent);
+            SkeletonCard.SilentAuthStatus = status;
+            return TokenAcquisitionResult.Unavailable(status);
+        }
+    }
+
+    private async Task<IPublicClientApplication> GetClientAsync()
+    {
+        Task<IPublicClientApplication> clientTask;
+
+        lock (_clientGate)
+        {
+            clientTask = _client ??= BrokerClient.CreateAsync(
+                _configuration.Options!,
+                _paths,
+                BrokerClient.NoParentWindow);
+        }
+
+        try
+        {
+            return await clientTask.ConfigureAwait(false);
+        }
+        catch
+        {
+            // Cache one in-flight construction, not a permanent failure. Clear only the task this
+            // caller observed: another request may already have installed a new attempt by the time
+            // this continuation takes the gate.
+            lock (_clientGate)
+            {
+                if (ReferenceEquals(_client, clientTask))
+                {
+                    _client = null;
+                }
+            }
+
+            throw;
         }
     }
 

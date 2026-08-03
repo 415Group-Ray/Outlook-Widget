@@ -3,6 +3,7 @@ using Microsoft.Windows.Widgets.Providers;
 using OutlookWidget.Core.Delivery;
 using OutlookWidget.Core.Diagnostics;
 using OutlookWidget.Core.Launching;
+using OutlookWidget.Core.Refresh;
 using OutlookWidget.Provider.Cards;
 
 namespace OutlookWidget.Provider;
@@ -51,6 +52,7 @@ internal sealed class WidgetProvider : IWidgetProvider
 {
     private readonly WidgetInstanceRegistry _registry;
     private readonly DeliveryWorker _delivery;
+    private readonly ProviderRefreshWorker? _refresh;
     private readonly OutlookLauncher _outlook;
     private readonly CompanionLauncher _companion;
     private readonly IOperationalLogger _logger;
@@ -59,6 +61,7 @@ internal sealed class WidgetProvider : IWidgetProvider
     public WidgetProvider(
         WidgetInstanceRegistry registry,
         DeliveryWorker delivery,
+        ProviderRefreshWorker? refresh,
         OutlookLauncher outlook,
         CompanionLauncher companion,
         ManualResetEventSlim lastWidgetDeleted,
@@ -72,6 +75,7 @@ internal sealed class WidgetProvider : IWidgetProvider
 
         _registry = registry;
         _delivery = delivery;
+        _refresh = refresh;
         _outlook = outlook;
         _companion = companion;
         _lastWidgetDeleted = lastWidgetDeleted;
@@ -150,6 +154,7 @@ internal sealed class WidgetProvider : IWidgetProvider
         // Cached-first: request a pass now rather than waiting for a refresh, so a newly pinned
         // widget shows committed state instead of an empty frame.
         _delivery.RequestDelivery();
+        _refresh?.RequestIfStale(RefreshTrigger.Activation);
     }
 
     /// <summary>
@@ -189,6 +194,7 @@ internal sealed class WidgetProvider : IWidgetProvider
         }
 
         _delivery.RequestDelivery();
+        _refresh?.RequestIfStale(RefreshTrigger.Activation);
     }
 
     /// <summary>
@@ -223,11 +229,7 @@ internal sealed class WidgetProvider : IWidgetProvider
         switch (verb)
         {
             case WidgetVerbs.Refresh:
-                // Phase 0: a pass over currently committed state, not a Graph fetch. Authentication
-                // exists now, but the refresh transaction, its debounce, and its lease arrive with the
-                // Graph client — there is still nothing to fetch.
-                _logger.Record(OperationalEventId.RefreshRequested, OperationalOutcome.Success);
-                _delivery.RequestDelivery();
+                _refresh?.Request(RefreshTrigger.ManualAction);
                 break;
 
             case WidgetVerbs.OpenOutlook:

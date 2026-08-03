@@ -40,7 +40,7 @@ namespace OutlookWidget.Core.Delivery;
 /// this type does not pretend otherwise.
 /// </para>
 /// </remarks>
-public sealed class DeliveryWorker : IDisposable
+public sealed class DeliveryWorker : IDeliveryRequester, IDisposable
 {
     private readonly ProtectedCache _cache;
     private readonly DisclosureTombstoneStore _tombstones;

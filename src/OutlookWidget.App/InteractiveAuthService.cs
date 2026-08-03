@@ -142,7 +142,10 @@ internal sealed class InteractiveAuthService
                 OperationalOutcome.Success,
                 System.Diagnostics.Stopwatch.GetElapsedTime(started));
 
-            return TokenAcquisitionResult.Acquired(result.AccessToken, result.ExpiresOn);
+            return TokenAcquisitionResult.Acquired(
+                result.AccessToken,
+                result.ExpiresOn,
+                result.Account.HomeAccountId?.Identifier);
         }
         catch (Exception e) when (e is MsalException or OperationCanceledException)
         {
