@@ -272,14 +272,36 @@ internal sealed class SilentAuthProbe : IDisposable
         }
     }
 
-    private Task<IPublicClientApplication> GetClientAsync()
+    private async Task<IPublicClientApplication> GetClientAsync()
     {
+        Task<IPublicClientApplication> clientTask;
+
         lock (_clientGate)
         {
-            return _client ??= BrokerClient.CreateAsync(
+            clientTask = _client ??= BrokerClient.CreateAsync(
                 _configuration.Options!,
                 _paths,
                 BrokerClient.NoParentWindow);
+        }
+
+        try
+        {
+            return await clientTask.ConfigureAwait(false);
+        }
+        catch
+        {
+            // Cache one in-flight construction, not a permanent failure. Clear only the task this
+            // caller observed: another request may already have installed a new attempt by the time
+            // this continuation takes the gate.
+            lock (_clientGate)
+            {
+                if (ReferenceEquals(_client, clientTask))
+                {
+                    _client = null;
+                }
+            }
+
+            throw;
         }
     }
 

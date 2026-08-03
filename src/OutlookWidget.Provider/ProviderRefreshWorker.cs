@@ -1,6 +1,7 @@
 using OutlookWidget.Core.Caching;
-using OutlookWidget.Core.Models;
+using OutlookWidget.Core.Delivery;
 using OutlookWidget.Core.Diagnostics;
+using OutlookWidget.Core.Models;
 using OutlookWidget.Core.Refresh;
 
 namespace OutlookWidget.Provider;
@@ -13,6 +14,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
     private readonly RefreshCoordinator _coordinator;
     private readonly IRefreshFetcher _fetcher;
     private readonly ProtectedCache _cache;
+    private readonly IDeliveryRequester _delivery;
     private readonly IOperationalLogger _logger;
     private readonly CancellationTokenSource _shutdown = new();
     private readonly Lock _gate = new();
@@ -25,15 +27,18 @@ internal sealed class ProviderRefreshWorker : IDisposable
         RefreshCoordinator coordinator,
         IRefreshFetcher fetcher,
         ProtectedCache cache,
+        IDeliveryRequester delivery,
         IOperationalLogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(fetcher);
         ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(delivery);
 
         _coordinator = coordinator;
         _fetcher = fetcher;
         _cache = cache;
+        _delivery = delivery;
         _logger = logger ?? NullOperationalLogger.Instance;
     }
 
@@ -114,15 +119,33 @@ internal sealed class ProviderRefreshWorker : IDisposable
                     continue;
                 }
 
-                await _coordinator
+                RefreshResult result = await _coordinator
                     .RefreshAsync(_fetcher, work.Trigger, _shutdown.Token)
                     .ConfigureAwait(false);
+
+                // Token acquisition can change the card's authentication state even when there is
+                // no snapshot to commit. RefreshCoordinator requests delivery only for a successful
+                // commit, so noncommitted outcomes need a pass here to converge from Acquired to the
+                // fail-closed card (or back again). Skipped outcomes may request a redundant pass;
+                // DeliveryWorker deliberately coalesces those requests.
+                if (result.Delivery == DeliveryRequestOutcome.NotRequested
+                    && !_shutdown.IsCancellationRequested)
+                {
+                    _delivery.RequestDelivery();
+                }
             }
             catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
             {
                 // RefreshCoordinator and the production fetcher convert expected failures to values.
                 // A final containment boundary keeps an unexpected defect off the COM callback path.
                 _logger.Record(OperationalEventId.GraphRequestFailed, OperationalOutcome.Failed);
+
+                // Preserve auth-state convergence even if an unexpected failure occurs after token
+                // acquisition but before the coordinator can return a result.
+                if (!_shutdown.IsCancellationRequested)
+                {
+                    _delivery.RequestDelivery();
+                }
             }
         }
     }

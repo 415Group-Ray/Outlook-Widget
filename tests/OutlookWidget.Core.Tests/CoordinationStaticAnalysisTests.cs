@@ -504,6 +504,27 @@ public sealed class CoordinationStaticAnalysisTests
     }
 
     [Fact]
+    public void Failed_provider_refreshes_request_delivery_for_changed_authentication_state()
+    {
+        string worker = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "ProviderRefreshWorker.cs"));
+
+        Assert.Contains("result.Delivery == DeliveryRequestOutcome.NotRequested", worker, StringComparison.Ordinal);
+        Assert.Contains("_delivery.RequestDelivery()", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_faulted_provider_client_construction_can_be_retried()
+    {
+        string probe = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "SilentAuthProbe.cs"));
+
+        Assert.Contains("ReferenceEquals(_client, clientTask)", probe, StringComparison.Ordinal);
+        Assert.Contains("_client = null", probe, StringComparison.Ordinal);
+        Assert.Contains("throw;", probe, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Silent_acquisition_pairs_the_token_with_the_account_that_was_selected()
     {
         string service = File.ReadAllText(

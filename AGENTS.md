@@ -8,8 +8,8 @@ This is a single-user Windows 11 Outlook inbox widget for one Microsoft 365 tena
 approved v1 direction is a packaged Win32 Windows Widgets provider plus a small companion
 application, with a tray/popover surface only if the native Phase 0 gates fail.
 
-The repository is in early implementation. Phase 0 is approved and **every native-surface gate except
-gate 11 has passed on the reference machine** — the widget is discoverable, pinnable, renders at all
+The repository is in early implementation. Phase 0 is approved and **every native-surface gate has
+passed on the reference machine** — the widget is discoverable, pinnable, renders at all
 three sizes, survives a reboot with its instance restored, survives a package upgrade while pinned,
 launches New Outlook and the companion, and its provider exits when unpinned. Gate 4 is fully verified,
 `CustomState` round trip included. **Gate 9 passes**: the provider acquired a token silently with a zero

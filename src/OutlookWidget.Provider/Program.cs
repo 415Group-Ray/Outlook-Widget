@@ -148,7 +148,7 @@ internal static partial class Program
                 options.TenantId,
                 includeFocusedCount: true);
 
-            refresh = new ProviderRefreshWorker(coordinator, fetcher, cache, logger);
+            refresh = new ProviderRefreshWorker(coordinator, fetcher, cache, delivery, logger);
         }
 
         using var refreshLifetime = refresh;
