@@ -49,9 +49,11 @@ namespace OutlookWidget.Provider;
 /// </remarks>
 internal sealed class WidgetProvider : IWidgetProvider
 {
+    private readonly Lock _instanceGate = new();
     private readonly WidgetInstanceRegistry _registry;
     private readonly DeliveryWorker _delivery;
     private readonly ProviderRefreshWorker? _refresh;
+    private readonly ActiveRefreshTimer? _activeRefreshTimer;
     private readonly OutlookLauncher _outlook;
     private readonly CompanionLauncher _companion;
     private readonly IOperationalLogger _logger;
@@ -61,6 +63,7 @@ internal sealed class WidgetProvider : IWidgetProvider
         WidgetInstanceRegistry registry,
         DeliveryWorker delivery,
         ProviderRefreshWorker? refresh,
+        ActiveRefreshTimer? activeRefreshTimer,
         OutlookLauncher outlook,
         CompanionLauncher companion,
         ManualResetEventSlim lastWidgetDeleted,
@@ -75,6 +78,7 @@ internal sealed class WidgetProvider : IWidgetProvider
         _registry = registry;
         _delivery = delivery;
         _refresh = refresh;
+        _activeRefreshTimer = activeRefreshTimer;
         _outlook = outlook;
         _companion = companion;
         _lastWidgetDeleted = lastWidgetDeleted;
@@ -141,14 +145,19 @@ internal sealed class WidgetProvider : IWidgetProvider
     /// </summary>
     public void CreateWidget(WidgetContext widgetContext)
     {
-        _registry.AddOrUpdate(new WidgetInstance(
-            Id: widgetContext.Id,
-            DefinitionId: widgetContext.DefinitionId,
-            Size: widgetContext.Size,
+        lock (_instanceGate)
+        {
+            _registry.AddOrUpdate(new WidgetInstance(
+                Id: widgetContext.Id,
+                DefinitionId: widgetContext.DefinitionId,
+                Size: widgetContext.Size,
 
-            // A freshly pinned widget is being looked at, but the host still sends Activate. Not
-            // assuming it here keeps active state driven by exactly one source.
-            IsActive: false));
+                // A freshly pinned widget is being looked at, but the host still sends Activate. Not
+                // assuming it here keeps active state driven by exactly one source.
+                IsActive: false));
+
+            _activeRefreshTimer?.SetActive(_registry.HasActiveInstances);
+        }
 
         // Cached-first: request a pass now rather than waiting for a refresh, so a newly pinned
         // widget shows committed state instead of an empty frame.
@@ -166,7 +175,15 @@ internal sealed class WidgetProvider : IWidgetProvider
     /// </remarks>
     public void DeleteWidget(string widgetId, string customState)
     {
-        if (_registry.RemoveAndReportEmpty(widgetId))
+        bool empty;
+
+        lock (_instanceGate)
+        {
+            empty = _registry.RemoveAndReportEmpty(widgetId);
+            _activeRefreshTimer?.SetActive(_registry.HasActiveInstances);
+        }
+
+        if (empty)
         {
             // Only on the transition to empty, and only for an ID that was actually present. A
             // duplicate or unmatched DeleteWidget must not signal exit while widgets are still
@@ -187,9 +204,16 @@ internal sealed class WidgetProvider : IWidgetProvider
         // Activate can be the first callback for an instance the host knows about and this
         // provider has not recovered — after a crash, or when recovery failed. Adding it rather
         // than only updating is what keeps that instance from staying blank.
-        if (!_registry.TryUpdate(widgetId, existing => existing with { IsActive = true, Size = size }))
+        lock (_instanceGate)
         {
-            _registry.AddOrUpdate(new WidgetInstance(widgetId, definitionId, size, IsActive: true));
+            if (!_registry.TryUpdate(widgetId, existing => existing with { IsActive = true, Size = size }))
+            {
+                _registry.AddOrUpdate(new WidgetInstance(widgetId, definitionId, size, IsActive: true));
+            }
+
+            // One provider-wide opportunity, not one timer per pinned instance. Repeated activation
+            // is idempotent, so another active instance does not postpone the next tick.
+            _activeRefreshTimer?.SetActive(true);
         }
 
         _delivery.RequestDelivery();
@@ -203,8 +227,16 @@ internal sealed class WidgetProvider : IWidgetProvider
     /// No delivery request: nothing about the content changed, and updating a widget the host just
     /// said it is not watching would spend a host call to no effect.
     /// </remarks>
-    public void Deactivate(string widgetId) =>
-        _registry.TryUpdate(widgetId, existing => existing with { IsActive = false });
+    public void Deactivate(string widgetId)
+    {
+        lock (_instanceGate)
+        {
+            if (_registry.TryUpdate(widgetId, existing => existing with { IsActive = false }))
+            {
+                _activeRefreshTimer?.SetActive(_registry.HasActiveInstances);
+            }
+        }
+    }
 
     /// <summary>
     /// The user invoked an action. Validates the instance and the verb before dispatching.

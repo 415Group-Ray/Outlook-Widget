@@ -51,11 +51,15 @@ companion signs in interactively through WAM and the provider acquires silently,
 actually chose rather than whichever one MSAL enumerates first.
 
 **The narrow production refresh is wired and measured.** Stale activation, post-sign-in convergence,
-and manual actions call `GraphMailClient` through `MailboxRefreshFetcher` and `RefreshCoordinator`, then
-commit a validated snapshot. Gate 10 and gate 11 pass. Gate 12's filter syntax, header independence, and
-warm latency pass; comparing its returned Focused count with New Outlook remains manual. The provider
-still renders the Phase 0 placeholder card rather than the cached mail; the five-minute active timer and
-settings-change trigger also remain later slices.
+manual actions, and the opportunistic five-minute active timer call `GraphMailClient` through
+`MailboxRefreshFetcher` and `RefreshCoordinator`, then commit a validated snapshot. The timer is one
+provider-wide opportunity, starts with the first active instance, and stops after the last deactivation;
+that lifecycle has automated coverage and is measured on installed package 0.4.18.0: the cache advanced
+after 324.6 seconds active, then remained unchanged for 340.8 seconds after deactivation while the same
+provider process stayed alive. Gate 10 and gate 11 pass. Gate 12's filter syntax, header independence,
+and warm latency pass; comparing its returned Focused count with New Outlook remains manual. The
+provider still renders the Phase 0 placeholder card rather than the cached mail; the settings-change
+trigger also remains a later slice.
 
 The current companion is a packaging and authentication probe with a minimal Win32 window, not the
 finished WinUI experience.

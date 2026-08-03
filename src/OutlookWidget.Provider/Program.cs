@@ -167,6 +167,12 @@ internal static partial class Program
 
         using var refreshLifetime = refresh;
 
+        using ActiveRefreshTimer? activeRefreshTimer = refresh is null
+            ? null
+            : new ActiveRefreshTimer(
+                () => refresh.Request(RefreshTrigger.ActiveTimer),
+                logger);
+
         // The cross-process half of gate 11: the companion commits state and signals, and this is
         // what turns that signal into a delivery pass. Until this listener existed nothing created
         // the named events at all, so every signal the companion sent was discarded.
@@ -198,6 +204,7 @@ internal static partial class Program
             registry,
             delivery,
             refresh,
+            activeRefreshTimer,
             new OutlookLauncher(logger),
             new CompanionLauncher(packageFamilyName, logger),
             lastWidgetDeleted,

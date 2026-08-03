@@ -96,7 +96,7 @@ permission.
 | 6 — widget action launches the companion | **PASS** | Clicking **Open companion** on the pinned widget launched the companion, which displayed package identity `415Group.OutlookInboxWidget_0.2.0.0_x64__dgbvqhastx60y` and its coordination root inside the package store. Note that the companion did **not** report a launch argument, which is the correct outcome and is explained below: the documented shell-activation candidate succeeded, and that path carries no arguments |
 | 9 — provider silent-only acquisition with a zero parent handle | **PASS** | Observed on the pinned large card: `config Loaded · silent auth Acquired · widget 07879d4c-…`, with the detail line reading "The provider acquired a token silently with no window of its own, so
 gate 9 passes." The provider built its client through `BrokerClient` passing `BrokerClient.NoParentWindow`, ran `SilentAuthService` on a background task after `CoRegisterClassObject`, and got a token — **in a different process from the one that signed in, with a zero parent handle.** This also proves the shared token cache end to end rather than by documentation: the companion wrote the account metadata and the provider found it. Three source-level tests enforce the boundary: no interactive API in the core, none in the provider, and the zero-handle helper is what the provider passes |
-| 11 — cached-first refresh and cross-process invalidation | **PASS** | Measured 2026-08-03 on installed package `0.4.13.2`. With generation 1 older than the 60-second threshold, real Board activation committed generation 2. The provider was then force-stopped; the Widgets host restarted it under the existing pin, recovered generation 2, and left it unchanged while fresh, proving the recycle path did not gate cached state on another Graph read. Finally, a separate PowerShell process opened and set `OutlookWidget-StateChanged-v1`; provider PID 33540 reacted by re-running its silent acquisition, observed as the package token-cache timestamp moving from 13:53:56Z to 13:54:54Z. The automated suite now has 311 tests, including genuine multi-process coordination |
+| 11 — cached-first refresh and cross-process invalidation | **PASS** | Measured 2026-08-03 on installed package `0.4.13.2`. With generation 1 older than the 60-second threshold, real Board activation committed generation 2. The provider was then force-stopped; the Widgets host restarted it under the existing pin, recovered generation 2, and left it unchanged while fresh, proving the recycle path did not gate cached state on another Graph read. Finally, a separate PowerShell process opened and set `OutlookWidget-StateChanged-v1`; provider PID 33540 reacted by re-running its silent acquisition, observed as the package token-cache timestamp moving from 13:53:56Z to 13:54:54Z. The automated suite now has 319 tests, including genuine multi-process coordination and active-timer lifecycle coverage |
 
 **Every native-surface gate has passed.** Gate 11 was the final open row and is now closed by the
 installed-package measurement above.
@@ -104,6 +104,15 @@ installed-package measurement above.
 The final callback-thread offload was packaged as `0.4.13.3` after that measurement. It upgraded over
 `0.4.13.2` with `-ForceApplicationShutdown`; opening the Board started the provider from the
 `0.4.13.3` install location under the existing pin and advanced the real cache to generation 5.
+
+The opportunistic active timer was measured separately on installed package `0.4.18.0`. The signed
+package upgraded over `0.4.13.3` with `-SkipCertificateTrust -ForceApplicationShutdown`; the existing
+pin survived, and opening the Board started provider PID 22608 from the upgraded package. With the Board
+left open, generation 15 committed to generation 16 after **324.6 seconds**, at 18:21:58Z — close to the
+designed five-minute opportunity and distinct from activation. After closing the Board, generation 17
+was the deactivation baseline. It remained 17 for **340.8 seconds**, through the next timer boundary,
+while PID 22608 remained alive. This separates provider lifetime from timer lifetime: the provider stays
+because the widget is pinned, but `Deactivate` stops periodic refresh work.
 
 Gate 9 was the gate that could, and it passed — so unlike every earlier version of this section, the
 sentence "the fallback branch is not taken" now rests on a measurement rather than an expectation. The

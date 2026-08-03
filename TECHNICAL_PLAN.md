@@ -12,7 +12,7 @@ Gate 11 does not affect the fallback decision, because both surfaces consume the
 
 **Authentication and the narrow production refresh are built and measured.** Gates 10 and 11 pass. Gate 12's query syntax, absence of an undocumented header requirement, and warm latency pass; only comparison of its returned count with New Outlook remains.
 
-**`GraphMailClient` is called in production.** Stale activation, post-sign-in convergence, and manual actions run through `MailboxRefreshFetcher` and `RefreshCoordinator`; the validated snapshot is committed through `ProtectedCache`. The five-minute active timer and settings-change trigger remain later slices. `docs/phase0-evidence.md` is authoritative for the installed-package measurements.
+**`GraphMailClient` is called in production.** Stale activation, post-sign-in convergence, manual actions, and one provider-wide opportunistic five-minute timer while any widget instance is active run through `MailboxRefreshFetcher` and `RefreshCoordinator`; the validated snapshot is committed through `ProtectedCache`. Timer lifecycle and wiring have automated coverage and are measured on installed package 0.4.18.0: one refresh committed after 324.6 seconds active, while no refresh committed during 340.8 seconds after deactivation with the provider still alive. The settings-change trigger remains a later slice. `docs/phase0-evidence.md` is authoritative for the installed-package measurements.
 
 This plan describes a lightweight Windows 11 Outlook inbox widget for a single Microsoft 365 tenant. It incorporates the decisions approved during planning:
 

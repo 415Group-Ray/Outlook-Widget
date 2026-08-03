@@ -103,6 +103,18 @@ internal sealed class WidgetInstanceRegistry
         }
     }
 
+    /// <summary>Whether at least one enabled instance is currently active.</summary>
+    public bool HasActiveInstances
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _instances.Values.Any(instance => instance.IsActive);
+            }
+        }
+    }
+
     /// <summary>
     /// Adds or replaces an instance. Replacement rather than rejection on a duplicate ID, because
     /// <c>GetWidgetInfos</c> recovery and a <c>CreateWidget</c> callback can legitimately describe
