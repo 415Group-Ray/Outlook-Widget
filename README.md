@@ -33,9 +33,11 @@ returned count still needs one visual comparison with New Outlook.
 
 **The provider now performs a narrow production refresh and caches real mailbox state, but it still
 draws the Phase 0 placeholder card rather than rendering that mail.** Stale activation, post-sign-in,
-and manual actions reach `GraphMailClient` through `RefreshCoordinator`; the five-minute active timer
-and finished mail card remain later slices. See the evidence report for exactly what has been proven, and
-[TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
+manual actions, and an opportunistic five-minute timer while the widget is active reach
+`GraphMailClient` through `RefreshCoordinator`. Installed package `0.4.18.0` advanced the cache after
+324.6 seconds while active, then left it unchanged for 340.8 seconds after deactivation while the same
+provider process remained alive. The finished mail card remains a later slice. See the evidence report
+for exactly what has been proven, and [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
 
 ### Known platform limitation: one widget instance only
 

@@ -27,6 +27,7 @@ public enum OperationalEventId
     RefreshCompleted,
     RefreshDiscardedStateChanged,
     RefreshDeadlineExceeded,
+    RefreshTimerCallbackFailed,
 
     // Token acquisition and Graph, recorded by category only
     SilentTokenAcquired,
