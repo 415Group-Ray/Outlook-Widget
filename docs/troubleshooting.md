@@ -241,7 +241,9 @@ Message details are suppressed by design in several situations. Check them in th
 For case 4 the companion exposes **Clear interrupted operations**. Recovery requires that explicit
 action on purpose: an
 automatic timeout would re-disclose the previous account's subjects at exactly the moment
-nobody was watching.
+nobody was watching. If the suppression directory cannot be inspected, recovery reports **Unknown**
+and claims no markers were cleared; the provider continues failing closed until the directory is readable
+and the action succeeds.
 
 ## Sign-out reported a failure
 

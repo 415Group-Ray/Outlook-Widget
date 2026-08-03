@@ -558,6 +558,10 @@ public sealed class DisclosureTombstoneTests
         // An absent directory is a first run, not an unreadable state. Treating it as
         // suppression would leave a fresh install permanently showing the signed-out card.
         Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+        Assert.Equal(0, fixture.Tombstones.CountSuppressionFiles());
+        Assert.Equal(
+            DisclosureRecoveryStatus.DirectoryAbsent,
+            fixture.Tombstones.ClearAllOrphansWithResult().Status);
     }
 
     [Fact]
@@ -571,6 +575,10 @@ public sealed class DisclosureTombstoneTests
             (_, _) => throw new UnauthorizedAccessException("Injected inaccessible directory."));
 
         Assert.Equal(DisclosureMode.SignedOut, inaccessible.GetEffectiveMode());
+        Assert.Equal(-1, inaccessible.CountSuppressionFiles());
+        Assert.Equal(
+            new DisclosureRecoveryResult(DisclosureRecoveryStatus.Unreadable, 0),
+            inaccessible.ClearAllOrphansWithResult());
         Assert.True(fixture.Logger.Saw(
             Diagnostics.OperationalEventId.DisclosureSuppressionEnumerationFailed,
             Diagnostics.OperationalOutcome.Failed));

@@ -256,6 +256,7 @@ public sealed class SelectedAccountStore
         try
         {
             File.Delete(_paths.SelectedAccountFilePath);
+            File.Delete(_paths.SelectedAccountTempFilePath);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -287,15 +288,51 @@ public sealed class SelectedAccountStore
                     ClientId = _options.ClientId,
                 });
 
-            File.WriteAllBytes(_paths.SelectedAccountFilePath, _protector.Protect(json, Entropy));
+            byte[] protectedRecord = _protector.Protect(json, Entropy);
+
+            // Never overwrite the selected identifier in place. A failed in-place write can
+            // truncate the only record that scopes a later logout retry, turning that retry into
+            // the remove-all fallback. Write beside it, then replace atomically so every reader
+            // sees either the complete prior selection or the complete new record.
+            File.WriteAllBytes(_paths.SelectedAccountTempFilePath, protectedRecord);
+
+            if (File.Exists(_paths.SelectedAccountFilePath))
+            {
+                File.Replace(
+                    _paths.SelectedAccountTempFilePath,
+                    _paths.SelectedAccountFilePath,
+                    destinationBackupFileName: null,
+                    ignoreMetadataErrors: true);
+            }
+            else
+            {
+                File.Move(
+                    _paths.SelectedAccountTempFilePath,
+                    _paths.SelectedAccountFilePath,
+                    overwrite: false);
+            }
+
             return true;
         }
         catch (Exception e) when (e is IOException
                                      or UnauthorizedAccessException
                                      or CryptographicException)
         {
+            TryDeleteTemporaryFile();
             _logger.Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Failed);
             return false;
+        }
+    }
+
+    private void TryDeleteTemporaryFile()
+    {
+        try
+        {
+            File.Delete(_paths.SelectedAccountTempFilePath);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // The package-local temp file is never read as state. A later write overwrites it.
         }
     }
 

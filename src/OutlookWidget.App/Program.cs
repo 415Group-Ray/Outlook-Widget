@@ -140,16 +140,24 @@ internal static class Program
         }
 
         var tombstones = new DisclosureTombstoneStore(state.Paths!);
-        int removed = tombstones.ClearAllOrphans();
+        DisclosureRecoveryResult recovery = tombstones.ClearAllOrphansWithResult();
+
+        if (recovery.Status == DisclosureRecoveryStatus.Unreadable)
+        {
+            return "Recovery result: Unknown\r\n\r\nThe suppression directory could not be read, "
+                   + "so no cleanup success is being claimed. Message details remain hidden; "
+                   + "close the Widgets Board and try again.";
+        }
+
         int remaining = tombstones.CountSuppressionFiles();
 
         return remaining switch
         {
-            0 => $"Recovery result: Cleared\r\n\r\nRemoved {removed} interrupted-operation "
+            0 => $"Recovery result: Cleared\r\n\r\nRemoved {recovery.RemovedCount} interrupted-operation "
                  + "marker(s). The provider was notified and will re-read committed state.",
             -1 => "Recovery result: Unknown\r\n\r\nThe suppression directory could not be read. "
                   + "Message details remain hidden; close the Widgets Board and try again.",
-            _ => $"Recovery result: Incomplete\r\n\r\nRemoved {removed} interrupted-operation "
+            _ => $"Recovery result: Incomplete\r\n\r\nRemoved {recovery.RemovedCount} interrupted-operation "
                  + $"marker(s); {remaining} active or unreadable marker(s) remain. Message details "
                  + "remain hidden.",
         };

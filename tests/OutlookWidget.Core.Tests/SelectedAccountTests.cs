@@ -237,6 +237,25 @@ public sealed class SelectedAccountTests : IDisposable
     }
 
     [Fact]
+    public void A_failed_atomic_replace_preserves_the_prior_selected_account()
+    {
+        var store = new SelectedAccountStore(Paths, Registration);
+        Assert.True(store.Write("original.tenant"));
+
+        using (var blocker = new FileStream(
+                   Paths.SelectedAccountFilePath,
+                   FileMode.Open,
+                   FileAccess.Read,
+                   FileShare.None))
+        {
+            Assert.False(store.Write("replacement.tenant"));
+        }
+
+        Assert.Equal(Recorded("original.tenant"), store.Read());
+        Assert.False(File.Exists(Paths.SelectedAccountTempFilePath));
+    }
+
+    [Fact]
     public void With_no_cached_account_and_no_selection_the_operating_system_account_is_the_fallback()
     {
         Assert.Same(

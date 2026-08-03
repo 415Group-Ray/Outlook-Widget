@@ -161,6 +161,10 @@ public sealed class CoordinationPaths
     public string SelectedAccountFilePath =>
         Path.Combine(RootDirectory, $"account-{_scope}.bin");
 
+    /// <summary>Temporary file used to replace the selected-account record atomically.</summary>
+    public string SelectedAccountTempFilePath =>
+        Path.Combine(RootDirectory, $"account-{_scope}.tmp");
+
     /// <summary>Guards synchronous local state commits. Bounded waits only.</summary>
     public string MutationMutexName => $"OutlookWidget-Mutation-{_scope}";
 

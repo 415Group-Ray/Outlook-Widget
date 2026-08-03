@@ -4,6 +4,19 @@ using OutlookWidget.Core.Diagnostics;
 
 namespace OutlookWidget.Core.Refresh;
 
+/// <summary>Whether explicit interrupted-operation recovery could inspect its directory.</summary>
+public enum DisclosureRecoveryStatus
+{
+    Completed,
+    DirectoryAbsent,
+    Unreadable,
+}
+
+/// <summary>The bounded result of one explicit orphan-recovery attempt.</summary>
+public readonly record struct DisclosureRecoveryResult(
+    DisclosureRecoveryStatus Status,
+    int RemovedCount);
+
 /// <summary>
 /// The fail-closed disclosure path: one suppression file per in-flight
 /// disclosure-reducing operation, written before that operation attempts its commit.
@@ -237,12 +250,17 @@ public sealed class DisclosureTombstoneStore
     {
         try
         {
-            return Directory.Exists(_paths.SuppressionDirectory)
-                ? Directory.GetFiles(_paths.SuppressionDirectory, "*" + FileExtension).Length
-                : 0;
+            return _enumerateFiles(_paths.SuppressionDirectory, "*" + FileExtension).Length;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return 0;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
+            _logger.Record(
+                OperationalEventId.DisclosureSuppressionEnumerationFailed,
+                OperationalOutcome.Failed);
             return -1;
         }
     }
@@ -258,74 +276,90 @@ public sealed class DisclosureTombstoneStore
     /// automatic timeout — an automatic clear would re-disclose the previous account's
     /// subjects at exactly the moment nobody was watching.
     /// </remarks>
-    public int ClearAllOrphans() => ClearAllOrphans(beforeEnumeration: null);
+    public int ClearAllOrphans() => ClearAllOrphansWithResult().RemovedCount;
 
-    internal int ClearAllOrphans(Action? beforeEnumeration)
+    /// <summary>
+    /// Removes orphaned markers and reports whether the suppression directory was actually readable.
+    /// </summary>
+    public DisclosureRecoveryResult ClearAllOrphansWithResult() =>
+        ClearAllOrphansDetailed(beforeEnumeration: null);
+
+    internal int ClearAllOrphans(Action? beforeEnumeration) =>
+        ClearAllOrphansDetailed(beforeEnumeration).RemovedCount;
+
+    private DisclosureRecoveryResult ClearAllOrphansDetailed(Action? beforeEnumeration)
     {
         int removed = 0;
+        string[] files;
 
         try
         {
-            if (!Directory.Exists(_paths.SuppressionDirectory))
-            {
-                return 0;
-            }
-
             beforeEnumeration?.Invoke();
-
-            foreach (string file in Directory.GetFiles(_paths.SuppressionDirectory, "*" + FileExtension))
-            {
-                if (IsOwnerProcessAlive(file))
-                {
-                    // Written by a process that still exists. It is not an orphan, and the user
-                    // asked to clear interrupted operations rather than live ones.
-                    _logger.Record(
-                        OperationalEventId.DisclosureSuppressionActive,
-                        OperationalOutcome.Skipped);
-                    continue;
-                }
-
-                bool deleted;
-
-                if (TryGetOperationId(file) is Guid operationId)
-                {
-                    // Recheck under the same gate Suppress holds while registering and publishing.
-                    // A one-time snapshot is stale as soon as the gate is released: a new marker can
-                    // become visible before enumeration and be absent from that snapshot. Keeping
-                    // this check and deletion together makes "active or deleted" atomic with
-                    // respect to every in-process disclosure operation.
-                    lock (_activeRegistry.Gate)
-                    {
-                        if (_activeRegistry.Operations.Contains(operationId))
-                        {
-                            _logger.Record(
-                                OperationalEventId.DisclosureSuppressionActive,
-                                OperationalOutcome.Skipped);
-                            continue;
-                        }
-
-                        deleted = TryDeleteFile(file);
-                    }
-                }
-                else
-                {
-                    // A registered operation always has a GUID filename, so an unparseable name
-                    // cannot race the active registry. It still follows the fail-closed owner
-                    // liveness check above before explicit recovery may remove it.
-                    deleted = TryDeleteFile(file);
-                }
-
-                if (deleted)
-                {
-                    removed++;
-                }
-            }
+            files = _enumerateFiles(_paths.SuppressionDirectory, "*" + FileExtension);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            _logger.Record(
+                OperationalEventId.DisclosureSuppressionCleared,
+                OperationalOutcome.Success,
+                recordCount: 0);
+            SignalSuppressEvent();
+            return new DisclosureRecoveryResult(DisclosureRecoveryStatus.DirectoryAbsent, 0);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             _logger.Record(
                 OperationalEventId.DisclosureSuppressionEnumerationFailed,
                 OperationalOutcome.Failed);
+            return new DisclosureRecoveryResult(DisclosureRecoveryStatus.Unreadable, 0);
+        }
+
+        foreach (string file in files)
+        {
+            if (IsOwnerProcessAlive(file))
+            {
+                // Written by a process that still exists. It is not an orphan, and the user
+                // asked to clear interrupted operations rather than live ones.
+                _logger.Record(
+                    OperationalEventId.DisclosureSuppressionActive,
+                    OperationalOutcome.Skipped);
+                continue;
+            }
+
+            bool deleted;
+
+            if (TryGetOperationId(file) is Guid operationId)
+            {
+                // Recheck under the same gate Suppress holds while registering and publishing.
+                // A one-time snapshot is stale as soon as the gate is released: a new marker can
+                // become visible before enumeration and be absent from that snapshot. Keeping
+                // this check and deletion together makes "active or deleted" atomic with
+                // respect to every in-process disclosure operation.
+                lock (_activeRegistry.Gate)
+                {
+                    if (_activeRegistry.Operations.Contains(operationId))
+                    {
+                        _logger.Record(
+                            OperationalEventId.DisclosureSuppressionActive,
+                            OperationalOutcome.Skipped);
+                        continue;
+                    }
+
+                    deleted = TryDeleteFile(file);
+                }
+            }
+            else
+            {
+                // A registered operation always has a GUID filename, so an unparseable name
+                // cannot race the active registry. It still follows the fail-closed owner
+                // liveness check above before explicit recovery may remove it.
+                deleted = TryDeleteFile(file);
+            }
+
+            if (deleted)
+            {
+                removed++;
+            }
         }
 
         _logger.Record(
@@ -334,7 +368,7 @@ public sealed class DisclosureTombstoneStore
             recordCount: removed);
 
         SignalSuppressEvent();
-        return removed;
+        return new DisclosureRecoveryResult(DisclosureRecoveryStatus.Completed, removed);
     }
 
     /// <summary>
