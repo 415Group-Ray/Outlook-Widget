@@ -266,8 +266,18 @@ What is true in that state:
   failed, do that before retrying sign-out; retrying creates a separate marker and cannot safely
   claim ownership of the original one.
 
-After clearing the completed marker, retrying usually succeeds. Closing the Widgets Board releases
-the provider process if mutex contention persists.
+After clearing the completed marker, retrying usually succeeds. Closing the Widgets Board only
+deactivates the pinned widget; it does **not** release the provider or its mutex. If contention
+persists, recycle the provider without unpinning from a non-elevated PowerShell session running as
+the signed-in user:
+
+```powershell
+Stop-Process -Name OutlookWidget.Provider -Force -ErrorAction SilentlyContinue
+```
+
+Then open the Widgets Board. The host should restart the provider for the existing pin. This exact
+recycle preserved the pin and restored its instance on the reference machine; it is a measured
+recovery result rather than a general Windows guarantee. Do not unpin the widget.
 
 ## The widget shows stale content while "Refresh already in progress" persists
 

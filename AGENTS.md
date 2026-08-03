@@ -72,7 +72,10 @@ The current companion is a packaging and authentication probe with a minimal Win
 Sign out, and Clear interrupted operations controls, not the finished WinUI experience. Every failed
 sign-out path after suppression is published, whether it returns or throws, must complete its in-process
 suppression handle without deleting the marker, so the explicit recovery control can remove that orphan
-without touching a disclosure operation still in flight.
+without touching a disclosure operation still in flight. This includes failure inside `Suppress` after
+the marker move but before its handle is returned. Named state-change and suppress-details events are
+best-effort accelerants over authoritative disk state; missing, inaccessible, or otherwise unopenable
+events must report non-delivery rather than fail a completed mutation or published marker.
 
 Two authentication invariants that are easy to break and were each already broken once:
 

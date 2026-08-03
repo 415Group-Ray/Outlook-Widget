@@ -68,6 +68,7 @@ public sealed class DisclosureTombstoneStore
     private readonly IOperationalLogger _logger;
     private readonly ISystemClock _clock;
     private readonly Func<string, string, string[]> _enumerateFiles;
+    private readonly Func<bool> _signalSuppressEvent;
 
     /// <summary>
     /// Operations this process has suppressed and not yet cleared, shared by every store for
@@ -88,7 +89,8 @@ public sealed class DisclosureTombstoneStore
         CoordinationPaths paths,
         IOperationalLogger? logger,
         ISystemClock? clock,
-        Func<string, string, string[]> enumerateFiles)
+        Func<string, string, string[]> enumerateFiles,
+        Func<bool>? signalSuppressEvent = null)
     {
         ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(enumerateFiles);
@@ -97,6 +99,8 @@ public sealed class DisclosureTombstoneStore
         _logger = logger ?? NullOperationalLogger.Instance;
         _clock = clock ?? SystemClock.Instance;
         _enumerateFiles = enumerateFiles;
+        _signalSuppressEvent = signalSuppressEvent
+            ?? (() => NamedEventSignal.TryRaise(paths.SuppressDetailsEventName));
         _activeRegistry = GetActiveRegistry(paths.SuppressionDirectory);
     }
 
@@ -146,10 +150,10 @@ public sealed class DisclosureTombstoneStore
         // the failure path.
         string tempPath = path + ".writing";
 
-        // Registration and publication are one in-process transaction with respect to orphan
-        // recovery. Register first, then expose the marker while holding the same gate that
-        // ClearAllOrphans uses to snapshot active operations. If publication fails, roll the
-        // registration back before recovery can observe it.
+        // Registration, publication, notification, and handle creation are one in-process
+        // transaction with respect to orphan recovery. Once the marker is visible, Suppress must
+        // either return its owning handle or remove the active registration while leaving the
+        // fail-closed marker on disk. That includes logger and signal failures after the move.
         lock (_activeRegistry.Gate)
         {
             _activeRegistry.Operations.Add(operationId);
@@ -159,6 +163,14 @@ public sealed class DisclosureTombstoneStore
                 File.WriteAllText(tempPath, content);
                 File.Move(tempPath, path, overwrite: true);
                 afterMarkerPublished?.Invoke();
+
+                _logger.Record(
+                    OperationalEventId.DisclosureSuppressionWritten,
+                    OperationalOutcome.Success);
+
+                SignalSuppressEvent();
+
+                return new DisclosureSuppression(this, operationId, mode);
             }
             catch
             {
@@ -167,12 +179,6 @@ public sealed class DisclosureTombstoneStore
                 throw;
             }
         }
-
-        _logger.Record(OperationalEventId.DisclosureSuppressionWritten, OperationalOutcome.Success);
-
-        SignalSuppressEvent();
-
-        return new DisclosureSuppression(this, operationId, mode);
     }
 
     /// <summary>
@@ -564,20 +570,9 @@ public sealed class DisclosureTombstoneStore
 
     private void SignalSuppressEvent()
     {
-        try
-        {
-            // An auto-reset event would be delivered to at most one waiter, so a
-            // manual-reset pulse is used: every listener re-reads state for itself and
-            // the signal carries no payload.
-            using var suppressEvent = EventWaitHandle.OpenExisting(_paths.SuppressDetailsEventName);
-            suppressEvent.Set();
-        }
-        catch (WaitHandleCannotBeOpenedException)
-        {
-            // No listener is running. The provider re-enumerates on construction and on
-            // Activate, so a missed signal costs nothing: state on disk is authoritative
-            // and the event is only an accelerant.
-        }
+        // An auto-reset event would be delivered to at most one waiter, so a manual-reset pulse is
+        // used. Every listener re-reads disk, and failure to signal cannot invalidate disk state.
+        _ = _signalSuppressEvent();
     }
 }
 

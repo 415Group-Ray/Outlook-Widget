@@ -103,8 +103,9 @@ internal static class Program
                 SignOutOutcome.SignedOut =>
                     "Sign-out result: SignedOut\r\n\r\n"
                     + "The account was removed from this app's MSAL cache, cached mailbox data and "
-                    + "the selected identifier were cleared, and the provider was notified. This "
-                    + "does not remove the Windows account or an identity-provider browser session.",
+                    + "the selected identifier were cleared. A running provider was signalled "
+                    + "best-effort and every provider re-reads durable state on activation. This does "
+                    + "not remove the Windows account or an identity-provider browser session.",
 
                 SignOutOutcome.StateCommitFailed =>
                     "Could not complete sign-out. Message details remain hidden by an interrupted-"
@@ -146,7 +147,8 @@ internal static class Program
         {
             return "Recovery result: Unknown\r\n\r\nThe suppression directory could not be read, "
                    + "so no cleanup success is being claimed. Message details remain hidden; "
-                   + "close the Widgets Board and try again.";
+                   + "retry once. If this persists, use the provider-recycle steps in "
+                   + "troubleshooting; do not unpin the widget.";
         }
 
         int remaining = tombstones.CountSuppressionFiles();
@@ -154,9 +156,11 @@ internal static class Program
         return remaining switch
         {
             0 => $"Recovery result: Cleared\r\n\r\nRemoved {recovery.RemovedCount} interrupted-operation "
-                 + "marker(s). The provider was notified and will re-read committed state.",
+                 + "marker(s). A running provider was signalled best-effort; every provider re-reads "
+                 + "durable state on activation.",
             -1 => "Recovery result: Unknown\r\n\r\nThe suppression directory could not be read. "
-                  + "Message details remain hidden; close the Widgets Board and try again.",
+                   + "Message details remain hidden; retry once. If this persists, use the "
+                   + "provider-recycle steps in troubleshooting; do not unpin the widget.",
             _ => $"Recovery result: Incomplete\r\n\r\nRemoved {recovery.RemovedCount} interrupted-operation "
                  + $"marker(s); {remaining} active or unreadable marker(s) remain. Message details "
                  + "remain hidden.",

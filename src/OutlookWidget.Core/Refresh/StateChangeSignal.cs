@@ -7,10 +7,9 @@ namespace OutlookWidget.Core.Refresh;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Extracted so there is one implementation of "open by name and tolerate no listener".</b>
-/// <c>StateCommitCoordinator</c> had this inline, and a second copy was needed the moment something
-/// other than a commit had news for the provider. Two copies of a swallow-this-exact-exception
-/// pattern is how one of them quietly stops swallowing.
+/// <b>Uses the shared named-event helper.</b> State changes and disclosure suppression use separate
+/// events, but both are accelerants over authoritative state on disk. Their operational failure
+/// policy must remain identical instead of drifting between two exception filters.
 /// </para>
 /// <para>
 /// <b>Signalling without a commit is legitimate, and narrowly so.</b> The coordinator's own rule is
@@ -40,19 +39,6 @@ public static class StateChangeSignal
     {
         ArgumentNullException.ThrowIfNull(paths);
 
-        try
-        {
-            using EventWaitHandle stateChanged =
-                EventWaitHandle.OpenExisting(paths.StateChangedEventName);
-            stateChanged.Set();
-            return true;
-        }
-        catch (WaitHandleCannotBeOpenedException)
-        {
-            // No peer is listening: the provider is not running, which is the common case when the
-            // companion is opened from Start rather than from the widget. The provider re-probes on
-            // its own start, so there is nothing to recover.
-            return false;
-        }
+        return NamedEventSignal.TryRaise(paths.StateChangedEventName);
     }
 }

@@ -324,6 +324,29 @@ public sealed class DisclosureTombstoneTests
     }
 
     [Fact]
+    public void A_post_publication_failure_unregisters_without_deleting_the_marker()
+    {
+        using var fixture = new CoordinationFixture();
+        var failingSignalStore = new DisclosureTombstoneStore(
+            fixture.Paths,
+            fixture.Logger,
+            fixture.Clock,
+            Directory.GetFiles,
+            signalSuppressEvent: () =>
+                throw new UnauthorizedAccessException("Injected inaccessible named event."));
+
+        Assert.Throws<UnauthorizedAccessException>(
+            () => failingSignalStore.Suppress(DisclosureMode.SignedOut));
+
+        // Publication succeeded before signalling failed, so privacy remains fail-closed. The
+        // method returned no handle, however, so its catch must unregister the operation and make
+        // the same-process explicit recovery action eligible to remove the marker immediately.
+        Assert.Equal(DisclosureMode.SignedOut, failingSignalStore.GetEffectiveMode());
+        Assert.Equal(1, fixture.Tombstones.ClearAllOrphans());
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+    }
+
+    [Fact]
     public void Recovery_does_not_delete_a_marker_whose_owner_process_is_still_running()
     {
         using var fixture = new CoordinationFixture();
