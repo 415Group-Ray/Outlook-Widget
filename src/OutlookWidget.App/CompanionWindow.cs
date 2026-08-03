@@ -45,18 +45,32 @@ internal static partial class CompanionWindow
     /// <summary>The sign-in button's control identifier.</summary>
     private const int SignInButtonId = 1;
 
+    /// <summary>The sign-out button's control identifier.</summary>
+    private const int SignOutButtonId = 2;
+
+    /// <summary>The interrupted-operation recovery button's control identifier.</summary>
+    private const int ClearInterruptedButtonId = 3;
+
     /// <summary>
     /// Posted to the window when the sign-in task completes. <c>WM_APP</c> is the range Windows
     /// reserves for an application's own messages, so it cannot collide with a control notification.
     /// </summary>
-    private const uint WmSignInFinished = WM_APP + 1;
+    private const uint WmOperationFinished = WM_APP + 1;
 
     private static IntPtr _window;
     private static IntPtr _report;
-    private static IntPtr _button;
+    private static IntPtr _signInButton;
+    private static IntPtr _signOutButton;
+    private static IntPtr _clearInterruptedButton;
 
     /// <summary>The sign-in operation, supplied by the composition root.</summary>
     private static Func<Task<string>>? _signIn;
+
+    /// <summary>The sign-out operation, supplied by the composition root.</summary>
+    private static Func<Task<string>>? _signOut;
+
+    /// <summary>The explicit orphaned-suppression recovery action.</summary>
+    private static Func<Task<string>>? _clearInterruptedOperations;
 
     /// <summary>
     /// The completed sign-in report, handed from the worker to the message loop.
@@ -69,7 +83,7 @@ internal static partial class CompanionWindow
     private static string? _finishedReport;
 
     /// <summary>Guards against a second sign-in starting while one is in flight.</summary>
-    private static int _signInRunning;
+    private static int _operationRunning;
 
     /// <summary>
     /// The window handle, for MSAL's parent-window delegate.
@@ -90,12 +104,20 @@ internal static partial class CompanionWindow
     /// never on the message loop.
     /// </param>
     /// <returns>The process exit code.</returns>
-    public static unsafe int Run(string report, Func<Task<string>> signIn)
+    public static unsafe int Run(
+        string report,
+        Func<Task<string>> signIn,
+        Func<Task<string>> signOut,
+        Func<Task<string>> clearInterruptedOperations)
     {
         ArgumentNullException.ThrowIfNull(report);
         ArgumentNullException.ThrowIfNull(signIn);
+        ArgumentNullException.ThrowIfNull(signOut);
+        ArgumentNullException.ThrowIfNull(clearInterruptedOperations);
 
         _signIn = signIn;
+        _signOut = signOut;
+        _clearInterruptedOperations = clearInterruptedOperations;
 
         IntPtr instance = GetModuleHandleW(null);
 
@@ -163,6 +185,7 @@ internal static partial class CompanionWindow
     private const int WindowHeight = 560;
     private const int Margin = 12;
     private const int ButtonWidth = 150;
+    private const int RecoveryButtonWidth = 220;
     private const int ButtonHeight = 34;
 
     /// <summary>
@@ -210,7 +233,7 @@ internal static partial class CompanionWindow
         fixed (char* buttonClass = "BUTTON")
         fixed (char* caption = "Sign in")
         {
-            _button = CreateWindowExW(
+            _signInButton = CreateWindowExW(
                 0,
                 (IntPtr)buttonClass,
                 (IntPtr)caption,
@@ -225,11 +248,49 @@ internal static partial class CompanionWindow
                 IntPtr.Zero);
         }
 
+        fixed (char* buttonClass = "BUTTON")
+        fixed (char* caption = "Sign out")
+        {
+            _signOutButton = CreateWindowExW(
+                0,
+                (IntPtr)buttonClass,
+                (IntPtr)caption,
+                WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+                Margin + ButtonWidth + Margin,
+                height - ButtonHeight - Margin,
+                ButtonWidth,
+                ButtonHeight,
+                _window,
+                (IntPtr)SignOutButtonId,
+                instance,
+                IntPtr.Zero);
+        }
+
+        fixed (char* buttonClass = "BUTTON")
+        fixed (char* caption = "Clear interrupted operations")
+        {
+            _clearInterruptedButton = CreateWindowExW(
+                0,
+                (IntPtr)buttonClass,
+                (IntPtr)caption,
+                WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+                Margin + (ButtonWidth * 2) + (Margin * 2),
+                height - ButtonHeight - Margin,
+                RecoveryButtonWidth,
+                ButtonHeight,
+                _window,
+                (IntPtr)ClearInterruptedButtonId,
+                instance,
+                IntPtr.Zero);
+        }
+
         // Without this the controls render in the 1980s bitmap system font. The stock GUI font is not
         // the modern UI font either, but it is legible, and this window is replaced in Phase 2.
         IntPtr font = GetStockObject(DEFAULT_GUI_FONT);
         SendMessageW(_report, WM_SETFONT, font, 1);
-        SendMessageW(_button, WM_SETFONT, font, 1);
+        SendMessageW(_signInButton, WM_SETFONT, font, 1);
+        SendMessageW(_signOutButton, WM_SETFONT, font, 1);
+        SendMessageW(_clearInterruptedButton, WM_SETFONT, font, 1);
     }
 
     [UnmanagedCallersOnly]
@@ -238,11 +299,23 @@ internal static partial class CompanionWindow
         switch (message)
         {
             case WM_COMMAND when (wParam.ToInt64() & 0xFFFF) == SignInButtonId:
-                BeginSignIn();
+                BeginOperation(_signIn!, _signInButton, "Signing in…", "Sign-in");
                 return IntPtr.Zero;
 
-            case WmSignInFinished:
-                CompleteSignIn();
+            case WM_COMMAND when (wParam.ToInt64() & 0xFFFF) == SignOutButtonId:
+                BeginOperation(_signOut!, _signOutButton, "Signing out…", "Sign-out");
+                return IntPtr.Zero;
+
+            case WM_COMMAND when (wParam.ToInt64() & 0xFFFF) == ClearInterruptedButtonId:
+                BeginOperation(
+                    _clearInterruptedOperations!,
+                    _clearInterruptedButton,
+                    "Clearing…",
+                    "Recovery");
+                return IntPtr.Zero;
+
+            case WmOperationFinished:
+                CompleteOperation();
                 return IntPtr.Zero;
 
             case WM_DESTROY:
@@ -257,16 +330,18 @@ internal static partial class CompanionWindow
     /// <summary>
     /// Starts sign-in on a thread-pool thread, at most one at a time.
     /// </summary>
-    private static void BeginSignIn()
+    private static void BeginOperation(
+        Func<Task<string>> operation,
+        IntPtr button,
+        string progressCaption,
+        string failurePrefix)
     {
-        if (Interlocked.Exchange(ref _signInRunning, 1) == 1)
+        if (Interlocked.Exchange(ref _operationRunning, 1) == 1)
         {
             return;
         }
 
-        SetButtonText("Signing in…");
-
-        Func<Task<string>> signIn = _signIn!;
+        SetButtonText(button, progressCaption);
 
         // Fire and forget on purpose: the result comes back through the posted message, not through
         // this task. The continuation catches everything, because an unobserved exception here would
@@ -277,21 +352,21 @@ internal static partial class CompanionWindow
 
             try
             {
-                report = await signIn().ConfigureAwait(false);
+                report = await operation().ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 // The type name only. An exception message from an authentication stack routinely
                 // carries an account or a raw server response, and section 6 forbids surfacing it.
-                report = "Sign-in failed unexpectedly: " + e.GetType().Name;
+                report = failurePrefix + " failed unexpectedly: " + e.GetType().Name;
             }
 
             _finishedReport = report;
-            PostMessageW(_window, WmSignInFinished, IntPtr.Zero, IntPtr.Zero);
+            PostMessageW(_window, WmOperationFinished, IntPtr.Zero, IntPtr.Zero);
         });
     }
 
-    private static unsafe void CompleteSignIn()
+    private static unsafe void CompleteOperation()
     {
         string report = _finishedReport ?? "Sign-in produced no report.";
 
@@ -300,15 +375,17 @@ internal static partial class CompanionWindow
             SetWindowTextW(_report, (IntPtr)text);
         }
 
-        SetButtonText("Sign in again");
-        Volatile.Write(ref _signInRunning, 0);
+        SetButtonText(_signInButton, "Sign in");
+        SetButtonText(_signOutButton, "Sign out");
+        SetButtonText(_clearInterruptedButton, "Clear interrupted operations");
+        Volatile.Write(ref _operationRunning, 0);
     }
 
-    private static unsafe void SetButtonText(string caption)
+    private static unsafe void SetButtonText(IntPtr button, string caption)
     {
         fixed (char* text = caption)
         {
-            SetWindowTextW(_button, (IntPtr)text);
+            SetWindowTextW(button, (IntPtr)text);
         }
     }
 

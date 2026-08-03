@@ -55,6 +55,36 @@ public sealed class CoordinationStaticAnalysisTests
     }
 
     [Fact]
+    public void Named_event_signallers_share_one_operational_failure_policy()
+    {
+        var offenders = new List<string>();
+
+        foreach (string file in CoreSourceFiles())
+        {
+            if (string.Equals(
+                    Path.GetFileName(file),
+                    "NamedEventSignal.cs",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string code = StripCommentsAndStrings(File.ReadAllText(file));
+
+            if (code.Contains("EventWaitHandle.OpenExisting", StringComparison.Ordinal))
+            {
+                offenders.Add(Path.GetFileName(file));
+            }
+        }
+
+        Assert.True(
+            offenders.Count == 0,
+            "Named event signalling must use NamedEventSignal so missing, inaccessible, and I/O "
+                + "failure handling cannot drift. Direct OpenExisting calls found in: "
+                + string.Join(", ", offenders));
+    }
+
+    [Fact]
     public void No_await_appears_inside_a_mutation_mutex_critical_section()
     {
         // Mutex is thread-affine: an await continuation may resume on another thread, so

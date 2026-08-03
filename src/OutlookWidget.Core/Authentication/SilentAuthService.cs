@@ -205,9 +205,9 @@ public sealed class SilentAuthService
     {
         ArgumentNullException.ThrowIfNull(accounts);
 
-        // Fails closed. The record exists and cannot be trusted, so there is no account this may
-        // safely ask for; null becomes interaction-required in AcquireAsync.
-        if (selection.Status == SelectedAccountStatus.Unreadable)
+        // Fails closed. An unreadable record cannot be trusted, and an explicit signed-out marker
+        // must not fall back to the operating-system account the user just signed out from.
+        if (selection.Status is SelectedAccountStatus.Unreadable or SelectedAccountStatus.SignedOut)
         {
             return null;
         }

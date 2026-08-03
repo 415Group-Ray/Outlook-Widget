@@ -1286,6 +1286,24 @@ taking it would have left the two executables answering the same question by two
 
 The plan's section 12 has been updated to list it.
 
+## Measured: installed logout clears state and blocks operating-system-account fallback
+
+Verified 2026-08-03 on the reference machine with installed package `0.4.19.0`, upgraded in place
+from `0.4.18.0` using `Add-AppxPackage -ForceApplicationShutdown` while preserving the existing pin.
+
+The installed companion's real **Sign out** button completed successfully. The resulting protected
+state read as `Cleared` at generation 20 with no mailbox payload. The selected-account store read as
+`SignedOut` with no retained home-account identifier; the authorization record was absent; and the
+operation's suppression directory contained no remaining tombstone. The app-local MSAL cache shrank
+from 3,510 bytes to 454 bytes as the selected account was removed.
+
+The installed provider was then cold-activated through its registered COM class. It remained running,
+and after a 20-second convergence window the protected cache was still `Cleared` at generation 20, the
+selected-account marker was still `SignedOut`, and the MSAL cache remained 454 bytes with the same
+last-write timestamp. This is local evidence that the durable marker blocked the provider's
+operating-system-account fallback after explicit logout; it is not a claim that the Windows account or
+an identity-provider browser session was removed. The widget app was deliberately left signed out.
+
 ## Reproducing the provider evidence
 
 ```powershell

@@ -109,6 +109,63 @@ public sealed class ClearStateAction(ProtectedCache cache) : IStateCommitAction
     }
 }
 
+/// <summary>
+/// Commits the durable local signed-out state: no selected identifier, no stale authorization
+/// outcome, and no mailbox snapshot. The selected identifier is replaced last: if authorization or
+/// cache mutation fails, a retry can still target only the account the user chose instead of falling
+/// back to removing every account in this application's MSAL cache. The coordinator publishes the
+/// state-changed signal only after this whole action succeeds.
+/// </summary>
+public sealed class CommitSignedOutStateAction : IStateCommitAction
+{
+    private readonly CoordinationPaths _paths;
+    private readonly ProtectedCache _cache;
+    private readonly SelectedAccountStore _selectedAccounts;
+    private readonly IOperationalLogger _logger;
+
+    public CommitSignedOutStateAction(
+        CoordinationPaths paths,
+        ProtectedCache cache,
+        SelectedAccountStore selectedAccounts,
+        IOperationalLogger? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(selectedAccounts);
+
+        _paths = paths;
+        _cache = cache;
+        _selectedAccounts = selectedAccounts;
+        _logger = logger ?? NullOperationalLogger.Instance;
+    }
+
+    public CacheCommitResult Execute(in MutationLock heldLock)
+    {
+        heldLock.ThrowIfNotHeld();
+
+        if (heldLock.StateIsSuspect)
+        {
+            _cache.RemoveOrphanedTemporaryFiles(heldLock);
+        }
+
+        if (!AuthorizationStateStore.TryClear(_paths, _logger))
+        {
+            return new CacheCommitResult(CacheCommitStatus.Failed, _cache.ReadGeneration());
+        }
+
+        CacheCommitResult cleared = _cache.Clear(heldLock);
+
+        if (!cleared.IsSuccess)
+        {
+            return cleared;
+        }
+
+        return _selectedAccounts.MarkSignedOut(heldLock)
+            ? cleared
+            : new CacheCommitResult(CacheCommitStatus.Failed, cleared.Generation);
+    }
+}
+
 /// <summary>How a bounded commit attempt ended.</summary>
 public enum StateCommitOutcome
 {
@@ -127,7 +184,11 @@ public enum StateCommitOutcome
     /// </summary>
     ContentionTimeout,
 
-    /// <summary>The mutex was acquired but the commit itself failed. Prior state is intact.</summary>
+    /// <summary>
+    /// The mutex was acquired but the commit action did not finish. Its own ordering must preserve
+    /// enough identity for a safe retry; independently persisted components may already reflect the
+    /// requested change, while the disclosure tombstone remains authoritative until recovery.
+    /// </summary>
     CommitFailed,
 
     /// <summary>The deadline expired before the mutex was acquired. Nothing was owned.</summary>

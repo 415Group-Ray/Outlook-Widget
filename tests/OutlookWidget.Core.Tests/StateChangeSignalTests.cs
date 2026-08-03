@@ -46,6 +46,25 @@ public sealed class StateChangeSignalTests
         Assert.False(StateChangeSignal.Raise(fixture.Paths));
     }
 
+    [Theory]
+    [MemberData(nameof(OperationalOpenFailures))]
+    public void Operational_named_event_failures_are_undelivered_accelerants(Exception failure)
+    {
+        bool delivered = NamedEventSignal.TryRaise(
+            "OutlookWidget-Test-Signal",
+            _ => throw failure);
+
+        Assert.False(delivered);
+    }
+
+    public static TheoryData<Exception> OperationalOpenFailures =>
+        new()
+        {
+            new WaitHandleCannotBeOpenedException("simulated"),
+            new IOException("simulated"),
+            new UnauthorizedAccessException("simulated"),
+        };
+
     [Fact]
     public void Repeated_signals_each_produce_a_notification()
     {

@@ -1,6 +1,7 @@
 using Microsoft.Identity.Client;
 using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
+using OutlookWidget.Core.Diagnostics;
 using OutlookWidget.Core.Refresh;
 using OutlookWidget.Packaging;
 
@@ -50,7 +51,153 @@ internal static class Program
 
         string report = BuildIdentityReport(args, state, configuration);
 
-        return CompanionWindow.Run(report, () => SignInAsync(state, configuration));
+        return CompanionWindow.Run(
+            report,
+            () => SignInAsync(state, configuration),
+            () => SignOutAsync(state, configuration),
+            () => Task.FromResult(ClearInterruptedOperations(state)));
+    }
+
+    private static async Task<string> SignOutAsync(
+        PackagedStateResult state,
+        AuthenticationConfigurationResult configuration)
+    {
+        if (!state.IsResolved)
+        {
+            return "Cannot sign out safely: this process has no package identity. Launch the "
+                   + "installed package rather than the build output.";
+        }
+
+        if (!configuration.IsLoaded)
+        {
+            return $"Cannot sign out: the Entra registration configuration is {configuration.Status}. "
+                   + $"The package must ship a valid {AuthenticationConfiguration.FileName}.";
+        }
+
+        CoordinationPaths paths = state.Paths!;
+        AuthenticationOptions options = configuration.Options!;
+        paths.EnsureCreated();
+
+        try
+        {
+            IOperationalLogger logger = NullOperationalLogger.Instance;
+
+            _client ??= await BrokerClient
+                .CreateAsync(options, paths, () => CompanionWindow.Handle)
+                .ConfigureAwait(false);
+
+            var selectedAccounts = new SelectedAccountStore(paths, options, logger);
+            var cache = new ProtectedCache(paths, logger);
+            var tombstones = new DisclosureTombstoneStore(paths, logger);
+            using var mutation = new MutationMutex(paths.MutationMutexName, logger);
+            var commits = new StateCommitCoordinator(paths, mutation, logger);
+            var action = new CommitSignedOutStateAction(paths, cache, selectedAccounts, logger);
+            var signOut = new SignOutCoordinator(tombstones, commits, action, logger);
+
+            SignOutResult result = await signOut
+                .SignOutAsync(() => RemoveSelectedAccountAsync(_client, selectedAccounts))
+                .ConfigureAwait(false);
+
+            return result.Outcome switch
+            {
+                SignOutOutcome.SignedOut =>
+                    "Sign-out result: SignedOut\r\n\r\n"
+                    + "The account was removed from this app's MSAL cache, cached mailbox data and "
+                    + "the selected identifier were cleared. A running provider was signalled "
+                    + "best-effort and every provider re-reads durable state on activation. This does "
+                    + "not remove the Windows account or an identity-provider browser session.",
+
+                SignOutOutcome.StateCommitFailed =>
+                    "Could not complete sign-out. Message details remain hidden by an interrupted-"
+                    + "operation marker. Use Clear interrupted operations to restore the prior "
+                    + "display, then try sign-out again. "
+                    + $"Commit outcome: {result.CommitOutcome}.",
+
+                SignOutOutcome.SuppressionClearFailed =>
+                    "Sign-out committed, but its interrupted-operation marker could not be removed. "
+                    + "The account and cached mailbox state are cleared; use Clear interrupted "
+                    + "operations to finish the local cleanup.",
+
+                _ =>
+                    "Could not remove the account from this app's MSAL cache. Message details remain "
+                    + "hidden by an interrupted-operation marker. Use Clear interrupted operations "
+                    + "to restore the prior display, then try sign-out again.",
+            };
+        }
+        catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
+        {
+            return "Sign-out failed before local state could be committed. Message details remain "
+                   + "hidden if suppression had already begun. Signals: "
+                   + AuthenticationFailures.Describe(e);
+        }
+    }
+
+    private static string ClearInterruptedOperations(PackagedStateResult state)
+    {
+        if (!state.IsResolved)
+        {
+            return "Cannot clear interrupted operations safely: this process has no package identity. "
+                   + "Launch the installed package rather than the build output.";
+        }
+
+        var tombstones = new DisclosureTombstoneStore(state.Paths!);
+        DisclosureRecoveryResult recovery = tombstones.ClearAllOrphansWithResult();
+
+        if (recovery.Status == DisclosureRecoveryStatus.Unreadable)
+        {
+            return "Recovery result: Unknown\r\n\r\nThe suppression directory could not be read, "
+                   + "so no cleanup success is being claimed. Message details remain hidden; "
+                   + "retry once. If this persists, use the provider-recycle steps in "
+                   + "troubleshooting; do not unpin the widget.";
+        }
+
+        int remaining = tombstones.CountSuppressionFiles();
+
+        return remaining switch
+        {
+            0 => $"Recovery result: Cleared\r\n\r\nRemoved {recovery.RemovedCount} interrupted-operation "
+                 + "marker(s). A running provider was signalled best-effort; every provider re-reads "
+                 + "durable state on activation.",
+            -1 => "Recovery result: Unknown\r\n\r\nThe suppression directory could not be read. "
+                   + "Message details remain hidden; retry once. If this persists, use the "
+                   + "provider-recycle steps in troubleshooting; do not unpin the widget.",
+            _ => $"Recovery result: Incomplete\r\n\r\nRemoved {recovery.RemovedCount} interrupted-operation "
+                 + $"marker(s); {remaining} active or unreadable marker(s) remain. Message details "
+                 + "remain hidden.",
+        };
+    }
+
+    private static async Task RemoveSelectedAccountAsync(
+        IPublicClientApplication client,
+        SelectedAccountStore selectedAccounts)
+    {
+        SelectedAccountResult selected = selectedAccounts.Read();
+        List<IAccount> cached = (await client.GetAccountsAsync().ConfigureAwait(false)).ToList();
+
+        if (selected is
+            { Status: SelectedAccountStatus.Recorded, HomeAccountId: { Length: > 0 } homeAccountId })
+        {
+            IAccount? account = cached.FirstOrDefault(
+                candidate => string.Equals(
+                    candidate.HomeAccountId?.Identifier,
+                    homeAccountId,
+                    StringComparison.Ordinal));
+
+            if (account is not null)
+            {
+                await client.RemoveAsync(account).ConfigureAwait(false);
+            }
+
+            return;
+        }
+
+        // A missing or unreadable selection cannot identify one safe account. Removing every account
+        // cached for this public-client registration is the fail-closed app-local logout; it does not
+        // remove the corresponding Windows accounts from WAM.
+        foreach (IAccount account in cached)
+        {
+            await client.RemoveAsync(account).ConfigureAwait(false);
+        }
     }
 
     /// <summary>

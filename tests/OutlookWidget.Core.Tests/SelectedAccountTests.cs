@@ -53,6 +53,9 @@ public sealed class SelectedAccountTests : IDisposable
     private static SelectedAccountResult Unreadable =>
         new(SelectedAccountStatus.Unreadable, null);
 
+    private static SelectedAccountResult SignedOut =>
+        new(SelectedAccountStatus.SignedOut, null);
+
     [Fact]
     public void A_recorded_selection_round_trips()
     {
@@ -60,6 +63,15 @@ public sealed class SelectedAccountTests : IDisposable
 
         Assert.True(store.Write("object-id.tenant-id"));
         Assert.Equal(Recorded("object-id.tenant-id"), store.Read());
+    }
+
+    [Fact]
+    public void An_explicit_signed_out_marker_never_falls_back_to_a_cached_or_windows_account()
+    {
+        IAccount only = new StubAccount("only.tenant");
+
+        Assert.Null(SilentAuthService.Select([], SignedOut));
+        Assert.Null(SilentAuthService.Select([only], SignedOut));
     }
 
     [Fact]
@@ -222,6 +234,25 @@ public sealed class SelectedAccountTests : IDisposable
         File.WriteAllText(_root, "not a directory");
 
         Assert.False(new SelectedAccountStore(Paths, Registration).Write("object-id.tenant-id"));
+    }
+
+    [Fact]
+    public void A_failed_atomic_replace_preserves_the_prior_selected_account()
+    {
+        var store = new SelectedAccountStore(Paths, Registration);
+        Assert.True(store.Write("original.tenant"));
+
+        using (var blocker = new FileStream(
+                   Paths.SelectedAccountFilePath,
+                   FileMode.Open,
+                   FileAccess.Read,
+                   FileShare.None))
+        {
+            Assert.False(store.Write("replacement.tenant"));
+        }
+
+        Assert.Equal(Recorded("original.tenant"), store.Read());
+        Assert.False(File.Exists(Paths.SelectedAccountTempFilePath));
     }
 
     [Fact]

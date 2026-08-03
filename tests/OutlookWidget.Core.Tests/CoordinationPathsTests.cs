@@ -38,6 +38,8 @@ public sealed class CoordinationPathsTests
             paths.StateBackupFilePath,
             paths.LeaseFilePath,
             paths.SuppressionDirectory,
+            paths.SelectedAccountFilePath,
+            paths.SelectedAccountTempFilePath,
         })
         {
             Assert.StartsWith(expectedPrefix, path, StringComparison.OrdinalIgnoreCase);

@@ -324,6 +324,29 @@ public sealed class DisclosureTombstoneTests
     }
 
     [Fact]
+    public void A_post_publication_failure_unregisters_without_deleting_the_marker()
+    {
+        using var fixture = new CoordinationFixture();
+        var failingSignalStore = new DisclosureTombstoneStore(
+            fixture.Paths,
+            fixture.Logger,
+            fixture.Clock,
+            Directory.GetFiles,
+            signalSuppressEvent: () =>
+                throw new UnauthorizedAccessException("Injected inaccessible named event."));
+
+        Assert.Throws<UnauthorizedAccessException>(
+            () => failingSignalStore.Suppress(DisclosureMode.SignedOut));
+
+        // Publication succeeded before signalling failed, so privacy remains fail-closed. The
+        // method returned no handle, however, so its catch must unregister the operation and make
+        // the same-process explicit recovery action eligible to remove the marker immediately.
+        Assert.Equal(DisclosureMode.SignedOut, failingSignalStore.GetEffectiveMode());
+        Assert.Equal(1, fixture.Tombstones.ClearAllOrphans());
+        Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+    }
+
+    [Fact]
     public void Recovery_does_not_delete_a_marker_whose_owner_process_is_still_running()
     {
         using var fixture = new CoordinationFixture();
@@ -558,6 +581,10 @@ public sealed class DisclosureTombstoneTests
         // An absent directory is a first run, not an unreadable state. Treating it as
         // suppression would leave a fresh install permanently showing the signed-out card.
         Assert.Equal(DisclosureMode.Full, fixture.Tombstones.GetEffectiveMode());
+        Assert.Equal(0, fixture.Tombstones.CountSuppressionFiles());
+        Assert.Equal(
+            DisclosureRecoveryStatus.DirectoryAbsent,
+            fixture.Tombstones.ClearAllOrphansWithResult().Status);
     }
 
     [Fact]
@@ -571,6 +598,10 @@ public sealed class DisclosureTombstoneTests
             (_, _) => throw new UnauthorizedAccessException("Injected inaccessible directory."));
 
         Assert.Equal(DisclosureMode.SignedOut, inaccessible.GetEffectiveMode());
+        Assert.Equal(-1, inaccessible.CountSuppressionFiles());
+        Assert.Equal(
+            new DisclosureRecoveryResult(DisclosureRecoveryStatus.Unreadable, 0),
+            inaccessible.ClearAllOrphansWithResult());
         Assert.True(fixture.Logger.Saw(
             Diagnostics.OperationalEventId.DisclosureSuppressionEnumerationFailed,
             Diagnostics.OperationalOutcome.Failed));

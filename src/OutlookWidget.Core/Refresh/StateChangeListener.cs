@@ -9,12 +9,10 @@ namespace OutlookWidget.Core.Refresh;
 /// <remarks>
 /// <para>
 /// <b>The missing half of the signalling design.</b> <c>StateCommitCoordinator</c> and
-/// <c>DisclosureTombstoneStore</c> both signal by calling
-/// <see cref="EventWaitHandle.OpenExisting(string)"/> and swallowing
-/// <see cref="WaitHandleCannotBeOpenedException"/> when nothing is listening. Until this type
-/// existed, nothing ever created those events, so every cross-process signal in the product was
-/// a silent no-op: correct by construction and never once delivered. This is the listener that
-/// makes the companion's commits reach the provider.
+/// <c>DisclosureTombstoneStore</c> both signal through the shared best-effort named-event helper.
+/// Until this type existed, nothing ever created those events, so every cross-process signal in
+/// the product was a silent no-op: correct by construction and never once delivered. This is the
+/// listener that makes the companion's commits reach the provider.
 /// </para>
 /// <para>
 /// <b>Manual-reset, and why that is safe despite the obvious lost-wakeup shape.</b> The signal
