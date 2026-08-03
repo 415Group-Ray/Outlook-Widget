@@ -1,3 +1,4 @@
+using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Delivery;
 using OutlookWidget.Core.Diagnostics;
@@ -80,7 +81,14 @@ public readonly record struct RefreshResult(
 /// What a refresh fetched: the bytes to protect and commit, plus a bounded count for
 /// metadata-free logging.
 /// </summary>
-public readonly record struct RefreshPayload(byte[] State, int RecordCount);
+public readonly record struct RefreshPayload(
+    byte[] State,
+    int RecordCount,
+    string? HomeAccountId = null)
+{
+    /// <summary>Never print protected state or the opaque account identifier.</summary>
+    public override string ToString() => nameof(RefreshPayload);
+}
 
 /// <summary>
 /// Performs the awaited part of a refresh: silent token acquisition, the concurrent Graph
@@ -166,6 +174,7 @@ public sealed class RefreshCoordinator
     private readonly ISystemClock _clock;
     private readonly IOperationalLogger _logger;
     private readonly TimeSpan _asyncDeadline;
+    private readonly SelectedAccountStore? _selectedAccounts;
 
     private readonly Lock _debounceGate = new();
     private long _lastManualRefreshTicks = long.MinValue;
@@ -176,7 +185,8 @@ public sealed class RefreshCoordinator
         StateCommitCoordinator commits,
         IDeliveryRequester delivery,
         ISystemClock? clock = null,
-        IOperationalLogger? logger = null)
+        IOperationalLogger? logger = null,
+        SelectedAccountStore? selectedAccounts = null)
         : this(
             cache,
             leases,
@@ -184,7 +194,8 @@ public sealed class RefreshCoordinator
             delivery,
             clock,
             logger,
-            CoordinationBounds.AsyncDeadline)
+            CoordinationBounds.AsyncDeadline,
+            selectedAccounts)
     {
     }
 
@@ -195,7 +206,8 @@ public sealed class RefreshCoordinator
         IDeliveryRequester delivery,
         ISystemClock? clock,
         IOperationalLogger? logger,
-        TimeSpan asyncDeadline)
+        TimeSpan asyncDeadline,
+        SelectedAccountStore? selectedAccounts = null)
     {
         ArgumentNullException.ThrowIfNull(cache);
         ArgumentNullException.ThrowIfNull(leases);
@@ -214,6 +226,7 @@ public sealed class RefreshCoordinator
         _clock = clock ?? SystemClock.Instance;
         _logger = logger ?? NullOperationalLogger.Instance;
         _asyncDeadline = asyncDeadline;
+        _selectedAccounts = selectedAccounts;
     }
 
     /// <summary>
@@ -339,9 +352,39 @@ public sealed class RefreshCoordinator
             // The deadline's token is passed so a refresh already past its deadline abandons
             // the *wait* immediately rather than sitting the full two seconds. Once the mutex
             // is acquired, cancellation no longer applies.
-            StateCommitResult commit = _commits.CommitRefresh(
-                new CommitSnapshotAction(_cache, fetched.State, capturedGeneration),
-                deadline.Token);
+            IStateCommitAction commitAction;
+
+            if (fetched.HomeAccountId is { Length: > 0 } expectedHomeAccountId)
+            {
+                if (_selectedAccounts is null)
+                {
+                    // A mailbox payload without the account reader cannot be proven current. Fail
+                    // closed rather than silently falling back to generation-only validation.
+                    _logger.Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Failed);
+                    return Result(
+                        RefreshOutcome.CommitFailed,
+                        DeliveryRequestOutcome.NotRequested,
+                        0,
+                        startTicks);
+                }
+
+                commitAction = new CommitMailboxSnapshotAction(
+                    _cache,
+                    fetched.State,
+                    capturedGeneration,
+                    _selectedAccounts,
+                    expectedHomeAccountId,
+                    _logger);
+            }
+            else
+            {
+                commitAction = new CommitSnapshotAction(
+                    _cache,
+                    fetched.State,
+                    capturedGeneration);
+            }
+
+            StateCommitResult commit = _commits.CommitRefresh(commitAction, deadline.Token);
 
             generation = commit.Generation;
 

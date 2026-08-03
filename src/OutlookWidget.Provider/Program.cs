@@ -127,13 +127,21 @@ internal static partial class Program
         using var mutation = new MutationMutex(paths.MutationMutexName, logger);
         var leases = new RefreshLeaseStore(paths, mutation, logger: logger);
         var commits = new StateCommitCoordinator(paths, mutation, logger);
-        var coordinator = new RefreshCoordinator(cache, leases, commits, delivery, logger: logger);
         using var graph = new GraphMailClient(logger);
 
         ProviderRefreshWorker? refresh = null;
 
         if (configuration is { IsLoaded: true, Options: { } options })
         {
+            var selectedAccounts = new SelectedAccountStore(paths, options, logger);
+            var coordinator = new RefreshCoordinator(
+                cache,
+                leases,
+                commits,
+                delivery,
+                logger: logger,
+                selectedAccounts: selectedAccounts);
+
             var fetcher = new MailboxRefreshFetcher(
                 async cancellationToken =>
                 {
@@ -148,7 +156,13 @@ internal static partial class Program
                 options.TenantId,
                 includeFocusedCount: true);
 
-            refresh = new ProviderRefreshWorker(coordinator, fetcher, cache, delivery, logger);
+            refresh = new ProviderRefreshWorker(
+                coordinator,
+                fetcher,
+                cache,
+                selectedAccounts,
+                delivery,
+                logger);
         }
 
         using var refreshLifetime = refresh;
@@ -172,6 +186,8 @@ internal static partial class Program
             {
                 authProbe.RequestProbe();
                 delivery.RequestDelivery();
+                // Account-aware staleness makes a new interactive selection refresh immediately
+                // without turning every ordinary cache-commit signal into an infinite refresh loop.
                 refresh?.RequestIfStale(RefreshTrigger.SignIn);
             },
             logger);

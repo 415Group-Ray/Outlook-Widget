@@ -501,6 +501,13 @@ public sealed class CoordinationStaticAnalysisTests
 
         Assert.Contains("RequestIfStale(RefreshTrigger.Activation)", provider, StringComparison.Ordinal);
         Assert.Contains("Request(RefreshTrigger.ManualAction)", provider, StringComparison.Ordinal);
+        Assert.Contains("RequestIfStale(RefreshTrigger.SignIn)", composition, StringComparison.Ordinal);
+        Assert.Contains("selectedAccounts: selectedAccounts", composition, StringComparison.Ordinal);
+
+        string refreshWorker = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "ProviderRefreshWorker.cs"));
+        Assert.Contains("_selectedAccounts.Read()", refreshWorker, StringComparison.Ordinal);
+        Assert.Contains("snapshot.HomeAccountId", refreshWorker, StringComparison.Ordinal);
     }
 
     [Fact]

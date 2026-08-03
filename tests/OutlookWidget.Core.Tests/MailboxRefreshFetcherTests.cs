@@ -33,6 +33,7 @@ public sealed class MailboxRefreshFetcherTests
 
         Assert.NotNull(payload);
         Assert.Equal(1, payload.Value.RecordCount);
+        Assert.Equal("home.account", payload.Value.HomeAccountId);
         Assert.True(includedFocused);
 
         MailboxSnapshot? snapshot = MailboxSnapshot.TryDeserialize(payload.Value.State);
@@ -82,6 +83,14 @@ public sealed class MailboxRefreshFetcherTests
 
         Assert.DoesNotContain("secret-token", access.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain("secret-account", access.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Refresh_payload_never_prints_its_account_identity()
+    {
+        var payload = new RefreshPayload([0x01], 1, "secret-account");
+
+        Assert.DoesNotContain("secret-account", payload.ToString(), StringComparison.Ordinal);
     }
 
     private static MailboxReadout Readout() =>
