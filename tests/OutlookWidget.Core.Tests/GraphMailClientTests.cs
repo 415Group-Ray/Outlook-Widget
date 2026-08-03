@@ -318,6 +318,24 @@ public sealed class GraphMailClientTests
     }
 
     [Fact]
+    public async Task A_nested_timeout_while_reading_an_error_body_is_not_hidden_by_its_status()
+    {
+        // Response headers have arrived, but the body read lasts until the nested Graph deadline.
+        // Falling back to the HTTP status here used to report ServiceFailure even though the client
+        // stopped for the same timeout that produces TimedOut before headers arrive.
+        var handler = new StubGraphHandler()
+            .Json(MessagesRoute, MessagesJson)
+            .BodyCancellation(FolderRoute, HttpStatusCode.BadGateway);
+
+        using GraphMailClient client = ClientFor(handler);
+
+        GraphMailResult result = await client.ReadAsync("token", includeFocusedCount: false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(GraphMailStatus.TimedOut, result.Status);
+        Assert.Null(result.HttpStatusCode);
+    }
+
+    [Fact]
     public async Task Nothing_from_an_error_body_escapes_except_the_state_it_selected()
     {
         // Reading the body at all is a narrowing of a rule this client otherwise keeps absolutely, so
