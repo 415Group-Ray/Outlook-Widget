@@ -41,8 +41,11 @@ made while the mutation lock is held rather than beforehand, because a refresh s
 selection is legitimate right up to the moment the identifier changes. If the publication cannot
 commit, the sign-in is reported as failed even though a token was issued: an unrecorded selection leaves
 the provider unable to converge, and a retry is better than a success the widget can never reflect.
-This is covered by automated tests and has not yet been measured on an installed package with a second
-account.
+The commit path is measured on installed package 0.4.22.0: signing in from the signed-out state left by
+the logout measurement published the identifier and then committed a Graph-backed snapshot, advancing the
+cache generation forward from 20 to 22 rather than restarting it, with no orphaned suppression marker.
+The **cross-account** case — a sign-in landing on an account other than the one recorded — is covered by
+automated tests only and remains unmeasured until a second account is available.
 
 **Account switching is now implemented and awaits installed-package measurement with a second
 account.** The companion publishes a signed-out tombstone before asking WAM to display its account

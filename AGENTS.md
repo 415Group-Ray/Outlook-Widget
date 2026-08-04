@@ -60,6 +60,10 @@ yet installed-package measured:** the companion publishes signed-out suppression
 account picker, then clears the prior mailbox snapshot and replaces the selected identifier together
 under the mutation mutex before lifting its own tombstone. A second account is still required to prove
 cross-account isolation on the reference machine; same-account selection is not equivalent evidence.
+**No second account exists on the reference machine** — confirmed 2026-08-04, so this is a stated
+resource limitation rather than pending work. Sign-in's own commit path is measured on installed package
+0.4.22.0 (generation advanced 20 → 22, snapshot delivered), but that run started from a cleared cache and
+so could not reach the cross-account branch.
 
 **The narrow production refresh is wired and measured.** Stale activation, post-sign-in convergence,
 manual actions, and the opportunistic five-minute active timer call `GraphMailClient` through

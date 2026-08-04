@@ -267,9 +267,14 @@ internal static class SkeletonCard
         return state.ReadStatus switch
         {
             CacheReadStatus.Success =>
+                // Says "not rendered yet" rather than "does not exist yet". Graph access has landed,
+                // so by this branch a real mailbox snapshot is usually committed and the older copy
+                // — which claimed no mailbox data existed — contradicted the payload size in the
+                // diagnostic footer directly below it. What is still missing is the Phase 2 mail
+                // card, not the data.
                 ("Coordination is live",
-                    "Cached state was read and delivered by the provider. No mailbox data exists "
-                    + "yet: Graph access arrives with the next core slice. " + DescribeSilentAuth()),
+                    "Cached mailbox state was read and delivered by the provider. Messages are not "
+                    + "rendered yet: the mail card arrives in Phase 2. " + DescribeSilentAuth()),
 
             CacheReadStatus.Absent =>
                 ("No cached state yet",

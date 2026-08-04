@@ -1304,18 +1304,22 @@ last-write timestamp. This is local evidence that the durable marker blocked the
 operating-system-account fallback after explicit logout; it is not a claim that the Windows account or
 an identity-provider browser session was removed. The widget app was deliberately left signed out.
 
-## Not measured on a device: three defects found by code review, fixed and covered by tests only
+## Three defects found by code review: fixed, covered by tests, and since measured in part
 
-Recorded 2026-08-04. These are code corrections, **not** device, tenant, Widgets-host, or
-installed-package measurements, and none of them changes a result recorded above. Each is listed here so
+Recorded 2026-08-04. These began as code corrections rather than device, tenant, Widgets-host, or
+installed-package measurements, and none of them changed a result recorded above. Each is listed here so
 the distinction between "tested" and "measured" stays explicit, and each has automated coverage that was
 confirmed to fail against the pre-fix code.
+
+**Two of the three were subsequently measured on installed package 0.4.22.0** — see the section below,
+which is the authority on what was observed. The "Still unmeasured" column here has been narrowed to what
+remains open after it.
 
 | Defect | Fixed by | Coverage | Still unmeasured |
 |---|---|---|---|
 | Sign-in replaced the selected identifier without removing a cached mailbox belonging to another account, so the previous account's senders and subjects stayed committed under the new selection | `CommitInteractiveSelectionAction`, publishing identifier and mailbox decision in one critical section | `InteractiveSelectionCommitTests` | Cross-account behaviour on an installed package; still blocked on a second account, the same blocker account switching has |
-| An exception escaping a delivery pass ended the provider's only delivery thread with its in-progress marker set, after which nothing rendered again until the provider was recycled | broad guard spanning the state reads in `DeliveryWorker.RunOnePass` | `DeliveryWorkerTests` | Whether any real filesystem or Widgets-host condition on this device produces such an exception at all |
-| A transiently unreadable state header made an unconditional `Clear` stamp generation 1 over generation N, running the counter backwards | `ProtectedCache.TryReadGeneration`, failing the commit instead of writing from an unread counter | `ProtectedCacheTests` | Whether antivirus or indexing on this device actually blocks the header read in practice |
+| An exception escaping a delivery pass ended the provider's only delivery thread with its in-progress marker set, after which nothing rendered again until the provider was recycled | broad guard spanning the state reads in `DeliveryWorker.RunOnePass` | `DeliveryWorkerTests` | Whether any real filesystem or Widgets-host condition on this device produces such an exception at all. Delivery across two generation advances in one long-lived provider process **is** now measured on 0.4.22.0 |
+| A transiently unreadable state header made an unconditional `Clear` stamp generation 1 over generation N, running the counter backwards | `ProtectedCache.TryReadGeneration`, failing the commit instead of writing from an unread counter | `ProtectedCacheTests` | Whether antivirus or indexing on this device actually blocks the header read in practice. Forward-only advance across a logout/sign-in boundary **is** now measured on 0.4.22.0 |
 
 The second and third were reachable only through failure modes the reference machine has not been
 observed to produce, so their probability here is unquantified and deliberately not asserted. The first
@@ -1324,6 +1328,106 @@ chooser offering more than one account. What is proven is the pre-fix behaviour,
 throwaway test replicating the old identifier-only publication confirmed the prior account's snapshot
 survived with the new account selected.
 
+
+## Measured: installed sign-in after logout publishes atomically, advances forward, and delivers
+
+Verified 2026-08-04 on the reference machine with installed package `0.4.22.0`, upgraded in place from
+`0.4.19.0` using `-ForceApplicationShutdown` while preserving the existing pin. This is the first
+installed-package measurement of the three code-review defects recorded in the section above, and it
+covers two of them. `dotnet build` reported 0 warnings and 0 errors and `dotnet test` passed 353 of 353
+against the same tree.
+
+**The upgrade itself changed no coordination state.** Immediately after install, the state root still
+held `state-v1.bin` at 16 bytes, `account-v1.bin` at 358 bytes, `msal-v1.bin` at 454 bytes and an empty
+`suppression-v1`, every one with its 2026-08-03 timestamp from the logout measurement unchanged. The
+starting point was therefore the deliberately signed-out state that measurement left behind, not a fresh
+install.
+
+An interactive sign-in was then performed through the installed companion's real **Sign in** button, on
+the same single tenant account. Observed afterwards:
+
+| Artifact | Before | After | Time |
+|---|---|---|---|
+| `state-v1.bin` | 16 B, `Cleared`, generation 20 | 2,438 B, generation 22, 2,422-byte payload | 13:31:07 |
+| `account-v1.bin` | 358 B, `SignedOut` | 438 B | 13:30:48 |
+| `msal-v1.bin` | 454 B | 3,510 B | 13:31:07 |
+| `suppression-v1\` | empty | empty, timestamp unchanged from 2026-08-03 | — |
+
+**Generation monotonicity.** The header read `OWSC · version 1 · generation 22`. The counter advanced
+20 → 21 → 22 across a logout/sign-in boundary and did not restart at 0 or 1, which is the behaviour
+`TryReadGeneration` exists to guarantee. This is a positive observation of the fixed path on real state,
+not a reproduction of the defect: no unreadable-header condition was induced, and none occurred.
+
+**Atomic sign-in publication.** The identifier and the snapshot carry timestamps 19 seconds apart, and
+that gap is the designed shape rather than a violation. `CommitInteractiveSelectionAction` publishes the
+identifier and decides the cached mailbox in one critical section at 13:30:48; the mailbox payload
+arrives on the refresh that follows at 13:31:07. Because the prior cache was already `Cleared`, there
+was no foreign snapshot to strand — **so this run did not exercise the cross-account case the fix was
+written for.** What it does show is that the commit path works end to end on an installed package, and
+that a 2,422-byte Graph-backed payload was produced, which required the selected identifier to have
+persisted and a silent acquisition to have succeeded against it.
+
+**Delivery-thread survival.** The pinned card read **"Coordination is live"**. That headline is emitted
+only for `CacheReadStatus.Success`; the pre-sign-in `Cleared` state renders "Cache cleared". The card
+therefore changed branches, so a delivery pass ran after the sign-in — and it ran in provider process
+34440, started 13:03:43, which predates the sign-in and stayed alive throughout. This distinguishes a
+live delivery thread from the failure mode the fix addresses, in which the process survives and silently
+stops rendering.
+
+**The Large card then read the diagnostic footer directly**, at 13:36:38:
+
+```
+InboxWidget · Large · active
+generation 25 · delivered 25 · mode Full · read Success · payload 2186 bytes
+config Loaded · silent auth Acquired · widget bd744967-bdeb-48e6-a6b1-ea6b1b450ba2
+```
+
+`delivered` equals `generation`, so the host is holding exactly the committed generation with nothing
+outstanding — convergence observed rather than inferred from the headline. `mode Full` confirms no
+disclosure suppression is in effect, and `silent auth Acquired` confirms the provider's zero-handle
+acquisition against the newly selected account.
+
+The generation had advanced 22 → 25 in the intervening five minutes, which is the opportunistic active
+timer and the resizes doing their work; the counter moved forward throughout, never sideways or back.
+
+Two size observations worth keeping, because the first was recorded wrongly at first and corrected on a
+second look: **Medium omits the diagnostic footer and Large shows it.** The footer's `payload 2186 bytes`
+is the *unprotected* payload — `state.Payload` after the DPAPI round trip — while `state-v1.bin` measured
+2,406 payload bytes on disk at the same generation. The 220-byte difference is DPAPI overhead, not a
+disagreement between the two readings.
+
+**Not shown by this run, and not to be inferred from it:** cross-account cache isolation, on either
+sign-in or account switch. Same-account selection is not equivalent evidence. See the gap recorded below.
+
+**A stale string was found while reading the card, and has been corrected.** The
+`CacheReadStatus.Success` branch of `SkeletonCard` said "No mailbox data exists yet: Graph access arrives
+with the next core slice", while the diagnostic footer immediately below it reported a 2,186-byte
+payload. Graph access had arrived; what is still missing is the Phase 2 mail card. The copy now reads
+"Messages are not rendered yet: the mail card arrives in Phase 2." The same stale clause in
+`scripts/New-Assets.ps1`, describing why the accepted picker screenshot does not match what the provider
+draws, was corrected with it. Both were copy defects rather than behavioural ones, and **the corrected
+strings are not part of the 0.4.22.0 measurement above** — that measurement observed the old copy, and
+the headline it keys off is unchanged.
+
+## The remaining Phase 1 gap: cross-account isolation, blocked on a second account
+
+Recorded 2026-08-04. **No second tenant account is available on the reference machine**, confirmed with
+the author. This is a stated resource limitation, not an untried test or a pending task, and it should
+not be read as work still in progress.
+
+Three implemented behaviours therefore have automated coverage only and no device evidence:
+
+- **Account switching** end to end — the companion publishing signed-out suppression, forcing WAM's
+  account picker, then clearing the prior snapshot and replacing the identifier together under the
+  mutation mutex.
+- **Sign-in landing on a different account than the one recorded** — the foreign-cache removal in
+  `CommitInteractiveSelectionAction`, which the 0.4.22.0 measurement above could not reach.
+- **Silent acquisition with more than one cached account** — including the refusal branches, which by
+  construction cannot occur while exactly one account is cached.
+
+Same-account selection does not substitute for any of them, and running the switch against a single
+account would produce a green result that proves nothing about isolation. Phase 1 closes with this gap
+open; it is carried into the phase review as a known limitation rather than silently deferred.
 
 ## Reproducing the provider evidence
 
