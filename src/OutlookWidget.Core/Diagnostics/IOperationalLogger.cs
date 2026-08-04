@@ -65,6 +65,15 @@ public enum OperationalEventId
 
     // Account lifecycle
     SignInCompleted,
+
+    /// <summary>
+    /// An interactive sign-in acquired a token and then could not publish the account it selected.
+    /// Distinct from <see cref="SignInCompleted"/> with a failed outcome, which covers the
+    /// acquisition itself: this one says the tenant said yes and the local commit did not, which is
+    /// the state that leaves the provider unable to converge and so is reported as a failed sign-in
+    /// rather than a successful one.
+    /// </summary>
+    SignInPublicationFailed,
     SignOutRequested,
     SignOutCompleted,
     SignOutFailed,

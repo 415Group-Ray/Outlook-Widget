@@ -1,6 +1,7 @@
 using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Diagnostics;
+using OutlookWidget.Core.Models;
 
 namespace OutlookWidget.Core.Refresh;
 
@@ -223,6 +224,154 @@ public sealed class CommitAccountSwitchStateAction : IStateCommitAction
         return _selectedAccounts.ReplaceSelection(heldLock, _homeAccountId)
             ? cleared
             : new CacheCommitResult(CacheCommitStatus.Failed, cleared.Generation);
+    }
+}
+
+/// <summary>
+/// Publishes the account an interactive sign-in selected, removing the cached mailbox first unless
+/// that cache can be positively shown to hold nothing belonging to another account.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>This exists because replacing the selected identifier on its own is not safe, and that is
+/// exactly what sign-in used to do.</b> The companion's sign-in path wrote the new identifier
+/// through the selection store and touched nothing else, so a sign-in that landed on a different
+/// account than the one already recorded left the previous account's snapshot committed and
+/// unsuppressed. <c>CommitMailboxSnapshotAction</c> stops a <em>new</em> fetch for the prior account
+/// from committing, and <c>ProviderRefreshWorker</c> correctly reports the mismatch as stale — but
+/// neither removes the snapshot that is already there, and the provider's delivery pass renders
+/// committed state rather than waiting for a refresh. The result was the previous mailbox on screen
+/// under the new account's selection.
+/// </para>
+/// <para>
+/// <b>The decision is made under the lock, not before it.</b> An unlocked "does the cache belong to
+/// someone else" check could be answered before a refresh scoped to the <em>prior</em> selection
+/// commits, and that refresh is legitimate right up to the moment the identifier changes. Reading the
+/// cache inside the critical section is what makes "no snapshot for another account survives this
+/// identifier change" true rather than likely.
+/// </para>
+/// <para>
+/// <b>Why this needs no disclosure tombstone, unlike <see cref="CommitAccountSwitchStateAction"/>.</b>
+/// Invariant 4 covers disclosure-<em>reducing</em> operations, and the distinction is intent rather
+/// than mechanism. A logout means "stop showing this mailbox", so a failed commit must still hide it,
+/// which is why suppression is published before the attempt. This operation means "use this account",
+/// and the clear and the replacement happen together in one critical section — so a failure leaves the
+/// complete prior state, in which the prior account's mail is the correct thing to show for the prior
+/// account's selection. There is nothing to fail closed about. The account-switch path publishes
+/// suppression for a different reason again: it covers the unbounded interactive picker, during which
+/// the user has already declared they are leaving the current mailbox.
+/// </para>
+/// <para>
+/// <b>Both mutations advance nothing when they are unnecessary.</b> Re-signing in to the account
+/// already recorded keeps its snapshot, so an expired token does not blank the widget and the card does
+/// not report a cache clear that did not happen.
+/// </para>
+/// </remarks>
+public sealed class CommitInteractiveSelectionAction : IStateCommitAction
+{
+    private readonly CoordinationPaths _paths;
+    private readonly ProtectedCache _cache;
+    private readonly SelectedAccountStore _selectedAccounts;
+    private readonly string _homeAccountId;
+    private readonly IOperationalLogger _logger;
+
+    public CommitInteractiveSelectionAction(
+        CoordinationPaths paths,
+        ProtectedCache cache,
+        SelectedAccountStore selectedAccounts,
+        string homeAccountId,
+        IOperationalLogger? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(selectedAccounts);
+        ArgumentException.ThrowIfNullOrWhiteSpace(homeAccountId);
+
+        _paths = paths;
+        _cache = cache;
+        _selectedAccounts = selectedAccounts;
+        _homeAccountId = homeAccountId;
+        _logger = logger ?? NullOperationalLogger.Instance;
+    }
+
+    public CacheCommitResult Execute(in MutationLock heldLock)
+    {
+        heldLock.ThrowIfNotHeld();
+
+        if (heldLock.StateIsSuspect)
+        {
+            _cache.RemoveOrphanedTemporaryFiles(heldLock);
+        }
+
+        // A successful sign-in retires any approval-required record: consent that was refused before
+        // has plainly stopped being refused. Cleared first, so a failure below cannot leave the record
+        // gone and the identifier unchanged in the other order.
+        if (!AuthorizationStateStore.TryClear(_paths, _logger))
+        {
+            return new CacheCommitResult(CacheCommitStatus.Failed, _cache.ReadGeneration());
+        }
+
+        if (!MayHoldForeignSnapshot())
+        {
+            long generation = _cache.ReadGeneration();
+
+            // Nothing to remove, so the snapshot and its generation are left exactly as they are. The
+            // identifier still replaces atomically, and a reader that compares generations correctly
+            // concludes that committed mailbox state did not change.
+            return _selectedAccounts.ReplaceSelection(heldLock, _homeAccountId)
+                ? new CacheCommitResult(CacheCommitStatus.Success, generation)
+                : new CacheCommitResult(CacheCommitStatus.Failed, generation);
+        }
+
+        CacheCommitResult cleared = _cache.Clear(heldLock);
+
+        if (!cleared.IsSuccess)
+        {
+            return cleared;
+        }
+
+        // The identifier is replaced last for the reason it is everywhere else: a partial failure must
+        // retain the prior complete selection so a retry stays scoped to one account.
+        return _selectedAccounts.ReplaceSelection(heldLock, _homeAccountId)
+            ? cleared
+            : new CacheCommitResult(CacheCommitStatus.Failed, cleared.Generation);
+    }
+
+    /// <summary>
+    /// Whether the committed cache might hold a snapshot for an account other than the one being
+    /// published.
+    /// </summary>
+    /// <remarks>
+    /// Answers <see langword="true"/> on every uncertainty, per invariant 5. Only
+    /// <see cref="CacheReadStatus.Absent"/> and <see cref="CacheReadStatus.Cleared"/> positively
+    /// establish that there is nothing to remove; a transiently unreadable file may perfectly well
+    /// hold the previous account's mail and become readable again a moment later, so it is cleared
+    /// rather than trusted. A payload that will not deserialise cannot be attributed to any account
+    /// either, so it is treated as foreign — clearing an unusable snapshot costs a refetch of data
+    /// that could not have been rendered anyway.
+    /// </remarks>
+    private bool MayHoldForeignSnapshot()
+    {
+        CacheReadResult read = _cache.Read();
+
+        switch (read.Status)
+        {
+            case CacheReadStatus.Absent:
+            case CacheReadStatus.Cleared:
+                return false;
+
+            case CacheReadStatus.Success when read.Payload is { } payload:
+                MailboxSnapshot? snapshot = MailboxSnapshot.TryDeserialize(payload);
+
+                return snapshot is null
+                       || !string.Equals(
+                           snapshot.HomeAccountId,
+                           _homeAccountId,
+                           StringComparison.Ordinal);
+
+            default:
+                return true;
+        }
     }
 }
 

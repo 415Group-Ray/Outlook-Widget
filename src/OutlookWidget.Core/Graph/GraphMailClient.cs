@@ -280,14 +280,21 @@ public sealed class GraphMailClient : IDisposable
             // the one that fired. See Combine.
             return new GraphResponse(GraphMailStatus.TimedOut, null, null, null);
         }
-        catch (Exception e) when (e is HttpRequestException or IOException)
+        catch (Exception e) when (e is HttpRequestException or IOException or ObjectDisposedException)
         {
-            // Both, and the second one is the bug this catch originally had. `ResponseHeadersRead`
+            // The second one is the bug this catch originally had. `ResponseHeadersRead`
             // means the body is still on the wire when ParseAsync consumes it, and a connection that
             // dies at that point surfaces as HttpIOException — which derives from IOException, not
             // from HttpRequestException. Catching only the latter left a perfectly ordinary
             // mid-response network failure escaping a method whose whole contract is that it does not
             // throw, and it would have taken the refresh path down with it.
+            //
+            // The third is process shutdown, and it belongs here for the same contract reason. The
+            // provider's refresh worker abandons an in-flight refresh after a bounded wait, and the
+            // client this request is running on is disposed shortly afterwards. From this method's
+            // point of view a transport that has gone away mid-request is a network failure whether it
+            // was the network or the client that went; either way the caller gets a value, which is
+            // what "this method does not throw" has to mean during shutdown as well.
             return new GraphResponse(GraphMailStatus.NetworkFailure, null, null, null);
         }
     }

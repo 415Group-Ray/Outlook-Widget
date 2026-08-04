@@ -202,25 +202,52 @@ public sealed class DeliveryWorker : IDeliveryRequester, IDisposable
         }
     }
 
+    /// <summary>
+    /// Performs one pass, and never throws.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The guard spans the state reads as well as the host call, and it used to span only the host
+    /// call.</b> That was not a stylistic gap. This method runs on the process's single delivery thread,
+    /// which <see cref="RunLoop"/> does not restart and cannot: an exception escaping here unwound both
+    /// loops, ended the thread, and left <see cref="_passInProgress"/> set — so
+    /// <see cref="RequestDelivery"/> would then never release the semaphore again and the provider
+    /// silently stopped rendering anything at all until it was recycled. There is no card for that state
+    /// and no log line saying it happened.
+    /// </para>
+    /// <para>
+    /// Reaching it took only a failure mode the two reads do not convert to a value.
+    /// <c>GetEffectiveMode</c> and <c>Read</c> each translate <see cref="IOException"/>,
+    /// <see cref="UnauthorizedAccessException"/>, and a missing directory into a status, which covers
+    /// what a filesystem ordinarily does — and covers nothing else. So the guard is a broad one, for the
+    /// same reason <c>StateChangeListener</c> and <c>ActiveRefreshTimer</c> both carry one: losing this
+    /// thread costs far more than one dropped pass.
+    /// </para>
+    /// <para>
+    /// A pass counts as completed on both paths. That already applied to a sink failure — the pass ran,
+    /// and delivery outcome is recorded separately — and it applies for the same reason to a pass that
+    /// failed before it had anything to deliver.
+    /// </para>
+    /// </remarks>
     private void RunOnePass()
     {
-        // Re-read everything. This is the ordering guarantee: content is chosen now, not
-        // when the request was made. The tombstone is read alongside the snapshot so a
-        // pass that has not yet entered the host call honours the current suppression.
-        DisclosureMode mode = _tombstones.GetEffectiveMode();
-        CacheReadResult read = _cache.Read();
-
-        var state = new DeliveryState(
-            read.Generation,
-            mode,
-            read.Status,
-            // Withhold the payload entirely when suppressed to signed-out. The sink cannot
-            // leak what it was never given, which is a stronger guarantee than trusting
-            // every future render path to check the mode.
-            mode == DisclosureMode.SignedOut ? null : read.Payload);
-
         try
         {
+            // Re-read everything. This is the ordering guarantee: content is chosen now, not
+            // when the request was made. The tombstone is read alongside the snapshot so a
+            // pass that has not yet entered the host call honours the current suppression.
+            DisclosureMode mode = _tombstones.GetEffectiveMode();
+            CacheReadResult read = _cache.Read();
+
+            var state = new DeliveryState(
+                read.Generation,
+                mode,
+                read.Status,
+                // Withhold the payload entirely when suppressed to signed-out. The sink cannot
+                // leak what it was never given, which is a stronger guarantee than trusting
+                // every future render path to check the mode.
+                mode == DisclosureMode.SignedOut ? null : read.Payload);
+
             _sink.Deliver(state);
 
             Interlocked.Increment(ref _completedPasses);

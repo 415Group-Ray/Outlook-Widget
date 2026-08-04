@@ -255,12 +255,66 @@ public sealed class ProtectedCache
     /// Reads only the committed generation, without a DPAPI round-trip.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The provider's delivery worker and render path compare generations on every pass.
     /// Unprotecting a payload to answer "has anything changed" would make the common case
     /// pay for the rare one.
+    /// </para>
+    /// <para>
+    /// Answers zero when the generation cannot be read, which is correct for every caller that
+    /// only <em>compares</em> it: a conditional commit sees a mismatch and discards, and a render
+    /// path keeps what it had. It is <b>not</b> correct for a caller that will write the value
+    /// back, which is what <see cref="TryReadGeneration"/> exists for — see its remarks.
+    /// </para>
     /// </remarks>
-    public long ReadGeneration()
+    public long ReadGeneration() =>
+        TryReadGeneration(out long generation) == GenerationReadStatus.Unreadable ? 0 : generation;
+
+    /// <summary>Whether the plaintext generation header could be read, and what it said.</summary>
+    private enum GenerationReadStatus
     {
+        /// <summary>The header was read, or is absent or corrupt in a way that means generation zero.</summary>
+        Read,
+
+        /// <summary>The file exists and could not be opened or read. The stored value is unknown.</summary>
+        Unreadable,
+    }
+
+    /// <summary>
+    /// Reads the committed generation, distinguishing "the stored value is zero" from "the stored
+    /// value could not be determined".
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The two are not interchangeable for a writer, and treating them as one was a defect.</b>
+    /// Every mutation here derives the next generation from the current one, so a transiently
+    /// unreadable header — a sharing violation from antivirus or an indexer, the same interference
+    /// the replace-retry ladder exists to absorb, but hit on the read instead of the replace — made
+    /// an unconditional <see cref="Clear"/> stamp generation 1 over generation N. The counter then
+    /// runs <em>backwards</em>, and every consumer that compares generations to decide whether
+    /// anything changed is reading a number that no longer orders: conditional refresh commits
+    /// discard against a value they can never match until the counter climbs back, and the
+    /// <c>CustomState</c> round trip hands the Widgets host a generation older than one it was
+    /// already given.
+    /// </para>
+    /// <para>
+    /// So a writer that cannot read the current generation fails its commit and leaves the prior
+    /// snapshot alone, which every caller already handles: a refresh retries on its next trigger, and
+    /// a disclosure-reducing operation reports explicit failure while its tombstone keeps details
+    /// hidden. Refusing to write costs a retry; writing a regressed counter costs the ordering the
+    /// whole design rests on.
+    /// </para>
+    /// <para>
+    /// An <em>absent</em> file is genuinely generation zero and stays a successful read, because a
+    /// first commit has to be able to happen. A present file with a bad magic or a short header is
+    /// also zero: it holds no usable state and no recoverable counter, so overwriting it from zero is
+    /// the only thing available and the only thing correct.
+    /// </para>
+    /// </remarks>
+    private GenerationReadStatus TryReadGeneration(out long generation)
+    {
+        generation = 0;
+
         try
         {
             using var stream = new FileStream(
@@ -274,14 +328,20 @@ public sealed class ProtectedCache
 
             if (read < HeaderLength || !header[..Magic.Length].SequenceEqual(Magic))
             {
-                return 0;
+                return GenerationReadStatus.Read;
             }
 
-            return BinaryPrimitives.ReadInt64LittleEndian(header[8..16]);
+            generation = BinaryPrimitives.ReadInt64LittleEndian(header[8..16]);
+            return GenerationReadStatus.Read;
+        }
+        catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
+        {
+            // Nothing has ever been committed. Zero is the true current generation, not a guess.
+            return GenerationReadStatus.Read;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            return 0;
+            return GenerationReadStatus.Unreadable;
         }
     }
 
@@ -312,7 +372,13 @@ public sealed class ProtectedCache
 
         // Re-read under the mutex. The value captured before the awaited work is stale by
         // definition; this comparison is the one that counts.
-        long currentGeneration = ReadGeneration();
+        if (TryReadGeneration(out long currentGeneration) == GenerationReadStatus.Unreadable)
+        {
+            // The next generation cannot be derived from a value that was not read. Fail rather
+            // than restart the counter from zero and make it run backwards; see TryReadGeneration.
+            _logger.Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Failed);
+            return new CacheCommitResult(CacheCommitStatus.Failed, currentGeneration);
+        }
 
         if (expectedGeneration is long expected && currentGeneration != expected)
         {
@@ -362,7 +428,17 @@ public sealed class ProtectedCache
     {
         heldLock.ThrowIfNotHeld();
 
-        long nextGeneration = ReadGeneration() + 1;
+        if (TryReadGeneration(out long currentGeneration) == GenerationReadStatus.Unreadable)
+        {
+            // Unconditional does not mean "at any generation". A clear whose advanced generation was
+            // derived from an unread counter would regress it, and the listeners that compare
+            // generations to notice the clear are exactly who that breaks. The caller reports failure
+            // and, for a disclosure-reducing operation, its tombstone keeps details hidden meanwhile.
+            _logger.Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Failed);
+            return new CacheCommitResult(CacheCommitStatus.Failed, currentGeneration);
+        }
+
+        long nextGeneration = currentGeneration + 1;
 
         // A header-only file records the advanced generation with no payload, which is a
         // positive statement that state was cleared, and Read() reports it as

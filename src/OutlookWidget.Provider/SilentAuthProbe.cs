@@ -104,8 +104,16 @@ internal sealed class SilentAuthProbe : IDisposable
         _logger = logger;
     }
 
+    private long _completed;
+
     /// <summary>How many probes have completed. For diagnostics and source-level assertions.</summary>
-    public long Completed { get; private set; }
+    /// <remarks>
+    /// Interlocked, like <c>DeliveryWorker.CompletedPasses</c> and
+    /// <c>StateChangeListener.Notifications</c>. Probes run on thread-pool threads and a drainer can be
+    /// re-entered by <see cref="RequestProbe"/> from the tail of a previous one, so a plain increment on
+    /// a plain field is neither atomic nor guaranteed visible to a reader.
+    /// </remarks>
+    public long Completed => Interlocked.Read(ref _completed);
 
     /// <summary>
     /// Requests a probe and returns immediately.
@@ -188,7 +196,7 @@ internal sealed class SilentAuthProbe : IDisposable
                 (await AcquireTokenAsync(_shutdown.Token).ConfigureAwait(false)).Status;
 
             SkeletonCard.SilentAuthStatus = status;
-            Completed++;
+            Interlocked.Increment(ref _completed);
 
             // The card changed, so ask for a pass. Guarded because the last widget may have been
             // unpinned while this was in flight, in which case the worker is being torn down and there

@@ -113,6 +113,26 @@ internal static partial class Program
         var tombstones = new DisclosureTombstoneStore(paths, logger);
         var registry = new WidgetInstanceRegistry();
 
+        // Declaration order below IS disposal order, reversed, and it is chosen rather than incidental.
+        //
+        // The refresh worker's Dispose is bounded — it cancels and then waits two seconds, because
+        // blocking process exit on a wedged network call would leave a provider that will not quit. So
+        // an abandoned refresh can still be running as the rest of this stack unwinds, and the
+        // primitives it is holding have to outlive the worker that abandoned it. The mutation mutex and
+        // the Graph client are therefore declared FIRST, so they are disposed LAST: an abandoned
+        // refresh finds a live client to fault out of and a live mutex to release its lease with,
+        // instead of an ObjectDisposedException thrown from the finally that clears the lease — which
+        // masked the original failure and stranded the lease for its full 30-second horizon.
+        //
+        // The delivery worker is disposed after the probe for the reason SilentAuthProbe documents: the
+        // probe asks for delivery passes, so it must stop first. It is safe for an abandoned refresh to
+        // ask afterwards, because RequestDelivery checks disposal under the same lock Dispose takes.
+        using var mutation = new MutationMutex(paths.MutationMutexName, logger);
+        using var graph = new GraphMailClient(logger);
+
+        var leases = new RefreshLeaseStore(paths, mutation, logger: logger);
+        var commits = new StateCommitCoordinator(paths, mutation, logger);
+
         // The sole UpdateWidget call site, reached only through the serialized worker below. It is
         // given the tombstone read rather than the store, so it can re-check disclosure before each
         // host call without acquiring the ability to write or clear one.
@@ -123,11 +143,6 @@ internal static partial class Program
         // Declared before the listener so the listener's callback can reach it, and disposed after it
         // for the same reason in reverse: the probe must outlive the thing that can ask for one.
         using var authProbe = new SilentAuthProbe(configuration, paths, delivery, logger);
-
-        using var mutation = new MutationMutex(paths.MutationMutexName, logger);
-        var leases = new RefreshLeaseStore(paths, mutation, logger: logger);
-        var commits = new StateCommitCoordinator(paths, mutation, logger);
-        using var graph = new GraphMailClient(logger);
 
         ProviderRefreshWorker? refresh = null;
 

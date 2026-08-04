@@ -251,8 +251,15 @@ public sealed class MailboxSnapshot
     }
 
     /// <summary>Counts only, never content. See <see cref="MessagePreview"/>'s remarks.</summary>
+    /// <remarks>
+    /// The null-conditional is not defensive noise: <c>required</c> enforces that a property is set,
+    /// not that it is set to something, so a payload carrying <c>"messages": null</c> deserialises with
+    /// a null collection — the same trap <see cref="TryDeserialize"/> documents at length and then
+    /// guards. <see cref="ToString"/> is reachable on an instance that never went through that guard,
+    /// and a diagnostic that throws while describing bad state is the least useful moment to throw.
+    /// </remarks>
     public override string ToString() =>
         string.Create(
             CultureInfo.InvariantCulture,
-            $"{nameof(MailboxSnapshot)} ({Messages.Count} messages, {UnreadItemCount} unread)");
+            $"{nameof(MailboxSnapshot)} ({Messages?.Count ?? 0} messages, {UnreadItemCount} unread)");
 }

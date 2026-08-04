@@ -398,4 +398,68 @@ public sealed class DeliveryWorkerTests
         Assert.Equal(Caching.CacheReadStatus.Absent, host.Delivered[^1].ReadStatus);
         Assert.Null(host.Delivered[^1].Payload);
     }
+
+    [Fact]
+    public void A_failure_reading_state_does_not_end_the_only_delivery_thread()
+    {
+        using var fixture = new CoordinationFixture();
+        using var host = new FakeWidgetHost();
+
+        // A disclosure read that fails in a way it does not convert to a value. The store translates
+        // IOException, UnauthorizedAccessException, and a missing directory into a mode; this is
+        // neither, which is exactly the gap that used to escape the pass.
+        var unreadableTombstones = new DisclosureTombstoneStore(
+            fixture.Paths,
+            fixture.Logger,
+            fixture.Clock,
+            (_, _) => throw new InvalidOperationException("simulated"));
+
+        using var worker = new DeliveryWorker(
+            fixture.Cache, unreadableTombstones, host, fixture.Logger);
+
+        worker.RequestDelivery();
+        Assert.True(WaitFor(() => worker.CompletedPasses >= 1, TimeSpan.FromSeconds(5)));
+
+        // The second request is the assertion that matters. An escaping exception unwound both loops
+        // and left the in-progress marker set, so this request would have been coalesced into a pass
+        // that could never run — the provider stopping rendering permanently, with nothing on the card
+        // or in the log to say so.
+        worker.RequestDelivery();
+        Assert.True(WaitFor(() => worker.CompletedPasses >= 2, TimeSpan.FromSeconds(5)));
+
+        // The failure is still reported, and nothing was handed to the host from unread state.
+        Assert.True(fixture.Logger.Saw(
+            Diagnostics.OperationalEventId.DeliveryFailed,
+            Diagnostics.OperationalOutcome.Failed));
+        Assert.Empty(host.Delivered);
+    }
+
+    [Fact]
+    public void The_worker_recovers_and_delivers_once_the_failing_read_starts_working()
+    {
+        using var fixture = new CoordinationFixture();
+        using var host = new FakeWidgetHost();
+
+        int calls = 0;
+        var recoveringTombstones = new DisclosureTombstoneStore(
+            fixture.Paths,
+            fixture.Logger,
+            fixture.Clock,
+            (directory, pattern) => ++calls == 1
+                ? throw new InvalidOperationException("simulated")
+                : Directory.GetFiles(directory, pattern));
+
+        using var worker = new DeliveryWorker(
+            fixture.Cache, recoveringTombstones, host, fixture.Logger);
+
+        fixture.SeedState(Payload("committed"));
+
+        worker.RequestDelivery();
+        Assert.True(WaitFor(() => worker.CompletedPasses >= 1, TimeSpan.FromSeconds(5)));
+
+        // Surviving the failure is only half of it. The thread must still be the same live worker, so
+        // the next request converges on committed state rather than needing a provider recycle.
+        worker.RequestDelivery();
+        Assert.True(WaitFor(() => host.LastPayloadText == "committed", TimeSpan.FromSeconds(5)));
+    }
 }
