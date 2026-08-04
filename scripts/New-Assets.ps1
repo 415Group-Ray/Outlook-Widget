@@ -13,8 +13,9 @@
     Reviewed on 2026-07-28. The outcome was split, and the two halves must not be conflated:
 
       - The WIDGET PICKER SCREENSHOTS are accepted. They illustrate the approved medium card -
-        unread count plus the newest messages - which the provider does not render yet, because
-        Graph access arrives with the next core slice. Having been accepted, the screenshot is
+        unread count plus the newest messages - which the provider does not render yet. Graph
+        access has since landed and a real snapshot is cached; what is still missing is the mail
+        card itself, which Phase 2 builds. Having been accepted, the screenshot is
         the design reference the medium card is expected to match, not merely a preview image.
         Sample senders and subjects are fictional and no mailbox data was involved.
 

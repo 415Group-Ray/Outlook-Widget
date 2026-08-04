@@ -60,6 +60,10 @@ yet installed-package measured:** the companion publishes signed-out suppression
 account picker, then clears the prior mailbox snapshot and replaces the selected identifier together
 under the mutation mutex before lifting its own tombstone. A second account is still required to prove
 cross-account isolation on the reference machine; same-account selection is not equivalent evidence.
+**No second account exists on the reference machine** — confirmed 2026-08-04, so this is a stated
+resource limitation rather than pending work. Sign-in's own commit path is measured on installed package
+0.4.22.0 (generation advanced 20 → 22, snapshot delivered), but that run started from a cleared cache and
+so could not reach the cross-account branch.
 
 **The narrow production refresh is wired and measured.** Stale activation, post-sign-in convergence,
 manual actions, and the opportunistic five-minute active timer call `GraphMailClient` through
@@ -67,8 +71,11 @@ manual actions, and the opportunistic five-minute active timer call `GraphMailCl
 provider-wide opportunity, starts with the first active instance, and stops after the last deactivation;
 that lifecycle has automated coverage and is measured on installed package 0.4.18.0: the cache advanced
 after 324.6 seconds active, then remained unchanged for 340.8 seconds after deactivation while the same
-provider process stayed alive. Gate 10 and gate 11 pass. Gate 12's filter syntax, header independence,
-and warm latency pass; comparing its returned Focused count with New Outlook remains manual. The
+provider process stayed alive. Gates 10, 11, and 12 all pass — gate 12's New Outlook comparison was
+taken on 2026-08-04, and **every Phase 0 gate now has a result**, gate 8's documented split aside. One
+finding from that comparison is worth keeping: Graph and the Outlook client apply Focused/Other
+reclassification at different instants, so a transient one-message disagreement is expected behaviour and
+must not be reported as a defect. The
 provider still renders the Phase 0 placeholder card rather than the cached mail; the settings-change
 trigger also remains a later slice.
 

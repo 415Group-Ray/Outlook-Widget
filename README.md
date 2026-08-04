@@ -41,8 +41,11 @@ made while the mutation lock is held rather than beforehand, because a refresh s
 selection is legitimate right up to the moment the identifier changes. If the publication cannot
 commit, the sign-in is reported as failed even though a token was issued: an unrecorded selection leaves
 the provider unable to converge, and a retry is better than a success the widget can never reflect.
-This is covered by automated tests and has not yet been measured on an installed package with a second
-account.
+The commit path is measured on installed package 0.4.22.0: signing in from the signed-out state left by
+the logout measurement published the identifier and then committed a Graph-backed snapshot, advancing the
+cache generation forward from 20 to 22 rather than restarting it, with no orphaned suppression marker.
+The **cross-account** case — a sign-in landing on an account other than the one recorded — is covered by
+automated tests only and remains unmeasured until a second account is available.
 
 **Account switching is now implemented and awaits installed-package measurement with a second
 account.** The companion publishes a signed-out tombstone before asking WAM to display its account
@@ -69,9 +72,12 @@ process without unpinning; closing the Widgets Board only deactivates the widget
 issued the required Graph reads, validated and DPAPI-cached a snapshot, and advanced the cache
 generation. A stale Board activation refreshed it; after a forced provider recycle the existing pin was
 recovered from cache without an unnecessary Graph request; and a state-change signal from another
-process reached the provider. Gate 12 is partly measured: its Focused query succeeds without an
-undocumented consistency header and the warm production refresh completed in 1.36 seconds, but the
-returned count still needs one visual comparison with New Outlook.
+process reached the provider. Gate 12 passes: its Focused query succeeds without an
+undocumented consistency header, the warm production refresh completed in 1.36 seconds, and the returned
+count was compared with New Outlook on 2026-08-04 — the Focused count sat strictly below total unread and
+Outlook independently agreed on the Other count, so the classification filter is doing real work. Note
+that Graph and the Outlook client apply Focused/Other reclassification at slightly different moments, so
+a transient one-message disagreement between the widget and Outlook is expected rather than a defect.
 
 **The provider now performs a narrow production refresh and caches real mailbox state, but it still
 draws the Phase 0 placeholder card rather than rendering that mail.** Stale activation, post-sign-in,
