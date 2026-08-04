@@ -29,8 +29,16 @@ signed-out marker, clears cached mailbox data and the selected account identifie
 and only then lifts its own tombstone. On the reference machine, the installed action left generation 20
 explicitly cleared with no mailbox payload or retained account identifier; after cold provider activation,
 that state and the app-local MSAL cache remained unchanged. The marker therefore prevented silent
-authentication from immediately falling back to the Windows account. Account switching remains the next
-Phase 1 account-lifecycle slice.
+authentication from immediately falling back to the Windows account.
+
+**Account switching is now implemented and awaits installed-package measurement with a second
+account.** The companion publishes a signed-out tombstone before asking WAM to display its account
+picker. After a selection succeeds, one bounded mutation clears the prior mailbox snapshot and stale
+authorization state, then atomically replaces the selected identifier last. Only after that commit does
+the operation remove its own tombstone; the provider's state-change listener then refreshes the newly
+selected mailbox. A cancelled selection or failed commit leaves details hidden and recoverable through
+**Clear interrupted operations**. Same-account selection does not prove cross-account cache isolation,
+so that result remains explicitly unmeasured until a second account is available.
 
 If sign-out cannot commit or cannot remove its suppression marker, the companion keeps message details
 hidden and reports that explicit recovery is required. Its **Clear interrupted operations** button removes

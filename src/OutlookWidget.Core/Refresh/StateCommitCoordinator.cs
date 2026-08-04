@@ -166,6 +166,66 @@ public sealed class CommitSignedOutStateAction : IStateCommitAction
     }
 }
 
+/// <summary>
+/// Commits the local account-switch boundary: stale authorization and prior-account mailbox state
+/// are cleared before the newly selected identifier is published. The identifier is replaced last,
+/// so a partial failure retains the prior complete selection for an explicit retry while the
+/// disclosure tombstone keeps all message details hidden.
+/// </summary>
+public sealed class CommitAccountSwitchStateAction : IStateCommitAction
+{
+    private readonly CoordinationPaths _paths;
+    private readonly ProtectedCache _cache;
+    private readonly SelectedAccountStore _selectedAccounts;
+    private readonly string _homeAccountId;
+    private readonly IOperationalLogger _logger;
+
+    public CommitAccountSwitchStateAction(
+        CoordinationPaths paths,
+        ProtectedCache cache,
+        SelectedAccountStore selectedAccounts,
+        string homeAccountId,
+        IOperationalLogger? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(cache);
+        ArgumentNullException.ThrowIfNull(selectedAccounts);
+        ArgumentException.ThrowIfNullOrWhiteSpace(homeAccountId);
+
+        _paths = paths;
+        _cache = cache;
+        _selectedAccounts = selectedAccounts;
+        _homeAccountId = homeAccountId;
+        _logger = logger ?? NullOperationalLogger.Instance;
+    }
+
+    public CacheCommitResult Execute(in MutationLock heldLock)
+    {
+        heldLock.ThrowIfNotHeld();
+
+        if (heldLock.StateIsSuspect)
+        {
+            _cache.RemoveOrphanedTemporaryFiles(heldLock);
+        }
+
+        if (!AuthorizationStateStore.TryClear(_paths, _logger))
+        {
+            return new CacheCommitResult(CacheCommitStatus.Failed, _cache.ReadGeneration());
+        }
+
+        CacheCommitResult cleared = _cache.Clear(heldLock);
+
+        if (!cleared.IsSuccess)
+        {
+            return cleared;
+        }
+
+        return _selectedAccounts.ReplaceSelection(heldLock, _homeAccountId)
+            ? cleared
+            : new CacheCommitResult(CacheCommitStatus.Failed, cleared.Generation);
+    }
+}
+
 /// <summary>How a bounded commit attempt ended.</summary>
 public enum StateCommitOutcome
 {
@@ -277,7 +337,9 @@ public sealed class StateCommitCoordinator
     /// cancelling one because some ambient deadline expired is how a sign-out becomes a
     /// silent no-op.
     /// </remarks>
-    public StateCommitResult CommitDisclosureChange(IStateCommitAction action)
+    public StateCommitResult CommitDisclosureChange(
+        IStateCommitAction action,
+        OperationalEventId failureEvent)
     {
         ArgumentNullException.ThrowIfNull(action);
 
@@ -294,7 +356,7 @@ public sealed class StateCommitCoordinator
         {
             // The caller must surface this to the user and must not report success. The
             // tombstone written before the attempt keeps details hidden meanwhile.
-            _logger.Record(OperationalEventId.SignOutFailed, OperationalOutcome.Timeout);
+            _logger.Record(failureEvent, OperationalOutcome.Timeout);
         }
 
         return second;

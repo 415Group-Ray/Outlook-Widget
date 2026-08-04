@@ -440,6 +440,23 @@ public sealed class CoordinationStaticAnalysisTests
     }
 
     [Fact]
+    public void Account_switch_is_companion_only_and_forces_the_WAM_account_picker()
+    {
+        string service = File.ReadAllText(
+            Path.Combine(RepositorySources.AppSourceDirectory, InteractiveAuthFileName));
+        string composition = File.ReadAllText(
+            Path.Combine(RepositorySources.AppSourceDirectory, "Program.cs"));
+        string window = File.ReadAllText(
+            Path.Combine(RepositorySources.AppSourceDirectory, "CompanionWindow.cs"));
+
+        Assert.Contains("SelectAccountAsync", service, StringComparison.Ordinal);
+        Assert.Contains("WithPrompt(Prompt.SelectAccount)", service, StringComparison.Ordinal);
+        Assert.Contains("new AccountSwitchCoordinator", composition, StringComparison.Ordinal);
+        Assert.Contains(".SelectAccountAsync()", composition, StringComparison.Ordinal);
+        Assert.Contains("Switch account", window, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_provider_reaches_the_broker_only_through_the_zero_handle_helper()
     {
         // Gate 9's subject is a zero parent window handle, and the provider must be the process that

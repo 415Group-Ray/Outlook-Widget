@@ -99,13 +99,43 @@ internal sealed class InteractiveAuthService
             return silent;
         }
 
+        return await AcquireInteractivelyAsync(
+                recordSelection: true,
+                forceAccountSelection: false,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Always displays WAM's account picker and returns the selected identifier without publishing
+    /// it. The account-switch coordinator owns publication because it must clear the prior mailbox
+    /// snapshot and replace the selection together under the mutation mutex.
+    /// </summary>
+    public Task<TokenAcquisitionResult> SelectAccountAsync(
+        CancellationToken cancellationToken = default) =>
+        AcquireInteractivelyAsync(
+            recordSelection: false,
+            forceAccountSelection: true,
+            cancellationToken);
+
+    private async Task<TokenAcquisitionResult> AcquireInteractivelyAsync(
+        bool recordSelection,
+        bool forceAccountSelection,
+        CancellationToken cancellationToken)
+    {
         long started = System.Diagnostics.Stopwatch.GetTimestamp();
 
         try
         {
-            AuthenticationResult result = await _client
-                .AcquireTokenInteractive(AuthenticationOptions.Scopes)
-                .ExecuteAsync(cancellationToken)
+            AcquireTokenInteractiveParameterBuilder request =
+                _client.AcquireTokenInteractive(AuthenticationOptions.Scopes);
+
+            if (forceAccountSelection)
+            {
+                request = request.WithPrompt(Prompt.SelectAccount);
+            }
+
+            AuthenticationResult result = await request.ExecuteAsync(cancellationToken)
                 .ConfigureAwait(false);
 
             // The one moment the product knows which account the user picked, rather than inferring
@@ -125,22 +155,28 @@ internal sealed class InteractiveAuthService
             // Nothing is lost by discarding the token: WAM holds the device-bound refresh token and
             // MSAL's cache holds the account, so the next attempt acquires silently.
             if (result.Account?.HomeAccountId?.Identifier is not { Length: > 0 } homeAccountId
-                || !_selectedAccounts.Write(homeAccountId))
+                || (recordSelection && !_selectedAccounts.Write(homeAccountId)))
             {
                 LastFailure = SelectionNotRecorded;
 
-                _logger.Record(
-                    OperationalEventId.SignInCompleted,
-                    OperationalOutcome.Failed,
-                    System.Diagnostics.Stopwatch.GetElapsedTime(started));
+                if (recordSelection)
+                {
+                    _logger.Record(
+                        OperationalEventId.SignInCompleted,
+                        OperationalOutcome.Failed,
+                        System.Diagnostics.Stopwatch.GetElapsedTime(started));
+                }
 
                 return TokenAcquisitionResult.Unavailable(TokenAcquisitionStatus.Failed);
             }
 
-            _logger.Record(
-                OperationalEventId.SignInCompleted,
-                OperationalOutcome.Success,
-                System.Diagnostics.Stopwatch.GetElapsedTime(started));
+            if (recordSelection)
+            {
+                _logger.Record(
+                    OperationalEventId.SignInCompleted,
+                    OperationalOutcome.Success,
+                    System.Diagnostics.Stopwatch.GetElapsedTime(started));
+            }
 
             return TokenAcquisitionResult.Acquired(
                 result.AccessToken,
@@ -157,10 +193,13 @@ internal sealed class InteractiveAuthService
             // AuthenticationFailures.Describe.
             LastFailure = AuthenticationFailures.Describe(e);
 
-            _logger.Record(
-                OperationalEventId.SignInCompleted,
-                AuthenticationFailures.ToOutcome(status),
-                System.Diagnostics.Stopwatch.GetElapsedTime(started));
+            if (recordSelection)
+            {
+                _logger.Record(
+                    OperationalEventId.SignInCompleted,
+                    AuthenticationFailures.ToOutcome(status),
+                    System.Diagnostics.Stopwatch.GetElapsedTime(started));
+            }
 
             return TokenAcquisitionResult.Unavailable(status);
         }

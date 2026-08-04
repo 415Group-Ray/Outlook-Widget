@@ -54,8 +54,104 @@ internal static class Program
         return CompanionWindow.Run(
             report,
             () => SignInAsync(state, configuration),
+            () => SwitchAccountAsync(state, configuration),
             () => SignOutAsync(state, configuration),
             () => Task.FromResult(ClearInterruptedOperations(state)));
+    }
+
+    private static async Task<string> SwitchAccountAsync(
+        PackagedStateResult state,
+        AuthenticationConfigurationResult configuration)
+    {
+        if (!state.IsResolved)
+        {
+            return "Cannot switch accounts safely: this process has no package identity. Launch the "
+                   + "installed package rather than the build output.";
+        }
+
+        if (!configuration.IsLoaded)
+        {
+            return $"Cannot switch accounts: the Entra registration configuration is "
+                   + $"{configuration.Status}. The package must ship a valid "
+                   + $"{AuthenticationConfiguration.FileName}.";
+        }
+
+        CoordinationPaths paths = state.Paths!;
+        AuthenticationOptions options = configuration.Options!;
+        paths.EnsureCreated();
+
+        try
+        {
+            IOperationalLogger logger = NullOperationalLogger.Instance;
+
+            _client ??= await BrokerClient
+                .CreateAsync(options, paths, () => CompanionWindow.Handle)
+                .ConfigureAwait(false);
+
+            var selectedAccounts = new SelectedAccountStore(paths, options, logger);
+            var cache = new ProtectedCache(paths, logger);
+            var tombstones = new DisclosureTombstoneStore(paths, logger);
+            using var mutation = new MutationMutex(paths.MutationMutexName, logger);
+            var commits = new StateCommitCoordinator(paths, mutation, logger);
+            var service = new InteractiveAuthService(_client, selectedAccounts, logger);
+            var accountSwitch = new AccountSwitchCoordinator(
+                tombstones,
+                commits,
+                paths,
+                cache,
+                selectedAccounts,
+                logger);
+
+            AccountSwitchResult result = await accountSwitch
+                .SwitchAsync(async () =>
+                {
+                    TokenAcquisitionResult selection = await service
+                        .SelectAccountAsync()
+                        .ConfigureAwait(false);
+
+                    return new AccountSelectionResult(
+                        selection.Status,
+                        selection.HomeAccountId);
+                })
+                .ConfigureAwait(false);
+
+            string failure = service.LastFailure is null
+                ? string.Empty
+                : $" Signals: {service.LastFailure}.";
+
+            return result.Outcome switch
+            {
+                AccountSwitchOutcome.Switched =>
+                    "Account-switch result: Switched\r\n\r\n"
+                    + "The prior mailbox snapshot was cleared before the new selected identifier "
+                    + "was committed. A running provider was signalled best-effort and will refresh "
+                    + "only the newly selected mailbox.",
+
+                AccountSwitchOutcome.StateCommitFailed =>
+                    "Could not commit the selected account. Message details remain hidden by an "
+                    + "interrupted-operation marker. Use Clear interrupted operations to lift "
+                    + "suppression, then retry the switch. The prior selection is retained when "
+                    + "the commit cannot finish. "
+                    + $"Commit outcome: {result.CommitOutcome}.{failure}",
+
+                AccountSwitchOutcome.SuppressionClearFailed =>
+                    "The selected account committed, but its interrupted-operation marker could "
+                    + "not be removed. The prior mailbox snapshot is cleared; use Clear interrupted "
+                    + "operations to finish the local cleanup.",
+
+                _ =>
+                    $"Account selection did not complete ({result.SelectionStatus}). Message "
+                    + "details remain hidden by an interrupted-operation marker. Use Clear "
+                    + "interrupted operations to restore the prior display before retrying."
+                    + failure,
+            };
+        }
+        catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
+        {
+            return "Account switching failed before the new selection could be committed. Message "
+                   + "details remain hidden if suppression had already begun. Signals: "
+                   + AuthenticationFailures.Describe(e);
+        }
     }
 
     private static async Task<string> SignOutAsync(

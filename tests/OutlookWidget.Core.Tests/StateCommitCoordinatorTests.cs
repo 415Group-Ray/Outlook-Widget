@@ -55,7 +55,8 @@ public sealed class StateCommitCoordinatorTests
         peer.WaitUntilHolding(TimeSpan.FromSeconds(15));
 
         StateCommitResult result = fixture.Commits.CommitDisclosureChange(
-            new ClearStateAction(fixture.Cache));
+            new ClearStateAction(fixture.Cache),
+            Diagnostics.OperationalEventId.SignOutFailed);
 
         // Explicit failure, never a value a caller could mistake for success. A logout whose
         // commit was skipped and reported as done would leave the previous account's subjects
@@ -90,7 +91,8 @@ public sealed class StateCommitCoordinatorTests
         DisclosureSuppression suppression = fixture.Tombstones.Suppress(DisclosureMode.SignedOut);
 
         StateCommitResult result = fixture.Commits.CommitDisclosureChange(
-            new ClearStateAction(fixture.Cache));
+            new ClearStateAction(fixture.Cache),
+            Diagnostics.OperationalEventId.SignOutFailed);
 
         Assert.Equal(StateCommitOutcome.ContentionTimeout, result.Outcome);
 
@@ -123,7 +125,8 @@ public sealed class StateCommitCoordinatorTests
         Assert.Equal(DisclosureMode.SignedOut, fixture.Tombstones.GetEffectiveMode());
 
         StateCommitResult result = fixture.Commits.CommitDisclosureChange(
-            new ClearStateAction(fixture.Cache));
+            new ClearStateAction(fixture.Cache),
+            Diagnostics.OperationalEventId.SignOutFailed);
 
         Assert.True(result.IsCommitted);
 
@@ -181,7 +184,8 @@ public sealed class StateCommitCoordinatorTests
         // sign-out becomes a silent no-op. The compiler enforces this: there is no overload to
         // pass a token to.
         StateCommitResult result = fixture.Commits.CommitDisclosureChange(
-            new ClearStateAction(fixture.Cache));
+            new ClearStateAction(fixture.Cache),
+            Diagnostics.OperationalEventId.SignOutFailed);
 
         Assert.True(result.IsCommitted);
     }
@@ -205,7 +209,8 @@ public sealed class StateCommitCoordinatorTests
         peer.Kill();
 
         StateCommitResult result = fixture.Commits.CommitDisclosureChange(
-            new ClearStateAction(fixture.Cache));
+            new ClearStateAction(fixture.Cache),
+            Diagnostics.OperationalEventId.SignOutFailed);
 
         // Abandonment must not crash and must not block recovery: the exception means ownership
         // was acquired, so the operation proceeds after validating state.
