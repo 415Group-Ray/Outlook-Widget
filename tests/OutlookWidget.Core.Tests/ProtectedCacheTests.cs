@@ -345,6 +345,98 @@ public sealed class ProtectedCacheTests
     }
 
     [Fact]
+    public void An_unreadable_generation_fails_a_clear_instead_of_restarting_the_counter()
+    {
+        using var fixture = new CoordinationFixture();
+        fixture.SeedState(Payload("account a mailbox"));
+        fixture.SeedState(Payload("account a mailbox, refreshed"));
+
+        Assert.Equal(2, fixture.Cache.ReadGeneration());
+
+        using (new FileStream(
+                   fixture.Paths.StateFilePath,
+                   FileMode.Open,
+                   FileAccess.Read,
+                   FileShare.None))
+        {
+            using MutationLock heldLock = fixture.Mutex.Acquire();
+            CacheCommitResult result = fixture.Cache.Clear(heldLock);
+
+            // Unconditional does not mean "at any generation". Deriving the next generation from a
+            // counter that was not read is how the counter runs backwards, and every consumer that
+            // compares generations to notice a change is reading a number that no longer orders.
+            Assert.Equal(CacheCommitStatus.Failed, result.Status);
+
+            // Failed before writing anything, not after. The old behaviour read zero, wrote a
+            // temporary file for generation 1, and only then discovered it could not replace.
+            Assert.False(File.Exists(fixture.Paths.StateTempFilePath));
+        }
+
+        // The prior snapshot and its generation are exactly as they were, which is what makes the
+        // caller's retry-on-the-next-trigger behaviour correct.
+        Assert.Equal(2, fixture.Cache.ReadGeneration());
+        Assert.Equal(CacheReadStatus.Success, fixture.Cache.Read().Status);
+    }
+
+    [Fact]
+    public void An_unreadable_generation_fails_an_unconditional_commit_for_the_same_reason()
+    {
+        using var fixture = new CoordinationFixture();
+        fixture.SeedState(Payload("committed"));
+
+        using (new FileStream(
+                   fixture.Paths.StateFilePath,
+                   FileMode.Open,
+                   FileAccess.Read,
+                   FileShare.None))
+        {
+            using MutationLock heldLock = fixture.Mutex.Acquire();
+
+            CacheCommitResult result = fixture.Cache.Commit(
+                heldLock, Payload("replacement"), expectedGeneration: null);
+
+            Assert.Equal(CacheCommitStatus.Failed, result.Status);
+            Assert.False(File.Exists(fixture.Paths.StateTempFilePath));
+        }
+
+        Assert.Equal(1, fixture.Cache.ReadGeneration());
+    }
+
+    [Fact]
+    public void An_absent_file_is_generation_zero_rather_than_an_unreadable_one()
+    {
+        using var fixture = new CoordinationFixture();
+
+        // The distinction the fail-on-unreadable rule depends on. A missing file genuinely is
+        // generation zero, so a first commit and a first clear both have to be able to happen; only a
+        // file that exists and will not open is unknown.
+        using MutationLock heldLock = fixture.Mutex.Acquire();
+        CacheCommitResult result = fixture.Cache.Clear(heldLock);
+
+        Assert.Equal(CacheCommitStatus.Success, result.Status);
+        Assert.Equal(1, result.Generation);
+        Assert.Equal(CacheReadStatus.Cleared, fixture.Cache.Read().Status);
+    }
+
+    [Fact]
+    public void A_corrupt_header_is_generation_zero_so_unusable_state_can_be_overwritten()
+    {
+        using var fixture = new CoordinationFixture();
+
+        // Present, openable, and carrying no recoverable counter. There is nothing to preserve and
+        // nothing to order against, so overwriting from zero is both the only option and the right one.
+        File.WriteAllBytes(fixture.Paths.StateFilePath, [0xFF, 0xFE, 0xFD, 0xFC]);
+
+        using MutationLock heldLock = fixture.Mutex.Acquire();
+        CacheCommitResult result = fixture.Cache.Commit(
+            heldLock, Payload("rebuilt"), expectedGeneration: null);
+
+        Assert.Equal(CacheCommitStatus.Success, result.Status);
+        Assert.Equal(1, result.Generation);
+        Assert.Equal("rebuilt", Encoding.UTF8.GetString(fixture.Cache.Read().Payload!));
+    }
+
+    [Fact]
     public void Orphaned_temporary_files_from_a_killed_commit_are_removed()
     {
         using var fixture = new CoordinationFixture();

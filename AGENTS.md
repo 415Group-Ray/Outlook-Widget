@@ -82,6 +82,20 @@ the marker move but before its handle is returned. Named state-change and suppre
 best-effort accelerants over authoritative disk state; missing, inaccessible, or otherwise unopenable
 events must report non-delivery rather than fail a completed mutation or published marker.
 
+**Publishing a selected account is a state commit, never a file write.** The cached mailbox belongs to
+whichever account was selected when it was committed, so the identifier and that snapshot have to change
+in one critical section. `SelectedAccountStore.Write` — which takes the mutation mutex for itself and
+touches nothing else — is therefore **`internal`, and production code must not use it**; it remains only
+so tests can seed a prior selection. Every production path goes through a commit action that owns both
+decisions: `CommitInteractiveSelectionAction` for sign-in, `CommitAccountSwitchStateAction` for an
+account switch, `CommitSignedOutStateAction` for logout. The sign-in action decides whether the cache is
+foreign *under the held lock* rather than before it, because a refresh scoped to the prior selection is
+legitimate until the identifier changes; and it fails closed on every uncertainty, so only a positively
+absent or already-cleared cache is left in place. It deliberately carries **no** disclosure tombstone,
+unlike the switch action, and the reason is intent rather than mechanism: a failed sign-in publication
+leaves the complete prior state, in which the prior account's mail is the correct thing to show for the
+prior account's selection, so there is nothing to fail closed about. Do not "make the three symmetric".
+
 Two authentication invariants that are easy to break and were each already broken once:
 
 - **Interactive authentication lives in `OutlookWidget.App`, not the core** — a deviation from the plan's
@@ -198,6 +212,24 @@ coverage when changing nearby behavior.
     `Program.ProviderClassId`, the manifest's `com:Class Id`, and the widget extension's
     `CreateInstance ClassId`. A mismatch installs cleanly and then fails activation with nothing
     surfaced in the Widgets Board. `Build-Package.ps1` and `PackageManifestTests` both check it.
+12. **The cache generation only ever moves forward.** Every mutation derives the next generation
+    from the current one, so a writer that cannot read the current one must fail its commit rather
+    than restart from zero — including `Clear`, where "unconditional" means "not conditional on a
+    generation", not "at any generation". `ProtectedCache.ReadGeneration` answers 0 when the header
+    cannot be read, which is right for a caller that only *compares* it and wrong for one that
+    writes it back; the private `TryReadGeneration` is what separates "the value is zero" from "the
+    value is unknown". An absent file is genuinely zero, and so is a present file whose magic or
+    header length is wrong — neither holds a recoverable counter. Do not reintroduce
+    `ReadGeneration()` into `Commit` or `Clear`.
+13. **The delivery thread must be unkillable.** `DeliveryWorker` owns the process's only delivery
+    thread and `RunLoop` cannot restart it, so `RunOnePass` guards the state reads as well as the
+    host call and never throws. An escaping exception ended the thread with the in-progress marker
+    still set, after which `RequestDelivery` never released the semaphore again and the provider
+    silently stopped rendering until it was recycled — with no card and no log line saying so. The
+    guard is deliberately broad, for the reason `StateChangeListener` and `ActiveRefreshTimer` both
+    carry one. `GraphMailClient.SendAsync` and `RefreshLeaseStore.Clear` are non-throwing for the
+    related reason that both are reachable during a bounded shutdown, and the latter runs inside the
+    refresh transaction's `finally` where a throw would mask the real failure.
 
 Do not weaken, delete, skip, or rewrite a safety test merely to make a change pass. Prefer the
 smallest coherent fix that preserves existing contracts, and avoid broad refactors while

@@ -127,18 +127,32 @@ public sealed class SelectedAccountStore
     }
 
     /// <summary>
-    /// Records the account an interactive sign-in selected.
+    /// Records a selection while acquiring the shared mutation mutex for itself.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Deliberately not public, and it used to be.</b> Replacing the selected identifier on its own
+    /// is not a safe production operation: the cached mailbox belongs to whichever account was selected
+    /// when it was committed, so changing the identifier without deciding what happens to that snapshot
+    /// in the same critical section is how the previous account's mail stays on screen under the new
+    /// account's selection. That was a real defect on the companion's sign-in path.
+    /// </para>
+    /// <para>
+    /// Production publication therefore goes through a commit action that owns both decisions at once —
+    /// <c>CommitInteractiveSelectionAction</c> for sign-in, <c>CommitAccountSwitchStateAction</c> for an
+    /// account switch, <c>CommitSignedOutStateAction</c> for logout — each of which calls
+    /// <see cref="ReplaceSelection"/> or <see cref="MarkSignedOut"/> under a lock it already holds.
+    /// What remains here is the seeding path tests use to establish a prior selection, which is why the
+    /// mutex acquisition stays rather than being deleted along with the visibility.
+    /// </para>
+    /// </remarks>
     /// <returns>
-    /// Whether the selection was persisted, and the caller must not ignore it.
-    /// <see langword="false"/> leaves exactly what a fresh install leaves, so nothing downstream can
-    /// tell the two apart after the fact. Two defences, and both are needed:
+    /// Whether the selection was persisted. <see langword="false"/> leaves exactly what a fresh install
+    /// leaves, so nothing downstream can tell the two apart after the fact —
     /// <c>SilentAuthService.Select</c> refuses to guess whenever no selection is present and more than
-    /// one account is cached, which also covers state written before this record existed; and the
-    /// companion reports the sign-in as failed rather than succeeding into a state that can never
-    /// converge.
+    /// one account is cached, which is the defence that covers it.
     /// </returns>
-    public bool Write(string homeAccountId)
+    internal bool Write(string homeAccountId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(homeAccountId);
 

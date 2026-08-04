@@ -93,7 +93,8 @@ internal static class Program
             var tombstones = new DisclosureTombstoneStore(paths, logger);
             using var mutation = new MutationMutex(paths.MutationMutexName, logger);
             var commits = new StateCommitCoordinator(paths, mutation, logger);
-            var service = new InteractiveAuthService(_client, selectedAccounts, logger);
+            var service = new InteractiveAuthService(
+                _client, commits, paths, cache, selectedAccounts, logger);
             var accountSwitch = new AccountSwitchCoordinator(
                 tombstones,
                 commits,
@@ -321,6 +322,7 @@ internal static class Program
         }
 
         CoordinationPaths paths = state.Paths!;
+        AuthenticationOptions options = configuration.Options!;
         paths.EnsureCreated();
 
         TokenAcquisitionResult result;
@@ -328,13 +330,26 @@ internal static class Program
 
         try
         {
+            IOperationalLogger logger = NullOperationalLogger.Instance;
+
             _client ??= await BrokerClient
-                .CreateAsync(configuration.Options!, paths, () => CompanionWindow.Handle)
+                .CreateAsync(options, paths, () => CompanionWindow.Handle)
                 .ConfigureAwait(false);
+
+            // The cache and the commit coordinator are here because publishing the selected account is
+            // a state commit rather than a file write: a sign-in that lands on a different account than
+            // the one recorded has to remove the previous account's snapshot in the same critical
+            // section. See CommitInteractiveSelectionAction.
+            using var mutation = new MutationMutex(paths.MutationMutexName, logger);
 
             var service = new InteractiveAuthService(
                 _client,
-                new SelectedAccountStore(paths, configuration.Options!));
+                new StateCommitCoordinator(paths, mutation, logger),
+                paths,
+                new ProtectedCache(paths, logger),
+                new SelectedAccountStore(paths, options, logger),
+                logger);
+
             result = await service.SignInAsync().ConfigureAwait(false);
             failureDetail = service.LastFailure;
         }
@@ -375,7 +390,7 @@ internal static class Program
         else if (result.Status == TokenAcquisitionStatus.ApprovalRequired)
         {
             AuthorizationStateStore.Write(
-                paths, configuration.Options!, result.Status, DateTimeOffset.UtcNow);
+                paths, options, result.Status, DateTimeOffset.UtcNow);
         }
 
         // Section 3's division of labour is that the companion commits state and signals while the

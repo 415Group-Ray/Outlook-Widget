@@ -1304,6 +1304,27 @@ last-write timestamp. This is local evidence that the durable marker blocked the
 operating-system-account fallback after explicit logout; it is not a claim that the Windows account or
 an identity-provider browser session was removed. The widget app was deliberately left signed out.
 
+## Not measured on a device: three defects found by code review, fixed and covered by tests only
+
+Recorded 2026-08-04. These are code corrections, **not** device, tenant, Widgets-host, or
+installed-package measurements, and none of them changes a result recorded above. Each is listed here so
+the distinction between "tested" and "measured" stays explicit, and each has automated coverage that was
+confirmed to fail against the pre-fix code.
+
+| Defect | Fixed by | Coverage | Still unmeasured |
+|---|---|---|---|
+| Sign-in replaced the selected identifier without removing a cached mailbox belonging to another account, so the previous account's senders and subjects stayed committed under the new selection | `CommitInteractiveSelectionAction`, publishing identifier and mailbox decision in one critical section | `InteractiveSelectionCommitTests` | Cross-account behaviour on an installed package; still blocked on a second account, the same blocker account switching has |
+| An exception escaping a delivery pass ended the provider's only delivery thread with its in-progress marker set, after which nothing rendered again until the provider was recycled | broad guard spanning the state reads in `DeliveryWorker.RunOnePass` | `DeliveryWorkerTests` | Whether any real filesystem or Widgets-host condition on this device produces such an exception at all |
+| A transiently unreadable state header made an unconditional `Clear` stamp generation 1 over generation N, running the counter backwards | `ProtectedCache.TryReadGeneration`, failing the commit instead of writing from an unread counter | `ProtectedCacheTests` | Whether antivirus or indexing on this device actually blocks the header read in practice |
+
+The second and third were reachable only through failure modes the reference machine has not been
+observed to produce, so their probability here is unquantified and deliberately not asserted. The first
+was reachable through ordinary use: signing in after a silent acquisition failed, with WAM's account
+chooser offering more than one account. What is proven is the pre-fix behaviour, not its frequency — a
+throwaway test replicating the old identifier-only publication confirmed the prior account's snapshot
+survived with the new account selected.
+
+
 ## Reproducing the provider evidence
 
 ```powershell

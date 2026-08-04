@@ -31,6 +31,19 @@ explicitly cleared with no mailbox payload or retained account identifier; after
 that state and the app-local MSAL cache remained unchanged. The marker therefore prevented silent
 authentication from immediately falling back to the Windows account.
 
+**Signing in publishes the chosen account and the mailbox decision together.** The companion's Sign in
+action does not simply record the identifier it was given. One bounded mutation replaces the selected
+identifier and, in the same critical section, removes the cached mailbox unless that cache can be shown
+to belong to the account being signed in to — so a sign-in that lands on a different account than the
+one already recorded cannot leave the previous account's senders and subjects committed. Re-signing in
+to the same account keeps its snapshot, so an expired token does not blank the widget. The decision is
+made while the mutation lock is held rather than beforehand, because a refresh scoped to the previous
+selection is legitimate right up to the moment the identifier changes. If the publication cannot
+commit, the sign-in is reported as failed even though a token was issued: an unrecorded selection leaves
+the provider unable to converge, and a retry is better than a success the widget can never reflect.
+This is covered by automated tests and has not yet been measured on an installed package with a second
+account.
+
 **Account switching is now implemented and awaits installed-package measurement with a second
 account.** The companion publishes a signed-out tombstone before asking WAM to display its account
 picker. After a selection succeeds, one bounded mutation clears the prior mailbox snapshot and stale

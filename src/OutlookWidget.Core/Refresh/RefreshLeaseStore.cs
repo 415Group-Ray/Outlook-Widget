@@ -120,9 +120,19 @@ public sealed class RefreshLeaseStore
     /// transaction, and it happens before any widget delivery.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A wait timeout here leaves the record alone. Expiry reclaims it, so a failed clear
     /// degrades to a delayed reclaim rather than a lost lease — which is why this method
     /// reports the timeout but does not treat it as an error the caller must handle.
+    /// </para>
+    /// <para>
+    /// <b>It must not throw at all, for the same reason.</b> This runs inside the refresh
+    /// transaction's <c>finally</c>, so an exception raised here replaces whatever was already
+    /// propagating and reports the wrong failure. Process shutdown makes that reachable: the refresh
+    /// worker's Dispose is bounded, so an abandoned refresh can reach this after the mutex it needs
+    /// has been disposed. A disposed mutex is the same situation as a wedged one — nothing can be
+    /// released, expiry handles it — so it is recorded and swallowed rather than allowed to mask.
+    /// </para>
     /// </remarks>
     public void Clear(Guid instanceId)
     {
@@ -134,8 +144,26 @@ public sealed class RefreshLeaseStore
         // No cancellation token. This runs in a finally, and a cancelled refresh must
         // still release its lease; passing the expired deadline's token here would make
         // cancellation the reason the lease leaked.
-        using MutationLock heldLock = _mutex.Acquire();
+        MutationLock heldLock;
 
+        try
+        {
+            heldLock = _mutex.Acquire();
+        }
+        catch (ObjectDisposedException)
+        {
+            _logger.Record(OperationalEventId.RefreshLeaseClearTimedOut, OperationalOutcome.Failed);
+            return;
+        }
+
+        using (heldLock)
+        {
+            ClearOwnedRecord(instanceId, heldLock);
+        }
+    }
+
+    private void ClearOwnedRecord(Guid instanceId, in MutationLock heldLock)
+    {
         if (!heldLock.IsHeld)
         {
             _logger.Record(OperationalEventId.RefreshLeaseClearTimedOut, OperationalOutcome.Timeout);

@@ -399,7 +399,15 @@ internal static partial class CompanionWindow
             }
 
             _finishedReport = report;
-            PostMessageW(_window, WmOperationFinished, IntPtr.Zero, IntPtr.Zero);
+
+            // The post is the only thing that re-enables the buttons, so a failed post has to release
+            // the running flag here instead. Otherwise every button in the window stays dead for the
+            // rest of the process's life, with one of them still reading "Signing in…" — a worse
+            // outcome than losing the report, and one nothing on screen would explain.
+            if (!PostMessageW(_window, WmOperationFinished, IntPtr.Zero, IntPtr.Zero))
+            {
+                Volatile.Write(ref _operationRunning, 0);
+            }
         });
     }
 

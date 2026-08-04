@@ -1,6 +1,8 @@
 using Microsoft.Identity.Client;
 using OutlookWidget.Core.Authentication;
+using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Diagnostics;
+using OutlookWidget.Core.Refresh;
 
 namespace OutlookWidget.App;
 
@@ -37,19 +39,45 @@ internal sealed class InteractiveAuthService
     private readonly SilentAuthService _silent;
     private readonly IOperationalLogger _logger;
     private readonly SelectedAccountStore _selectedAccounts;
+    private readonly StateCommitCoordinator _commits;
+    private readonly Func<string, IStateCommitAction> _publishSelection;
 
+    /// <param name="client">The broker-enabled MSAL client.</param>
+    /// <param name="commits">
+    /// Performs the selection publication under the shared mutation mutex. Sign-in publishes through a
+    /// commit rather than through the selection store directly, because the cached mailbox belongs to
+    /// whichever account was previously selected and the two have to change together; see
+    /// <c>CommitInteractiveSelectionAction</c>.
+    /// </param>
+    /// <param name="paths">Where coordination state lives.</param>
+    /// <param name="cache">The committed mailbox snapshot, which publication may have to remove.</param>
+    /// <param name="selectedAccounts">Where the chosen account is recorded.</param>
+    /// <param name="logger">Metadata-free operational logging.</param>
     public InteractiveAuthService(
         IPublicClientApplication client,
+        StateCommitCoordinator commits,
+        CoordinationPaths paths,
+        ProtectedCache cache,
         SelectedAccountStore selectedAccounts,
         IOperationalLogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(commits);
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(cache);
         ArgumentNullException.ThrowIfNull(selectedAccounts);
 
         _client = client;
+        _commits = commits;
         _selectedAccounts = selectedAccounts;
         _logger = logger ?? NullOperationalLogger.Instance;
         _silent = new SilentAuthService(client, _logger, selectedAccounts);
+        _publishSelection = homeAccountId => new CommitInteractiveSelectionAction(
+            paths,
+            cache,
+            selectedAccounts,
+            homeAccountId,
+            _logger);
     }
 
     /// <summary>
@@ -99,11 +127,58 @@ internal sealed class InteractiveAuthService
             return silent;
         }
 
-        return await AcquireInteractivelyAsync(
-                recordSelection: true,
+        TokenAcquisitionResult acquired = await AcquireInteractivelyAsync(
+                isSignIn: true,
                 forceAccountSelection: false,
                 cancellationToken)
             .ConfigureAwait(false);
+
+        return acquired.IsAcquired && acquired.HomeAccountId is { Length: > 0 } homeAccountId
+            ? Publish(acquired, homeAccountId)
+            : acquired;
+    }
+
+    /// <summary>
+    /// Commits the selected account, and the mailbox decision that goes with it, as one mutation.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>A failed publication fails the sign-in</b>, and that is not the obvious call — a token was
+    /// genuinely issued. It is right because of what the rest of the system does with an unrecorded
+    /// selection: silent acquisition refuses to guess when more than one account is cached, so an
+    /// ignored failure leaves the provider deterministically at interaction-required while this process
+    /// reports success. That is a sign-in the user is told worked and that can never converge.
+    /// Reporting it as failed costs a retry, and the retry genuinely re-attempts the publication — see
+    /// the silent-shortcut condition in <see cref="SignInAsync"/>, which is what makes that true rather
+    /// than merely asserted.
+    /// </para>
+    /// <para>
+    /// Nothing is lost by discarding the token: WAM holds the device-bound refresh token and MSAL's
+    /// cache holds the account, so the next attempt acquires silently.
+    /// </para>
+    /// <para>
+    /// <see cref="StateCommitCoordinator.CommitDisclosureChange"/> rather than
+    /// <c>CommitRefresh</c>, for its two documented properties. It retries once on contention instead of
+    /// abandoning, because unlike a refresh this has no next trigger to wait for; and it takes no
+    /// cancellation token, because this is user-initiated and cancelling it on some ambient deadline is
+    /// how a publication becomes a silent no-op.
+    /// </para>
+    /// </remarks>
+    private TokenAcquisitionResult Publish(TokenAcquisitionResult acquired, string homeAccountId)
+    {
+        StateCommitResult commit = _commits.CommitDisclosureChange(
+            _publishSelection(homeAccountId),
+            OperationalEventId.SignInPublicationFailed);
+
+        if (commit.IsCommitted)
+        {
+            return acquired;
+        }
+
+        LastFailure = SelectionNotRecorded;
+        _logger.Record(OperationalEventId.SignInPublicationFailed, OperationalOutcome.Failed);
+
+        return TokenAcquisitionResult.Unavailable(TokenAcquisitionStatus.Failed);
     }
 
     /// <summary>
@@ -114,12 +189,21 @@ internal sealed class InteractiveAuthService
     public Task<TokenAcquisitionResult> SelectAccountAsync(
         CancellationToken cancellationToken = default) =>
         AcquireInteractivelyAsync(
-            recordSelection: false,
+            isSignIn: false,
             forceAccountSelection: true,
             cancellationToken);
 
+    /// <summary>
+    /// Performs the interactive acquisition and nothing else. Publication is the caller's, because the
+    /// two callers publish differently: sign-in through <see cref="Publish"/>, and account switching
+    /// through the coordinator that also owns its suppression ordering.
+    /// </summary>
+    /// <param name="isSignIn">
+    /// Whether to record this as a sign-in in the operational log. False for account selection, whose
+    /// own coordinator records the switch events.
+    /// </param>
     private async Task<TokenAcquisitionResult> AcquireInteractivelyAsync(
-        bool recordSelection,
+        bool isSignIn,
         bool forceAccountSelection,
         CancellationToken cancellationToken)
     {
@@ -138,28 +222,14 @@ internal sealed class InteractiveAuthService
             AuthenticationResult result = await request.ExecuteAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            // The one moment the product knows which account the user picked, rather than inferring
-            // it. Recorded before the result is returned, because the provider may re-probe on the
-            // state-changed signal the caller raises immediately afterwards and would otherwise read a
-            // file that is not there yet.
-            //
-            // **A failed write fails the sign-in**, and that is not the obvious call — a token was
-            // genuinely issued. It is right because of what the rest of the system now does with an
-            // unrecorded selection: silent acquisition refuses to guess when more than one account is
-            // cached, so an ignored write failure leaves the provider deterministically at
-            // interaction-required while this process reports success. That is a sign-in the user is
-            // told worked and that can never converge. Reporting it as failed costs a retry, and the
-            // retry genuinely re-attempts the write — see the silent-shortcut condition above, which
-            // is what makes that true rather than merely asserted.
-            //
-            // Nothing is lost by discarding the token: WAM holds the device-bound refresh token and
-            // MSAL's cache holds the account, so the next attempt acquires silently.
-            if (result.Account?.HomeAccountId?.Identifier is not { Length: > 0 } homeAccountId
-                || (recordSelection && !_selectedAccounts.Write(homeAccountId)))
+            // An account the broker will not identify cannot be published, and publishing is what makes
+            // the provider able to ask for the right mailbox. Refused here rather than downstream,
+            // because every publication path requires an identifier and none of them can invent one.
+            if (result.Account?.HomeAccountId?.Identifier is not { Length: > 0 } homeAccountId)
             {
                 LastFailure = SelectionNotRecorded;
 
-                if (recordSelection)
+                if (isSignIn)
                 {
                     _logger.Record(
                         OperationalEventId.SignInCompleted,
@@ -170,7 +240,7 @@ internal sealed class InteractiveAuthService
                 return TokenAcquisitionResult.Unavailable(TokenAcquisitionStatus.Failed);
             }
 
-            if (recordSelection)
+            if (isSignIn)
             {
                 _logger.Record(
                     OperationalEventId.SignInCompleted,
@@ -181,7 +251,7 @@ internal sealed class InteractiveAuthService
             return TokenAcquisitionResult.Acquired(
                 result.AccessToken,
                 result.ExpiresOn,
-                result.Account.HomeAccountId?.Identifier);
+                homeAccountId);
         }
         catch (Exception e) when (e is MsalException or OperationCanceledException)
         {
@@ -193,7 +263,7 @@ internal sealed class InteractiveAuthService
             // AuthenticationFailures.Describe.
             LastFailure = AuthenticationFailures.Describe(e);
 
-            if (recordSelection)
+            if (isSignIn)
             {
                 _logger.Record(
                     OperationalEventId.SignInCompleted,
@@ -225,8 +295,8 @@ internal sealed class InteractiveAuthService
     /// Why a sign-in that acquired a token is still reported as failed.
     /// </summary>
     /// <remarks>
-    /// A fixed category, not a message. There is no exception to describe here — the failure is that a
-    /// local write did not happen — and the same rule applies as everywhere else in this file: the
+    /// A fixed category, not a message. There is no exception to describe here — the failure is that the
+    /// local publication did not commit — and the same rule applies as everywhere else in this file: the
     /// companion may show a category, never a path, an account, or an exception's own text.
     /// </remarks>
     internal const string SelectionNotRecorded = "SelectedAccountNotRecorded";

@@ -260,7 +260,23 @@ internal sealed class WidgetProvider : IWidgetProvider
         switch (verb)
         {
             case WidgetVerbs.Refresh:
-                _refresh?.Request(RefreshTrigger.ManualAction);
+                if (_refresh is { } refresh)
+                {
+                    refresh.Request(RefreshTrigger.ManualAction);
+                }
+                else
+                {
+                    // No refresh worker means the package shipped without a usable Entra
+                    // registration, so there is nothing to fetch. The card still offers Refresh at
+                    // the medium and large sizes, and a null-conditional call made that button do
+                    // literally nothing — no fetch, and not even a re-render, so the user pressed it
+                    // and the widget could not so much as restate why it cannot refresh. A pass from
+                    // committed state is the honest weaker answer: the detail line then says the
+                    // build has no registration.
+                    _logger.Record(OperationalEventId.RefreshRequested, OperationalOutcome.Skipped);
+                    _delivery.RequestDelivery();
+                }
+
                 break;
 
             case WidgetVerbs.OpenOutlook:
