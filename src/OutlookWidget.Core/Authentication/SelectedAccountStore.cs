@@ -246,7 +246,7 @@ public sealed class SelectedAccountStore
 
     /// <summary>Removes the record. Safe when none exists.</summary>
     /// <remarks>
-    /// Belongs to logout and account switch, which are not built yet. It exists now because a store
+    /// Belongs to logout and account switch. It exists because a store
     /// that can be written and never cleared is one whose removal gets forgotten at exactly the moment
     /// it matters — a logout that leaves the previous account recorded would have the provider keep
     /// asking for a mailbox the user just signed out of.
@@ -270,6 +270,17 @@ public sealed class SelectedAccountStore
     /// </summary>
     internal bool MarkSignedOut(in MutationLock heldLock) =>
         WriteRecord(heldLock, homeAccountId: null, signedOut: true);
+
+    /// <summary>
+    /// Replaces the selected identifier as part of an account-switch commit while the caller owns
+    /// the shared mutation lock. Keeping this write in the same critical section as the mailbox-cache
+    /// clear prevents a refresh for either account from committing across the switch boundary.
+    /// </summary>
+    internal bool ReplaceSelection(in MutationLock heldLock, string homeAccountId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(homeAccountId);
+        return WriteRecord(heldLock, homeAccountId, signedOut: false);
+    }
 
     private bool WriteRecord(in MutationLock heldLock, string? homeAccountId, bool signedOut)
     {

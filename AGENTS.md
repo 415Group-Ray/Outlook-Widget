@@ -55,7 +55,11 @@ tombstone. Cold provider activation left the cleared generation and app-local to
 the signed-out marker blocked the operating-system-account fallback. The local commit must replace the
 selected identifier last, preserving it across any earlier mutation failure so retry cannot broaden into
 removing every cached account, and that record write must use temporary-file plus atomic replacement so
-its own failure cannot truncate the preserved identifier. Account switching remains unbuilt.
+its own failure cannot truncate the preserved identifier. **Account switching is implemented but not
+yet installed-package measured:** the companion publishes signed-out suppression before forcing WAM's
+account picker, then clears the prior mailbox snapshot and replaces the selected identifier together
+under the mutation mutex before lifting its own tombstone. A second account is still required to prove
+cross-account isolation on the reference machine; same-account selection is not equivalent evidence.
 
 **The narrow production refresh is wired and measured.** Stale activation, post-sign-in convergence,
 manual actions, and the opportunistic five-minute active timer call `GraphMailClient` through
@@ -69,9 +73,10 @@ provider still renders the Phase 0 placeholder card rather than the cached mail;
 trigger also remains a later slice.
 
 The current companion is a packaging and authentication probe with a minimal Win32 window and Sign in,
-Sign out, and Clear interrupted operations controls, not the finished WinUI experience. Every failed
-sign-out path after suppression is published, whether it returns or throws, must complete its in-process
-suppression handle without deleting the marker, so the explicit recovery control can remove that orphan
+Switch account, Sign out, and Clear interrupted operations controls, not the finished WinUI experience.
+Every failed sign-out or account-switch path after suppression is published, whether it returns or
+throws, must complete its in-process suppression handle without deleting the marker, so the explicit
+recovery control can remove that orphan
 without touching a disclosure operation still in flight. This includes failure inside `Suppress` after
 the marker move but before its handle is returned. Named state-change and suppress-details events are
 best-effort accelerants over authoritative disk state; missing, inaccessible, or otherwise unopenable

@@ -45,11 +45,14 @@ internal static partial class CompanionWindow
     /// <summary>The sign-in button's control identifier.</summary>
     private const int SignInButtonId = 1;
 
+    /// <summary>The account-switch button's control identifier.</summary>
+    private const int SwitchAccountButtonId = 2;
+
     /// <summary>The sign-out button's control identifier.</summary>
-    private const int SignOutButtonId = 2;
+    private const int SignOutButtonId = 3;
 
     /// <summary>The interrupted-operation recovery button's control identifier.</summary>
-    private const int ClearInterruptedButtonId = 3;
+    private const int ClearInterruptedButtonId = 4;
 
     /// <summary>
     /// Posted to the window when the sign-in task completes. <c>WM_APP</c> is the range Windows
@@ -60,11 +63,15 @@ internal static partial class CompanionWindow
     private static IntPtr _window;
     private static IntPtr _report;
     private static IntPtr _signInButton;
+    private static IntPtr _switchAccountButton;
     private static IntPtr _signOutButton;
     private static IntPtr _clearInterruptedButton;
 
     /// <summary>The sign-in operation, supplied by the composition root.</summary>
     private static Func<Task<string>>? _signIn;
+
+    /// <summary>The suppress-first account-switch operation.</summary>
+    private static Func<Task<string>>? _switchAccount;
 
     /// <summary>The sign-out operation, supplied by the composition root.</summary>
     private static Func<Task<string>>? _signOut;
@@ -107,15 +114,18 @@ internal static partial class CompanionWindow
     public static unsafe int Run(
         string report,
         Func<Task<string>> signIn,
+        Func<Task<string>> switchAccount,
         Func<Task<string>> signOut,
         Func<Task<string>> clearInterruptedOperations)
     {
         ArgumentNullException.ThrowIfNull(report);
         ArgumentNullException.ThrowIfNull(signIn);
+        ArgumentNullException.ThrowIfNull(switchAccount);
         ArgumentNullException.ThrowIfNull(signOut);
         ArgumentNullException.ThrowIfNull(clearInterruptedOperations);
 
         _signIn = signIn;
+        _switchAccount = switchAccount;
         _signOut = signOut;
         _clearInterruptedOperations = clearInterruptedOperations;
 
@@ -184,7 +194,7 @@ internal static partial class CompanionWindow
     private const int WindowWidth = 760;
     private const int WindowHeight = 560;
     private const int Margin = 12;
-    private const int ButtonWidth = 150;
+    private const int ButtonWidth = 130;
     private const int RecoveryButtonWidth = 220;
     private const int ButtonHeight = 34;
 
@@ -249,6 +259,24 @@ internal static partial class CompanionWindow
         }
 
         fixed (char* buttonClass = "BUTTON")
+        fixed (char* caption = "Switch account")
+        {
+            _switchAccountButton = CreateWindowExW(
+                0,
+                (IntPtr)buttonClass,
+                (IntPtr)caption,
+                WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+                Margin + ButtonWidth + Margin,
+                height - ButtonHeight - Margin,
+                ButtonWidth,
+                ButtonHeight,
+                _window,
+                (IntPtr)SwitchAccountButtonId,
+                instance,
+                IntPtr.Zero);
+        }
+
+        fixed (char* buttonClass = "BUTTON")
         fixed (char* caption = "Sign out")
         {
             _signOutButton = CreateWindowExW(
@@ -256,7 +284,7 @@ internal static partial class CompanionWindow
                 (IntPtr)buttonClass,
                 (IntPtr)caption,
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP,
-                Margin + ButtonWidth + Margin,
+                Margin + (ButtonWidth * 2) + (Margin * 2),
                 height - ButtonHeight - Margin,
                 ButtonWidth,
                 ButtonHeight,
@@ -274,7 +302,7 @@ internal static partial class CompanionWindow
                 (IntPtr)buttonClass,
                 (IntPtr)caption,
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP,
-                Margin + (ButtonWidth * 2) + (Margin * 2),
+                Margin + (ButtonWidth * 3) + (Margin * 3),
                 height - ButtonHeight - Margin,
                 RecoveryButtonWidth,
                 ButtonHeight,
@@ -289,6 +317,7 @@ internal static partial class CompanionWindow
         IntPtr font = GetStockObject(DEFAULT_GUI_FONT);
         SendMessageW(_report, WM_SETFONT, font, 1);
         SendMessageW(_signInButton, WM_SETFONT, font, 1);
+        SendMessageW(_switchAccountButton, WM_SETFONT, font, 1);
         SendMessageW(_signOutButton, WM_SETFONT, font, 1);
         SendMessageW(_clearInterruptedButton, WM_SETFONT, font, 1);
     }
@@ -304,6 +333,14 @@ internal static partial class CompanionWindow
 
             case WM_COMMAND when (wParam.ToInt64() & 0xFFFF) == SignOutButtonId:
                 BeginOperation(_signOut!, _signOutButton, "Signing out…", "Sign-out");
+                return IntPtr.Zero;
+
+            case WM_COMMAND when (wParam.ToInt64() & 0xFFFF) == SwitchAccountButtonId:
+                BeginOperation(
+                    _switchAccount!,
+                    _switchAccountButton,
+                    "Switching…",
+                    "Account switch");
                 return IntPtr.Zero;
 
             case WM_COMMAND when (wParam.ToInt64() & 0xFFFF) == ClearInterruptedButtonId:
@@ -376,6 +413,7 @@ internal static partial class CompanionWindow
         }
 
         SetButtonText(_signInButton, "Sign in");
+        SetButtonText(_switchAccountButton, "Switch account");
         SetButtonText(_signOutButton, "Sign out");
         SetButtonText(_clearInterruptedButton, "Clear interrupted operations");
         Volatile.Write(ref _operationRunning, 0);

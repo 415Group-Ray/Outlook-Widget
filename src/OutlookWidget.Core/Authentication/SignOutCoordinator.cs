@@ -81,7 +81,9 @@ public sealed class SignOutCoordinator
                 return new SignOutResult(SignOutOutcome.AccountRemovalFailed);
             }
 
-            StateCommitResult commit = _commits.CommitDisclosureChange(_commitAction);
+            StateCommitResult commit = _commits.CommitDisclosureChange(
+                _commitAction,
+                OperationalEventId.SignOutFailed);
 
             if (!commit.IsCommitted)
             {
