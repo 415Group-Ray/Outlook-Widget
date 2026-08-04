@@ -195,7 +195,7 @@ internal sealed class SilentAuthProbe : IDisposable
             TokenAcquisitionStatus status =
                 (await AcquireTokenAsync(_shutdown.Token).ConfigureAwait(false)).Status;
 
-            SkeletonCard.SilentAuthStatus = status;
+            InboxCard.SilentAuthStatus = status;
             Interlocked.Increment(ref _completed);
 
             // The card changed, so ask for a pass. Guarded because the last widget may have been
@@ -262,7 +262,7 @@ internal sealed class SilentAuthProbe : IDisposable
             // may still be available and this process cannot find out. Only the companion learns the
             // difference, by being refused interactively, and it records it for exactly this read.
             TokenAcquisitionStatus refined = AuthorizationStateStore.Refine(status, _paths, options);
-            SkeletonCard.SilentAuthStatus = refined;
+            InboxCard.SilentAuthStatus = refined;
 
             return refined == TokenAcquisitionStatus.Acquired
                 ? result
@@ -275,7 +275,7 @@ internal sealed class SilentAuthProbe : IDisposable
             // to classify. The classifier handles what it recognises and everything else lands as a
             // generic failure, which is the correct card either way.
             TokenAcquisitionStatus status = AuthenticationFailures.Classify(e, AuthenticationPhase.Silent);
-            SkeletonCard.SilentAuthStatus = status;
+            InboxCard.SilentAuthStatus = status;
             return TokenAcquisitionResult.Unavailable(status);
         }
     }

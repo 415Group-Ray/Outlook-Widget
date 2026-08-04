@@ -24,7 +24,7 @@ namespace OutlookWidget.Core.Tests;
 public sealed class ProviderCardTests
 {
     private static string CardSourcePath =>
-        Path.Combine(RepositorySources.ProviderSourceDirectory, "Cards", "SkeletonCard.cs");
+        Path.Combine(RepositorySources.ProviderSourceDirectory, "Cards", "InboxCard.cs");
 
     private static string CardSource() => File.ReadAllText(CardSourcePath);
 
@@ -165,6 +165,38 @@ public sealed class ProviderCardTests
 
         Assert.DoesNotContain("Action.OpenUrl", template, StringComparison.Ordinal);
         Assert.Contains("Action.Execute", template, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_card_withholds_message_details_once_the_snapshot_passes_the_stale_bound()
+    {
+        // Section 8 requires that 24 hours without a successful refresh hides message details rather
+        // than presenting old subjects as current. CoordinationBounds.StaleDetailSuppression carried
+        // that number from the start and nothing consulted it, because until the card rendered mail
+        // there was no detail to withhold. This asserts the rule has an implementation and that it
+        // derives the bound from the shared constant rather than from a second hard-coded 24.
+        string source = CardSource();
+
+        Assert.Contains(
+            "CoordinationBounds.StaleDetailSuppression",
+            source,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain("TimeSpan.FromHours(24)", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_render_path_never_reads_the_cached_message_link()
+    {
+        // Section 17 requires that no link or message identifier appear in Adaptive Card JSON: the
+        // per-message action carries a slot index and the snapshot generation instead. The strongest
+        // form of that guarantee is a render path that never touches the link at all, so it cannot
+        // reach card JSON even through a future edit that forgets why.
+        //
+        // Deliberately distinct from the approved-field check below, which scans every provider file
+        // for the Graph property name. This one is about the model property on MessagePreview, which
+        // is legitimately named in the provider when the message-open slice lands — but never here.
+        Assert.DoesNotContain(".WebLink", CardSource(), StringComparison.Ordinal);
     }
 
     [Fact]

@@ -107,7 +107,7 @@ internal static partial class Program
         // should see rather than a provider process that dies in the background where the Widgets
         // host started it.
         AuthenticationConfigurationResult configuration = AuthenticationConfiguration.Load(logger);
-        SkeletonCard.ConfigurationStatus = configuration.Status;
+        InboxCard.ConfigurationStatus = configuration.Status;
 
         var cache = new ProtectedCache(paths, logger);
         var tombstones = new DisclosureTombstoneStore(paths, logger);

@@ -1462,6 +1462,41 @@ Same-account selection does not substitute for any of them, and running the swit
 account would produce a green result that proves nothing about isolation. Phase 1 closes with this gap
 open; it is carried into the phase review as a known limitation rather than silently deferred.
 
+## Measured: the inbox card renders cached mail, and two defects only looking could find
+
+Verified 2026-08-04 on the reference machine, first with installed package `0.4.24.0` and then with
+`0.4.24.1` after the fixes below. This is the first Phase 2 slice: `InboxCard` replaced the Phase 0
+`SkeletonCard` and renders the committed snapshot. `dotnet build` reported 0 warnings and 0 errors and
+`dotnet test` passed 355 of 355.
+
+**What the large card showed on 0.4.24.1:** the headline `2 unread`, the subtitle
+`2 unread messages, 2 in Focused. Updated 4:58 PM.`, four message rows each carrying sender, subject and
+received time, the diagnostic block reading `generation 43 · delivered 43 · mode Full · read Success ·
+payload 2191 bytes · cached 5`, and both action buttons fully visible. Exactly two senders rendered in
+the heavier weight, matching the unread count.
+
+**Two defects were found by looking at the rendered card and could not have been found any other way.**
+Both were present on 0.4.24.0, both are fixed on 0.4.24.1, and both are recorded because the reasoning
+that produced them was plausible and wrong.
+
+| Defect on 0.4.24.0 | Why the tests could not catch it | Fix |
+|---|---|---|
+| The large card showed five message rows plus three diagnostic lines plus the action row, and the host rendered the action buttons **clipped at the bottom edge** | The host neither scrolls a widget nor reports that content overflowed, and no test can measure a frame it cannot render | Large shows four rows. Revisit against a measurement, not a guess, when the diagnostic block moves to the log file and three lines come back |
+| Read state did not render: with one message unread, **all five senders appeared at the same weight**. The template bound `"weight": "${senderWeight}"` | The card tests check that every bound field is supplied, which it was. Whether the host substitutes into a non-text property before parsing is a host behaviour, not a template property | Two `TextBlock`s selected by `$when` on a boolean, the mechanism the rest of the template already uses. A redundant `isRead` is carried so no negation operator is needed, that being equally unverified |
+
+**The generalisable finding: treat binding a value into a non-text Adaptive Card property as unproven on
+this host, and `$when` on a boolean as proven — including inside a `$data` repeater**, which the two
+verified screenshots establish, since the per-row sender blocks are gated that way.
+
+A third change was cosmetic rather than a defect: the header carried a `Unread` word, a right-aligned
+count badge, and a subtitle stating the same count in words, spending a line on a surface where vertical
+space is the binding constraint. The headline now carries the count itself.
+
+**Not measured here:** the counts-only, signed-out, loading, and error states, and the 24-hour
+stale-detail suppression. The stale rule gained its first implementation in this slice — the constant had
+existed since Phase 1 with nothing consulting it — but reaching it on a device requires a snapshot 24
+hours old, which no run so far has produced.
+
 ## Reproducing the provider evidence
 
 ```powershell

@@ -79,13 +79,20 @@ Outlook independently agreed on the Other count, so the classification filter is
 that Graph and the Outlook client apply Focused/Other reclassification at slightly different moments, so
 a transient one-message disagreement between the widget and Outlook is expected rather than a defect.
 
-**The provider now performs a narrow production refresh and caches real mailbox state, but it still
-draws the Phase 0 placeholder card rather than rendering that mail.** Stale activation, post-sign-in,
-manual actions, and an opportunistic five-minute timer while the widget is active reach
-`GraphMailClient` through `RefreshCoordinator`. Installed package `0.4.18.0` advanced the cache after
-324.6 seconds while active, then left it unchanged for 340.8 seconds after deactivation while the same
-provider process remained alive. The finished mail card remains a later slice. See the evidence report
-for exactly what has been proven, and [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
+**The provider performs a narrow production refresh, caches real mailbox state, and now renders it.**
+Stale activation, post-sign-in, manual actions, and an opportunistic five-minute timer while the widget
+is active reach `GraphMailClient` through `RefreshCoordinator`. Installed package `0.4.18.0` advanced the
+cache after 324.6 seconds while active, then left it unchanged for 340.8 seconds after deactivation while
+the same provider process remained alive.
+
+**The inbox card is the first Phase 2 slice and is measured on installed package `0.4.24.1`:** the medium
+and large cards show the unread count, the newest messages with sender, subject and received time, and
+unread senders in a heavier weight. Message details are withheld after 24 hours without a successful
+refresh, so old subjects are never presented as current — the counts survive that cutoff and the details
+do not. Still to come in Phase 2: the companion's real settings and diagnostics experience, the remaining
+loading and error states, opening an individual message, and the settings-change refresh trigger. The app
+icon that ships today is interim. See the evidence report for exactly what has been proven, and
+[TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
 
 ### Known platform limitation: one widget instance only
 
