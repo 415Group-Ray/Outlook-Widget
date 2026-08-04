@@ -71,8 +71,11 @@ manual actions, and the opportunistic five-minute active timer call `GraphMailCl
 provider-wide opportunity, starts with the first active instance, and stops after the last deactivation;
 that lifecycle has automated coverage and is measured on installed package 0.4.18.0: the cache advanced
 after 324.6 seconds active, then remained unchanged for 340.8 seconds after deactivation while the same
-provider process stayed alive. Gate 10 and gate 11 pass. Gate 12's filter syntax, header independence,
-and warm latency pass; comparing its returned Focused count with New Outlook remains manual. The
+provider process stayed alive. Gates 10, 11, and 12 all pass — gate 12's New Outlook comparison was
+taken on 2026-08-04, and **every Phase 0 gate now has a result**, gate 8's documented split aside. One
+finding from that comparison is worth keeping: Graph and the Outlook client apply Focused/Other
+reclassification at different instants, so a transient one-message disagreement is expected behaviour and
+must not be reported as a defect. The
 provider still renders the Phase 0 placeholder card rather than the cached mail; the settings-change
 trigger also remains a later slice.
 

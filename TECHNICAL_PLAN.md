@@ -4,7 +4,7 @@ Status: **Approved for Phase 0** — single-user v1, New Outlook only. Coordinat
 
 Planning date: **2026-07-27**
 
-Implementation status: **Phase 0 in progress; every native-surface gate passes.** Gates 1 through 11 are settled (gate 8 is split), including real Graph refresh, cached-first activation, provider recycle, and cross-process invalidation. Gate 12 is partly measured and needs only its visible count comparison with New Outlook. The section 18 fallback branch is therefore **not** taken.
+Implementation status: **Phase 0 complete on evidence; every gate has a result.** Gates 1 through 12 are settled (gate 8 is split), including real Graph refresh, cached-first activation, provider recycle, cross-process invalidation, the Outlook launch, and the Focused count comparison with New Outlook taken on 2026-08-04. The section 18 fallback branch is therefore **not** taken.
 
 **Gate 11 passes.** On installed package 0.4.13.2, stale Board activation advanced the protected snapshot, a provider recycle recovered the existing pin and fresh cached generation without another Graph request, and a separate process's state-change signal reached the provider. Gate 4 remains fully verified, including the `CustomState` round trip through the host. Gate 8 is **split**: brokered sign-in passes, self-consent is blocked by the reference tenant's consent policy.
 

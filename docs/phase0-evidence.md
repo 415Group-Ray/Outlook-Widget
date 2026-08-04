@@ -27,17 +27,18 @@ token was acquired on 0.3.7.0. **Self-consent fails** on this tenant: the Micros
 policy refused it and an administrator had to grant consent for the registration. The gate asks two
 questions and they got different answers, so it is not a PASS and not a FAIL.
 
-**Gates 9, 10, and 11 pass** — see their rows below. Gate 12 is partly measured and needs only the
-visible Focused-count comparison with New Outlook. The Entra app registration is **created** and its identifiers ship in the package, so
+**Gates 9, 10, 11, and 12 pass** — see their rows below. **Every Phase 0 gate now has a result**, gate 8
+excepted as the documented split. The Entra app registration is **created** and its identifiers ship in the package, so
 nothing waits on a portal task any more. There is no outstanding *activation, lifecycle, rendering,
 launch, or packaging* question. Nothing below is a projection; each row records what was actually
 observed, and unproven items say so rather than being marked pass.
 
-**"Implemented" is not a gate status.** Gates 8 through 11 are described from installed-package
-measurements, not inferred from their unit tests. Gate 12 remains partial for exactly the same reason:
-its last criterion has not yet been observed in New Outlook.
+**"Implemented" is not a gate status.** Gates 8 through 12 are described from installed-package
+measurements, not inferred from their unit tests. Gate 12's final criterion — the Focused count agreeing
+with New Outlook — was observed on 2026-08-04, and its row states plainly which part of that comparison
+the method could not pin down.
 
-Reference machine: the author's own Entra-managed PC. Recorded 2026-07-28; updated 2026-08-03.
+Reference machine: the author's own Entra-managed PC. Recorded 2026-07-28; updated 2026-08-04.
 
 Reproduce with:
 
@@ -219,24 +220,56 @@ here rather than left to mislead the next reader.
 
 | Half | Status | Evidence |
 |---|---|---|
-| Universal — does bare `olk.exe` resolve and launch | **Resolution proven, launch not yet exercised** | `olk.exe` resolves to `%LocalAppData%\Microsoft\WindowsApps\olk.exe`. Package activation also resolves, as `Microsoft.OutlookForWindows_8wekyb3d8bbwe!Microsoft.OutlookforWindows`. Run `scripts/Test-OutlookLaunch.ps1 -Launch` to exercise the launch itself |
+| Universal — does bare `olk.exe` resolve and launch | **PASS** | `olk.exe` resolves to `%LocalAppData%\Microsoft\WindowsApps\olk.exe`. Package activation also resolves, as `Microsoft.OutlookForWindows_8wekyb3d8bbwe!Microsoft.OutlookforWindows`. Launch exercised 2026-08-04 with `scripts/Test-OutlookLaunch.ps1 -Launch` against New Outlook `1.2026.720.100`: the command was issued through the app execution alias, returned without error, and **the window appeared in roughly two seconds** |
 | Native — can a Board action launch it | **PASS** | Clicking **Open Outlook** on the pinned widget launched New Outlook. `OutlookLauncher` tries the `olk.exe` app execution alias first and shell activation of the application user model ID second; which candidate won was not instrumented, so only the outcome is recorded. No versioned `WindowsApps` path is used by either |
 
 Both launch strategies resolve, so `OutlookLauncher` has two candidates and need not
 hard-code the versioned `WindowsApps` path — which section 9 forbids and which this machine
 shows would be `...Microsoft.OutlookForWindows_1.2026.713.100_x64__8wekyb3d8bbwe`, changing
-on every Outlook update.
+on every Outlook update. That path had already moved to `1.2026.720.100` by 2026-08-04, which is
+the forbidden-path argument demonstrating itself rather than being asserted.
+
+**One case only.** The 2026-08-04 launch started from New Outlook not already running. The script's own
+remaining questions — what happens when it is already running, mid-update, or damaged — are still
+unobserved, and a launch that returns without error is not by itself proof a window appeared. That is
+why the two-second observation, not the exit code, is what upgrades this half to PASS.
 
 ### Gate 12 — Focused count
 
-**Partly passed; one manual comparison remains.** Optional; gates only the Focused unread setting.
+**Passed, with a stated limit on the comparison method.** Optional; gates only the Focused unread
+setting.
 
 The production query was issued on 2026-08-03 and Graph accepted its filter syntax without
 `ConsistencyLevel: eventual`. It returned a Focused unread count of **4**. A warm production refresh,
 including silent token acquisition, all three concurrent Graph reads, validation, and commit, advanced
-generation 3 to 4 in **1.36 seconds**, under the plan's three-second normal-refresh target. The only
-remaining question is whether New Outlook visibly reports 4 Focused unread messages for the same
-mailbox at the comparison moment; Graph cannot answer that comparison for Outlook.
+generation 3 to 4 in **1.36 seconds**, under the plan's three-second normal-refresh target.
+
+The remaining question — whether New Outlook reports the same Focused count — was compared on
+2026-08-04 against installed package 0.4.22.0, over five samples taken by reading the committed snapshot
+(DPAPI-unprotected, counts only) alongside the New Outlook window. **The counts agree, and the split is
+demonstrably applied**, on two observations that do not depend on the two readings being simultaneous:
+
+- **The filter discriminates.** The cached Focused count was **3** while cached total unread was **4**.
+  The failure this gate exists to catch is a filter that silently returns the total; a Focused count
+  strictly below the total rules that out.
+- **New Outlook independently agrees on the split**, reporting an Other count of **1**, matching the
+  cache's implied Other of exactly 1.
+
+**No exactly-simultaneous sample was captured, and this is a limit of the method rather than a product
+finding.** Every one of the five samples differed from the Outlook window by at most one, in both
+directions, and each difference had an identified cause: a snapshot 15 minutes stale because the
+five-minute timer only runs while an instance is active; a message Outlook reclassified from Focused to
+Other, which **Graph reported before the Outlook UI showed it**; and a new arrival between the refresh
+and the reading. A mailbox in normal use changes faster than a manual two-window comparison can be
+taken.
+
+Two things worth carrying forward. First, the comparison is only meaningful on a quiet mailbox, so
+anyone repeating it should force a refresh and read both within seconds. Second, Graph and the Outlook
+client apply Focused/Other reclassification at different instants, so a transient one-message
+disagreement between the widget and Outlook is expected behaviour and must not be reported as a defect.
+
+The counts themselves are not recorded beyond what appears above, and no sender, subject, or account
+identifier from the readout is recorded anywhere in this report.
 
 ## Measured: a token was acquired, and what that does and does not prove
 
@@ -694,9 +727,9 @@ script fails if any key file appears under the repository root.
 
 ## What is still blocking, and what unblocks it
 
-The production refresh exists and gates 10 and 11 pass. Gate 12's Graph syntax, header independence,
-and latency checks pass; its only remaining evidence is a visual comparison of the measured Focused
-unread count (**4**) with New Outlook for the same mailbox.
+The production refresh exists and gates 10, 11, and 12 all pass; gate 12's New Outlook comparison was
+taken on 2026-08-04 and is recorded in its row above. **No Phase 0 gate is blocked.** What remains open
+is the Phase 1 cross-account evidence below, which is blocked on a resource rather than on work.
 
 The second prerequisite is done. **The selected MSAL home-account identifier is now recorded**, so
 silent acquisition asks for the account the user chose instead of whichever one MSAL enumerates first.
@@ -735,7 +768,7 @@ it is neither an elevation problem nor the running-process case `-ForceApplicati
 needed for upgrades — the certificate is already trusted, so `-SkipCertificateTrust` applies — but a
 pinned widget holds the package open, so `-ForceApplicationShutdown` is.
 
-Gate 10 now passes. Gate 12 has only the New Outlook visual count comparison left.
+Gate 10 now passes. Gate 12's New Outlook comparison was taken later, on 2026-08-04, and it passes too.
 
 **The shared-cache requirement is no longer an argument from documentation.** MSAL keeps ID tokens and
 account metadata in its own cache even when the broker holds the device-bound refresh token, and

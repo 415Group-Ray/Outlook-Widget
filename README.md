@@ -72,9 +72,12 @@ process without unpinning; closing the Widgets Board only deactivates the widget
 issued the required Graph reads, validated and DPAPI-cached a snapshot, and advanced the cache
 generation. A stale Board activation refreshed it; after a forced provider recycle the existing pin was
 recovered from cache without an unnecessary Graph request; and a state-change signal from another
-process reached the provider. Gate 12 is partly measured: its Focused query succeeds without an
-undocumented consistency header and the warm production refresh completed in 1.36 seconds, but the
-returned count still needs one visual comparison with New Outlook.
+process reached the provider. Gate 12 passes: its Focused query succeeds without an
+undocumented consistency header, the warm production refresh completed in 1.36 seconds, and the returned
+count was compared with New Outlook on 2026-08-04 — the Focused count sat strictly below total unread and
+Outlook independently agreed on the Other count, so the classification filter is doing real work. Note
+that Graph and the Outlook client apply Focused/Other reclassification at slightly different moments, so
+a transient one-message disagreement between the widget and Outlook is expected rather than a defect.
 
 **The provider now performs a narrow production refresh and caches real mailbox state, but it still
 draws the Phase 0 placeholder card rather than rendering that mail.** Stale activation, post-sign-in,
