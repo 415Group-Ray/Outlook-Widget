@@ -299,16 +299,26 @@ public sealed class ProviderCardTests
             source,
             StringComparison.Ordinal);
 
-        // "Counts survive" means every count, not just the headline one. The Focused count was
-        // dropped from both reduced subtitles after the unread count had already been rescued,
-        // which is the same rule applied to only half the numbers it covers. Both reduced branches
-        // must carry it; the third use is the helper's own declaration.
-        int focusedUses = Regex.Count(source, @"DescribeFocused\(snapshot\)");
+        // The subtitle has exactly one composition point, and this is the check that keeps it that
+        // way. Three separate findings on one review were the same defect: a reduced state authored
+        // its own prose and, by omission, dropped a fact the state was never meant to hide — the
+        // unread count twice, then the Focused count. The repair was structural rather than another
+        // sentence: suppression now selects a reason, and one composer decides what may be said for
+        // every state, so a state added later cannot forget a fact because it never chooses them.
+        //
+        // A second call site would restore exactly the shape those defects came from.
+        //
+        // The two occurrences are the declaration and the single call.
+        int compositionPoints = Regex.Count(source, @"ComposeSubtitle\(");
 
         Assert.True(
-            focusedUses >= 2,
-            "Both reduced-detail branches — the 24-hour stale bound and CountsOnly — must carry the "
-                + $"Focused count. Found {focusedUses} use(s).");
+            compositionPoints == 2,
+            "The subtitle must have exactly one composition point — a per-state sentence is how the "
+                + $"counts were dropped three times. Found {compositionPoints - 1} call site(s).");
+
+        // And the composer must still be the thing that states the Focused count, rather than a
+        // branch quietly reintroducing its own.
+        Assert.Contains("DescribeFocused(snapshot)", source, StringComparison.Ordinal);
     }
 
     [Fact]

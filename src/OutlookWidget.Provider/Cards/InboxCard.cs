@@ -420,8 +420,8 @@ internal static class InboxCard
     /// </remarks>
     private static MessageRow ToRow(MessagePreview preview) => new()
     {
-        DisplaySender = ClampForDisplay(preview.DisplaySender),
-        Subject = ClampForDisplay(preview.Subject),
+        DisplaySender = MailboxText.ForDisplay(preview.DisplaySender, DisplayLineBudget),
+        Subject = MailboxText.ForDisplay(preview.Subject, DisplayLineBudget),
         ReceivedLabel = ReceivedLabel(preview.ReceivedAt),
         IsUnread = !preview.IsRead,
         IsRead = preview.IsRead,
@@ -431,6 +431,7 @@ internal static class InboxCard
     /// The display budget for one line of mailbox text in the message column.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <b>Not a duplicate of <see cref="MailboxLimits"/>.</b> Those bound what may be cached at all,
     /// against a hostile response; this bounds what fits on one line, and exists only because
     /// <c>RichTextBlock</c> — which is what keeps mailbox strings out of a Markdown renderer — has
@@ -439,13 +440,14 @@ internal static class InboxCard
     /// by construction: the medium and large frames share a width, and a character count is a proxy
     /// for a proportional-font measurement. Erring short costs an ellipsis; erring long costs a
     /// clipped action row.
+    /// </para>
+    /// <para>
+    /// The number lives here and the shortening lives in <see cref="MailboxText"/>, because the
+    /// budget is a Widgets-host detail and the shortening is hostile-input handling that has to be
+    /// unit-testable — which nothing in this project can be.
+    /// </para>
     /// </remarks>
     private const int DisplayLineBudget = 34;
-
-    private static string ClampForDisplay(string value) =>
-        value.Length <= DisplayLineBudget
-            ? value
-            : string.Concat(value.AsSpan(0, DisplayLineBudget - 1).TrimEnd(), "…");
 
     /// <summary>
     /// Formats a received time for display, in the reader's current timezone.
@@ -531,30 +533,15 @@ internal static class InboxCard
                 int n => $"{n.ToString(CultureInfo.CurrentCulture)} unread",
             };
 
-            // Both reduced branches carry the Focused count, for the same reason they carry the
-            // unread count: it is a count, not a message. Dropping it here was the first fix's own
-            // rule applied to only half the numbers it covers.
-            //
-            // Staleness is checked before the privacy mode, because a stale counts-only card is
-            // stale first: the number itself is old, and saying only that details are hidden would
-            // present an old count as current.
-            if (detailsAreStale)
-            {
-                return (headline,
-                    $"{DescribeFocused(snapshot)}Counts last updated {DescribeUpdated(snapshot)}. "
-                    + "Message details are hidden because there has been no successful refresh for "
-                    + "over 24 hours. Refresh to reconnect." + DescribeAuthBlocker());
-            }
+            // Staleness outranks the privacy mode, because a stale counts-only card is stale first:
+            // the number itself is old, and saying only that details are hidden would present an
+            // old count as current.
+            DetailSuppression suppression =
+                detailsAreStale ? DetailSuppression.StaleBound
+                : state.Mode == DisclosureMode.CountsOnly ? DetailSuppression.PrivacyMode
+                : DetailSuppression.None;
 
-            if (state.Mode == DisclosureMode.CountsOnly)
-            {
-                return (headline,
-                    $"{DescribeFocused(snapshot)}Message details are hidden by a privacy setting or "
-                    + $"an in-progress account change. Updated {DescribeUpdated(snapshot)}."
-                    + DescribeAuthBlocker());
-            }
-
-            return (headline, DescribeMailbox(snapshot) + DescribeAuthBlocker());
+            return (headline, ComposeSubtitle(snapshot, suppression) + DescribeAuthBlocker());
         }
 
         if (detailsAreStale)
@@ -627,42 +614,85 @@ internal static class InboxCard
             : local.ToString("d MMM, t", CultureInfo.CurrentCulture);
     }
 
+    /// <summary>Why the message rows are missing, when they are.</summary>
+    private enum DetailSuppression
+    {
+        /// <summary>Nothing is suppressed; the rows are rendered.</summary>
+        None,
+
+        /// <summary>A privacy setting or an in-progress account change.</summary>
+        PrivacyMode,
+
+        /// <summary>No successful refresh inside <see cref="CoordinationBounds.StaleDetailSuppression"/>.</summary>
+        StaleBound,
+    }
+
     /// <summary>
-    /// The Focused clause for the reduced-detail subtitles, or empty when there is nothing to say.
+    /// Builds the subtitle from every fact the disclosure decision permits.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Trailing space, because callers prepend it to a completed sentence.
+    /// <b>One composer, rather than a sentence written per state, and that is the fix for a defect
+    /// found three times on one review.</b> Each reduced state used to author its own prose, so each
+    /// independently decided which facts to mention — and each forgot a different one. Counts-only
+    /// dropped the unread count, the stale bound dropped it too, and when both were repaired they
+    /// dropped the Focused count. Every one of those was the same mistake: a state that hides
+    /// message details deciding, by omission, to hide numbers as well.
     /// </para>
     /// <para>
+    /// Here suppression chooses only a <see cref="DetailSuppression"/>. What may be said is decided
+    /// once, in one place, for every state — so a state added later cannot silently drop a fact. It
+    /// can only pick a reason.
+    /// </para>
+    /// <para>
+    /// The unread count is deliberately absent: the headline already carries it, and repeating it
+    /// here spent a line restating the largest text on the card.
+    /// </para>
+    /// </remarks>
+    private static string ComposeSubtitle(MailboxSnapshot snapshot, DetailSuppression suppression)
+    {
+        var facts = new List<string>(3);
+
+        string focused = DescribeFocused(snapshot);
+        if (focused.Length > 0)
+        {
+            facts.Add(focused);
+        }
+
+        facts.Add(suppression == DetailSuppression.StaleBound
+            ? $"Counts last updated {DescribeUpdated(snapshot)}"
+            : $"Updated {DescribeUpdated(snapshot)}");
+
+        switch (suppression)
+        {
+            case DetailSuppression.PrivacyMode:
+                facts.Add("Message details are hidden by a privacy setting or an in-progress "
+                          + "account change");
+                break;
+
+            case DetailSuppression.StaleBound:
+                facts.Add("Message details are hidden because there has been no successful refresh "
+                          + "for over 24 hours. Refresh to reconnect");
+                break;
+        }
+
+        return string.Join(". ", facts) + ".";
+    }
+
+    /// <summary>
+    /// The Focused clause, or empty when there is nothing to say.
+    /// </summary>
+    /// <remarks>
+    /// A bare clause with no punctuation: <see cref="ComposeSubtitle"/> owns how facts are joined.
     /// Empty when the optional query produced no count — section 8 makes that query's failure
     /// non-fatal, so its absence means "not asked, or not answered" rather than zero, and printing a
-    /// zero there would be a fabricated fact. Empty too when nothing is unread, matching
-    /// <see cref="DescribeMailbox"/>: "0 in Focused" alongside "Inbox up to date" is noise.
-    /// </para>
+    /// zero there would be a fabricated fact. Empty too when nothing is unread, because "0 in
+    /// Focused" alongside an "Inbox up to date" headline is noise.
     /// </remarks>
     private static string DescribeFocused(MailboxSnapshot snapshot) =>
         snapshot is { UnreadItemCount: > 0, FocusedUnreadCount: int focused }
-            ? $"{focused.ToString(CultureInfo.CurrentCulture)} in Focused. "
+            ? $"{focused.ToString(CultureInfo.CurrentCulture)} in Focused"
             : string.Empty;
-
-    private static string DescribeMailbox(MailboxSnapshot snapshot)
-    {
-        string updated = DescribeUpdated(snapshot);
-
-        if (snapshot.UnreadItemCount == 0)
-        {
-            return $"No unread messages. Updated {updated}.";
-        }
-
-        string unread = snapshot.UnreadItemCount == 1
-            ? "1 unread message"
-            : $"{snapshot.UnreadItemCount.ToString(CultureInfo.CurrentCulture)} unread messages";
-
-        return snapshot.FocusedUnreadCount is int focused
-            ? $"{unread}, {focused.ToString(CultureInfo.CurrentCulture)} in Focused. Updated {updated}."
-            : $"{unread}. Updated {updated}.";
-    }
 
     /// <summary>
     /// A trailing sentence for cards whose own copy would otherwise mislead about authentication, or
