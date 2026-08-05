@@ -187,6 +187,22 @@ public sealed class CoordinationPaths
     /// <summary>Temporary file used to replace the settings record atomically.</summary>
     public string SettingsTempFilePath => Path.Combine(RootDirectory, $"settings-{_scope}.tmp");
 
+    /// <summary>
+    /// The operational diagnostics log both processes append to.
+    /// </summary>
+    /// <remarks>
+    /// Inside the package store like everything else here, so uninstall removes it. It cannot
+    /// contain mailbox or identity content, and that is a property of
+    /// <see cref="Diagnostics.IOperationalLogger"/> rather than of any filtering done on the way
+    /// out: the interface accepts closed enums and bounded numbers and has no string parameter, so
+    /// there is nowhere for a subject line to enter.
+    /// </remarks>
+    public string DiagnosticsLogFilePath => Path.Combine(RootDirectory, $"diagnostics-{_scope}.log");
+
+    /// <summary>The previous log, kept so a rollover does not discard the run that just failed.</summary>
+    public string DiagnosticsLogPreviousFilePath =>
+        Path.Combine(RootDirectory, $"diagnostics-{_scope}.1.log");
+
     /// <summary>Guards synchronous local state commits. Bounded waits only.</summary>
     public string MutationMutexName => $"OutlookWidget-Mutation-{_scope}";
 
