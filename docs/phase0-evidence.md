@@ -1462,6 +1462,75 @@ Same-account selection does not substitute for any of them, and running the swit
 account would produce a green result that proves nothing about isolation. Phase 1 closes with this gap
 open; it is carried into the phase review as a known limitation rather than silently deferred.
 
+## Measured: the inbox card renders cached mail, and two defects only looking could find
+
+Verified 2026-08-04 on the reference machine, first with installed package `0.4.24.0` and then with
+`0.4.24.1` after the fixes below. This is the first Phase 2 slice: `InboxCard` replaced the Phase 0
+`SkeletonCard` and renders the committed snapshot. `dotnet build` reported 0 warnings and 0 errors and
+`dotnet test` passed 355 of 355.
+
+**What the large card showed on 0.4.24.1:** the headline `2 unread`, the subtitle
+`2 unread messages, 2 in Focused. Updated 4:58 PM.`, four message rows each carrying sender, subject and
+received time, the diagnostic block reading `generation 43 · delivered 43 · mode Full · read Success ·
+payload 2191 bytes · cached 5`, and both action buttons fully visible. Exactly two senders rendered in
+the heavier weight, matching the unread count.
+
+**Two defects were found by looking at the rendered card and could not have been found any other way.**
+Both were present on 0.4.24.0, both are fixed on 0.4.24.1, and both are recorded because the reasoning
+that produced them was plausible and wrong.
+
+| Defect on 0.4.24.0 | Why the tests could not catch it | Fix |
+|---|---|---|
+| The large card showed five message rows plus three diagnostic lines plus the action row, and the host rendered the action buttons **clipped at the bottom edge** | The host neither scrolls a widget nor reports that content overflowed, and no test can measure a frame it cannot render | Large shows four rows. Revisit against a measurement, not a guess, when the diagnostic block moves to the log file and three lines come back |
+| Read state did not render: with one message unread, **all five senders appeared at the same weight**. The template bound `"weight": "${senderWeight}"` | The card tests check that every bound field is supplied, which it was. Whether the host substitutes into a non-text property before parsing is a host behaviour, not a template property | Two `TextBlock`s selected by `$when` on a boolean, the mechanism the rest of the template already uses. A redundant `isRead` is carried so no negation operator is needed, that being equally unverified |
+
+**The generalisable finding: treat binding a value into a non-text Adaptive Card property as unproven on
+this host, and `$when` on a boolean as proven — including inside a `$data` repeater**, which the two
+verified screenshots establish, since the per-row sender blocks are gated that way.
+
+### The Markdown exposure, and `RichTextBlock` support
+
+Found by code review on the pull request rather than by looking at the card, and it would not have been
+visible by looking: **an Adaptive Card `TextBlock` renders a Markdown subset that includes hyperlinks.**
+Sender and subject are mailbox-controlled — anyone who can send mail to this mailbox chooses both — so a
+subject of the form `[pay now](https://attacker.example)` would have rendered as a live,
+sender-controlled link on the widget. That defeats the purpose of section 3's `Action.OpenUrl` ban and
+the Outlook-host allowlist, which exist so the provider is the only thing that decides what may open.
+
+The fix renders mailbox strings through `RichTextBlock`/`TextRun`, documented as not supporting Markdown.
+Escaping inside a `TextBlock` was rejected as the alternative: it depends on the host's renderer honouring
+backslash escapes, which is one more unverified host behaviour stacked on the one being fixed.
+
+**`RichTextBlock` renders correctly on this host — measured 2026-08-04 on installed package 0.4.27.0.**
+This needed a device check rather than a documentation one: Microsoft's widget provider and design
+documentation does not enumerate which Adaptive Card elements the Widgets host supports, so support was
+undocumented in both directions. Sender and subject render, one line each, with unread senders in the
+heavier weight. Had it not rendered, the fallback was Markdown escaping — the security boundary held
+either way, because an unrendered element produces absent text rather than a live link.
+
+Two consequences are permanent and are recorded in `AGENTS.md`:
+
+- **Mailbox-controlled text must never be bound into a `TextBlock`.** A test walks the template as JSON
+  and asserts every such binding lands in a `TextRun`.
+- **`RichTextBlock` has neither `maxLines` nor `wrap`**, so it always wraps, and a wrapped row grows a
+  card this host clips without reporting. Single-line truncation therefore lives in C# as a display
+  budget — a character count standing in for a proportional-font measurement, erring short because an
+  ellipsis costs less than a clipped action row.
+
+A related correction came out of reading the widget design guidance: the read-row sender weight was the
+Adaptive Card default, which is off Microsoft's published widget type ramp. Body is `Default, Lighter`
+and Body Strong is `Default, Bolder`, so the read row is now Lighter, which also widens the read/unread
+contrast.
+
+A third change was cosmetic rather than a defect: the header carried a `Unread` word, a right-aligned
+count badge, and a subtitle stating the same count in words, spending a line on a surface where vertical
+space is the binding constraint. The headline now carries the count itself.
+
+**Not measured here:** the counts-only, signed-out, loading, and error states, and the 24-hour
+stale-detail suppression. The stale rule gained its first implementation in this slice — the constant had
+existed since Phase 1 with nothing consulting it — but reaching it on a device requires a snapshot 24
+hours old, which no run so far has produced.
+
 ## Reproducing the provider evidence
 
 ```powershell

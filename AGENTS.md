@@ -75,9 +75,33 @@ provider process stayed alive. Gates 10, 11, and 12 all pass — gate 12's New O
 taken on 2026-08-04, and **every Phase 0 gate now has a result**, gate 8's documented split aside. One
 finding from that comparison is worth keeping: Graph and the Outlook client apply Focused/Other
 reclassification at different instants, so a transient one-message disagreement is expected behaviour and
-must not be reported as a defect. The
-provider still renders the Phase 0 placeholder card rather than the cached mail; the settings-change
-trigger also remains a later slice.
+must not be reported as a defect. **Phase 2 has begun and its first slice is done.** `InboxCard` replaced the Phase 0 `SkeletonCard` and
+renders the cached snapshot — unread count, newest messages, sender, subject, received time, and read
+state as font weight — measured on installed package 0.4.24.1. Two constraints there were established by
+looking at the rendered card and must not be undone by reasoning: **the large size shows four rows, not
+the cached five**, because five plus the diagnostic block clipped the action row and the host neither
+scrolls nor reports overflow; and **read state is two `TextBlock`s selected by `$when` on a boolean, not
+a value bound into the `weight` property**, because the latter rendered every sender identically. Binding
+into non-text properties is unproven on this host; `$when` on a boolean is proven, including inside a
+`$data` repeater.
+
+**Mailbox-controlled text must never be bound into an Adaptive Card `TextBlock`.** Its `text` renders a
+Markdown subset that includes hyperlinks, so a subject or display name — both chosen by anyone who can
+send mail to this mailbox — would render as a live sender-controlled link, defeating the `Action.OpenUrl`
+ban and the Outlook-host allowlist. Sender and subject go through `RichTextBlock`/`TextRun`, which is
+documented as not supporting Markdown, and a test walks the template as JSON to enforce it. `RichTextBlock`
+is measured as rendering correctly on this host on 0.4.27.0 — Microsoft's widget documentation does not
+enumerate supported elements, so that needed a device check. It has neither `maxLines` nor `wrap` and
+always wraps, which is why single-line truncation is a C# display budget rather than a template property;
+a wrapped row grows a card the host clips without reporting. Sender and subject weights follow Microsoft's
+published widget type ramp — Body is `Default, Lighter`, Body Strong is `Default, Bolder` — not the
+Adaptive Card defaults.
+
+The 24-hour `StaleDetailSuppression` rule now has an implementation. It had none before this slice —
+the constant existed and a test asserted its value while nothing consulted it, because nothing rendered a
+subject. Counts survive the cutoff and details do not.
+
+The settings-change trigger remains a later slice.
 
 The current companion is a packaging and authentication probe with a minimal Win32 window and Sign in,
 Switch account, Sign out, and Clear interrupted operations controls, not the finished WinUI experience.

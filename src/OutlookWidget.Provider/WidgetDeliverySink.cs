@@ -114,8 +114,8 @@ internal sealed class WidgetDeliverySink : IWidgetDeliverySink
 
             var options = new WidgetUpdateRequestOptions(instance.Id)
             {
-                Template = SkeletonCard.Template,
-                Data = SkeletonCard.Data(instance, state),
+                Template = InboxCard.Template,
+                Data = InboxCard.Data(instance, state),
 
                 // The generation only. Section 3 permits minimal non-mail CustomState, and this is
                 // the smallest thing that is actually useful: it lets a recovered instance tell

@@ -24,7 +24,7 @@ namespace OutlookWidget.Core.Tests;
 public sealed class ProviderCardTests
 {
     private static string CardSourcePath =>
-        Path.Combine(RepositorySources.ProviderSourceDirectory, "Cards", "SkeletonCard.cs");
+        Path.Combine(RepositorySources.ProviderSourceDirectory, "Cards", "InboxCard.cs");
 
     private static string CardSource() => File.ReadAllText(CardSourcePath);
 
@@ -165,6 +165,174 @@ public sealed class ProviderCardTests
 
         Assert.DoesNotContain("Action.OpenUrl", template, StringComparison.Ordinal);
         Assert.Contains("Action.Execute", template, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_card_withholds_message_details_once_the_snapshot_passes_the_stale_bound()
+    {
+        // Section 8 requires that 24 hours without a successful refresh hides message details rather
+        // than presenting old subjects as current. CoordinationBounds.StaleDetailSuppression carried
+        // that number from the start and nothing consulted it, because until the card rendered mail
+        // there was no detail to withhold. This asserts the rule has an implementation and that it
+        // derives the bound from the shared constant rather than from a second hard-coded 24.
+        string source = CardSource();
+
+        Assert.Contains(
+            "CoordinationBounds.StaleDetailSuppression",
+            source,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain("TimeSpan.FromHours(24)", source, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The fields carrying mailbox-controlled text. Anyone who can send mail to this mailbox
+    /// chooses both.
+    /// </summary>
+    private static readonly string[] MailboxControlledBindings = ["displaySender", "subject"];
+
+    [Fact]
+    public void Mailbox_text_is_never_bound_into_a_markdown_rendering_element()
+    {
+        // A TextBlock renders a Markdown subset that includes hyperlinks, so a subject of the form
+        // [pay now](https://attacker.example) becomes a clickable sender-controlled link on the
+        // card. That routes around the Action.OpenUrl ban and the Outlook-host allowlist, whose
+        // whole purpose is that the provider decides what may be opened. TextRun is documented as
+        // not supporting Markdown, so mailbox strings must be bound only there.
+        //
+        // The template is walked as JSON rather than matched with a regex, because the thing being
+        // asserted is a relationship between an element's type and its text — which a pattern over
+        // flat source cannot express without being fooled by the next reordering.
+        using JsonDocument document = JsonDocument.Parse(TemplateJson());
+
+        var offenders = new List<string>();
+        var boundIn = new HashSet<string>(StringComparer.Ordinal);
+
+        WalkTextElements(document.RootElement, (elementType, text) =>
+        {
+            foreach (string field in MailboxControlledBindings)
+            {
+                if (!text.Contains("${" + field + "}", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                boundIn.Add(field);
+
+                if (!string.Equals(elementType, "TextRun", StringComparison.Ordinal))
+                {
+                    offenders.Add($"{field} is bound into a {elementType}");
+                }
+            }
+        });
+
+        Assert.True(
+            offenders.Count == 0,
+            "Mailbox-controlled text must be rendered through TextRun, which does not support "
+                + "Markdown: " + string.Join(", ", offenders));
+
+        // Without this the check passes vacuously the moment a field is renamed or the rows are
+        // dropped from the template.
+        Assert.Equal(
+            MailboxControlledBindings.Order(StringComparer.Ordinal),
+            boundIn.Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// Invokes <paramref name="visit"/> with the <c>type</c> and <c>text</c> of every object in the
+    /// card that carries both.
+    /// </summary>
+    private static void WalkTextElements(JsonElement element, Action<string, string> visit)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                if (element.TryGetProperty("type", out JsonElement type)
+                    && element.TryGetProperty("text", out JsonElement text)
+                    && type.ValueKind == JsonValueKind.String
+                    && text.ValueKind == JsonValueKind.String)
+                {
+                    visit(type.GetString()!, text.GetString()!);
+                }
+
+                foreach (JsonProperty property in element.EnumerateObject())
+                {
+                    WalkTextElements(property.Value, visit);
+                }
+
+                break;
+
+            case JsonValueKind.Array:
+                foreach (JsonElement item in element.EnumerateArray())
+                {
+                    WalkTextElements(item, visit);
+                }
+
+                break;
+        }
+    }
+
+    [Fact]
+    public void Reduced_disclosure_withholds_message_rows_without_withholding_the_counts()
+    {
+        // Both reduced states — the 24-hour stale bound and CountsOnly — hide message details and
+        // keep the counts. The first version of this card got both wrong in the same way: it
+        // replaced the unread-count headline with a status word, which turned "hide the details"
+        // into "hide the mailbox" and, in counts-only, removed the very thing that mode is named
+        // for. DeliveryWorker withholds the payload only for signed-out, so counts-only genuinely
+        // has a snapshot to count.
+        //
+        // Enforced at the point the decision is made: the message-row list is the only thing either
+        // suppression may remove, so the row gate names both conditions and the snapshot gate names
+        // neither.
+        string source = CardSource();
+
+        Assert.Contains(
+            "state.Mode == DisclosureMode.Full && !detailsAreStale",
+            source,
+            StringComparison.Ordinal);
+
+        // The snapshot must be read for every mode that is offered a payload, not for Full alone.
+        // Gating deserialization on Full is what discarded the counts-only counts.
+        Assert.Contains(
+            "state.Mode != DisclosureMode.SignedOut",
+            source,
+            StringComparison.Ordinal);
+
+        // The subtitle has exactly one composition point, and this is the check that keeps it that
+        // way. Three separate findings on one review were the same defect: a reduced state authored
+        // its own prose and, by omission, dropped a fact the state was never meant to hide — the
+        // unread count twice, then the Focused count. The repair was structural rather than another
+        // sentence: suppression now selects a reason, and one composer decides what may be said for
+        // every state, so a state added later cannot forget a fact because it never chooses them.
+        //
+        // A second call site would restore exactly the shape those defects came from.
+        //
+        // The two occurrences are the declaration and the single call.
+        int compositionPoints = Regex.Count(source, @"ComposeSubtitle\(");
+
+        Assert.True(
+            compositionPoints == 2,
+            "The subtitle must have exactly one composition point — a per-state sentence is how the "
+                + $"counts were dropped three times. Found {compositionPoints - 1} call site(s).");
+
+        // And the composer must still be the thing that states the Focused count, rather than a
+        // branch quietly reintroducing its own.
+        Assert.Contains("DescribeFocused(snapshot)", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_render_path_never_reads_the_cached_message_link()
+    {
+        // Section 17 requires that no link or message identifier appear in Adaptive Card JSON: the
+        // per-message action carries a slot index and the snapshot generation instead. The strongest
+        // form of that guarantee is a render path that never touches the link at all, so it cannot
+        // reach card JSON even through a future edit that forgets why.
+        //
+        // Deliberately distinct from the approved-field check below, which scans every provider file
+        // for the Graph property name. This one is about the model property on MessagePreview, which
+        // is legitimately named in the provider when the message-open slice lands — but never here.
+        Assert.DoesNotContain(".WebLink", CardSource(), StringComparison.Ordinal);
     }
 
     [Fact]

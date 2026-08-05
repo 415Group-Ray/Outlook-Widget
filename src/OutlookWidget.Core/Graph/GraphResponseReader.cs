@@ -261,6 +261,15 @@ internal static class GraphResponseReader
                && count >= 0;
     }
 
+    /// <summary>
+    /// Applies a cache bound to one attacker-influenced string.
+    /// </summary>
+    /// <remarks>
+    /// Delegates rather than slicing, because this originally cut at a UTF-16 index and a subject
+    /// whose character on the boundary was an emoji left a lone surrogate in the cached snapshot.
+    /// <c>MailboxSnapshot.Serialize</c> then refused to encode it, so one message could abort every
+    /// refresh commit until it left the top of the mailbox. See <see cref="MailboxText"/>.
+    /// </remarks>
     private static string Truncate(string value, int maxLength) =>
-        value.Length <= maxLength ? value : value[..maxLength];
+        MailboxText.ClampToLength(value, maxLength);
 }
