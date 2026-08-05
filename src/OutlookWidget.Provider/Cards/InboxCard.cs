@@ -322,15 +322,12 @@ internal static class InboxCard
             snapshot is not null
             && DateTimeOffset.UtcNow - snapshot.RefreshedAtUtc >= CoordinationBounds.StaleDetailSuppression;
 
-        (string headline, string detail) = Describe(state, snapshot, payloadUnreadable, detailsAreStale);
+        // **One situation, decided once.** Every downstream question — the copy, whether rows are
+        // rendered, which actions are offered — is a switch over this and nothing else. See
+        // Situate for why that matters more than it looks.
+        CardSituation situation = Situate(state, snapshot, payloadUnreadable, detailsAreStale);
 
-        // **Signed-out, not merely "reduced".** Counts-only is a rendering decision — the user asked
-        // not to see subjects, or an operation is briefly hiding them — and the mailbox behind it is
-        // signed in and working. Treating any non-Full mode as unusable removed Refresh and Open
-        // Outlook from a perfectly healthy widget the moment the privacy setting went on, leaving
-        // Open companion as the only action on a card whose counts were updating fine. Only the
-        // signed-out card has actions whose sole possible outcome is failure.
-        bool mailboxUnusable = state.Mode == DisclosureMode.SignedOut;
+        (string headline, string detail) = Describe(situation, snapshot);
 
         // An authentication state the companion can actually address — not merely any non-success.
         //
@@ -352,22 +349,14 @@ internal static class InboxCard
             or TokenAcquisitionStatus.BrokerUnavailable
             or TokenAcquisitionStatus.NoConfiguration;
 
-        // The companion is the only way out of a suppressed or unusable state, so it is offered
-        // whenever the card cannot show real content.
+        // The companion is offered whenever the card cannot show real content, and which situations
+        // those are is stated here rather than derived from a mode comparison.
         //
-        // The authentication clause is not redundant with the two before it, and omitting it was a
-        // bug. The expected steady state once mail exists is a successful cache read in Full mode
-        // with an expired or missing token: the detail line then says "Sign in required: open the
-        // companion" while both other clauses are false, so the card asked for an action it did not
-        // offer. That is the one state where the button is the only thing that can resolve what the
-        // card is complaining about.
-        // Counts-only is deliberately absent from this list. It is a state the user chose, or a
-        // transient one that resolves itself, and neither needs a trip to the companion — while
-        // including it also cost the mail actions at the small size, where only one row fits.
-        bool needsCompanion = mailboxUnusable
-                              || state.ReadStatus != CacheReadStatus.Success
-                              || payloadUnreadable
-                              || authNeedsAttention;
+        // The authentication clause is not redundant with the situation, and omitting it was a bug.
+        // The expected steady state once mail exists is a healthy mailbox with an expired token: the
+        // detail line says "Sign in required: open the companion" while the situation is perfectly
+        // ordinary, so the card asked for an action it did not offer.
+        bool needsCompanion = HasNoMailboxToShow(situation) || authNeedsAttention;
 
         // Mail actions are withheld only on the signed-out card, where offering Refresh and Open
         // Outlook would invite an action whose only possible outcome is failure. A counts-only card
@@ -383,16 +372,17 @@ internal static class InboxCard
         // instance, which is why this is decided in C# rather than with a compound $when.
         bool oneRowOnly = instance.Size == WidgetSize.Small;
 
-        // Details are shown only when the snapshot parsed, disclosure is full, and the snapshot is
-        // inside the staleness window. Every one of those is a separate reason to withhold, and
-        // each has its own detail line above, so a single flag here cannot hide which one applied.
+        // Exactly one situation renders message rows. Every other reason to withhold them — the
+        // privacy setting, the stale bound, a signed-out card, an unreadable cache — is a different
+        // member of the enum with its own copy, so no combination of flags can accidentally agree
+        // to show them.
         //
-        // This is the only place suppression removes anything. The counts continue to render in
-        // every case where a snapshot exists, which is what distinguishes hiding details from
-        // hiding the mailbox.
+        // This is the only place suppression removes anything. The counts continue to render
+        // wherever a snapshot exists, which is what distinguishes hiding details from hiding the
+        // mailbox.
         int rows = RowsFor(instance.Size);
         MessageRow[] messages =
-            snapshot is not null && state.Mode == DisclosureMode.Full && !detailsAreStale && rows > 0
+            situation == CardSituation.Mailbox && snapshot is not null && rows > 0
                 ? [.. snapshot.Messages.Take(rows).Select(ToRow)]
                 : [];
 
@@ -414,7 +404,7 @@ internal static class InboxCard
             Messages = messages,
             ShowMessages = messages.Length > 0,
 
-            ShowMailActions = !mailboxUnusable && !(oneRowOnly && needsCompanion),
+            ShowMailActions = situation != CardSituation.SignedOut && !(oneRowOnly && needsCompanion),
             ShowCompanionAction = needsCompanion,
         }, DataOptions);
     }
@@ -470,121 +460,258 @@ internal static class InboxCard
     private static string ReceivedLabel(DateTimeOffset receivedAt) =>
         MailboxTime.ReceivedLabel(receivedAt, DateTimeOffset.Now);
 
-    private static (string Headline, string Detail) Describe(
+    /// <summary>
+    /// What this card is actually showing. Every rendering decision switches over this.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>This exists because deriving the answer per decision produced the same defect six times.</b>
+    /// The card previously asked its own question at each site — <c>Mode != Full</c> for the actions,
+    /// <c>Mode == CountsOnly &amp;&amp; snapshot is null</c> for the copy, a conjunction of four flags
+    /// for the rows — and each derivation collapsed several distinct states into a boolean whose
+    /// default landed on the wrong side. The actions vanished when the privacy setting went on; a
+    /// cleared cache was described as a privacy setting; counts disappeared with the details they
+    /// were meant to outlive.
+    /// </para>
+    /// <para>
+    /// One enum, decided once, in a documented precedence order, makes those questions unaskable.
+    /// A site cannot re-derive what it is not given, and adding a member breaks every switch that
+    /// has not considered it — which is the property that turns the next mistake into a build
+    /// failure instead of a card nobody looks at.
+    /// </para>
+    /// </remarks>
+    private enum CardSituation
+    {
+        /// <summary>Suppressed to signed-out, or genuinely signed out. No mailbox, no actions.</summary>
+        SignedOut,
+
+        /// <summary>Nothing has ever been committed.</summary>
+        CacheAbsent,
+
+        /// <summary>Explicitly cleared by a logout, account switch, or cache clear.</summary>
+        CacheCleared,
+
+        /// <summary>Written in a payload schema this build does not read.</summary>
+        CacheUnsupported,
+
+        /// <summary>Present and damaged, or it failed to unprotect.</summary>
+        CacheCorrupt,
+
+        /// <summary>Could not be opened at all. Usually transient.</summary>
+        CacheUnreadable,
+
+        /// <summary>The envelope opened and the payload inside it would not parse.</summary>
+        PayloadUnreadable,
+
+        /// <summary>A successful read that carried no payload. Not an error and not mail.</summary>
+        NoMailboxContent,
+
+        /// <summary>A mailbox older than the stale bound: counts survive, details do not.</summary>
+        MailboxStale,
+
+        /// <summary>A mailbox the user has asked to see counts only for.</summary>
+        MailboxCountsOnly,
+
+        /// <summary>A mailbox rendered in full. The only situation that shows message rows.</summary>
+        Mailbox,
+    }
+
+    /// <summary>
+    /// Classifies one delivery into exactly one situation.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The order below is the precedence and it is load-bearing twice.
+    /// </para>
+    /// <para>
+    /// <b>Signed-out first.</b> A present tombstone is authoritative regardless of what the cache
+    /// holds, so a suppressed delivery must never reach a branch that describes snapshot contents.
+    /// </para>
+    /// <para>
+    /// <b>Cache status before the privacy setting.</b> Counts-only is a statement about a mailbox,
+    /// and with no snapshot there is no mailbox to make it about. Checking the mode first meant a
+    /// user who had the setting on before signing out saw "details are hidden by a privacy setting"
+    /// where the honest answer was that the cache had been cleared — replacing recovery guidance
+    /// with an explanation of something that was not the problem.
+    /// </para>
+    /// </remarks>
+    private static CardSituation Situate(
         DeliveryState state,
         MailboxSnapshot? snapshot,
         bool payloadUnreadable,
         bool detailsAreStale)
     {
-        // Disclosure mode is checked before the read status, deliberately. A present tombstone is
-        // authoritative regardless of what the cache holds, so a suppressed state must never fall
-        // through to a branch that describes snapshot contents.
-        //
-        // These branches return before the authentication narration below, so each appends any
-        // authorization blocker itself. Adding a new early return means considering the same.
-        //
-        // Appending it here does NOT weaken the tombstone: DescribeAuthBlocker returns a status word
-        // turned into a sentence and never touches the snapshot, so a suppressed card gains no mailbox
-        // metadata. Withholding it would be the actual harm — telling someone to sign in when signing
-        // in cannot succeed is the conflation section 8 forbids.
         if (state.Mode == DisclosureMode.SignedOut)
         {
-            return ("Signed out", "Open the companion to sign in." + DescribeAuthBlocker());
+            return CardSituation.SignedOut;
         }
 
-        if (state.Mode == DisclosureMode.CountsOnly && snapshot is null)
+        switch (state.ReadStatus)
         {
-            // Only when there is no snapshot to count. With one, the branch below states the count
-            // and says the details are hidden, which is what the mode is named for.
-            return ("Details hidden", "Message details are hidden by a privacy setting or an "
-                                     + "in-progress account change." + DescribeAuthBlocker());
+            case CacheReadStatus.Absent:
+                return CardSituation.CacheAbsent;
+            case CacheReadStatus.Cleared:
+                return CardSituation.CacheCleared;
+            case CacheReadStatus.UnsupportedVersion:
+                return CardSituation.CacheUnsupported;
+            case CacheReadStatus.Corrupt:
+                return CardSituation.CacheCorrupt;
+            case CacheReadStatus.Unreadable:
+                return CardSituation.CacheUnreadable;
+            case CacheReadStatus.Success:
+                break;
+            default:
+                // An unrecognised status is a cache this build cannot reason about, which is the
+                // same practical position as one it cannot read.
+                return CardSituation.CacheUnreadable;
         }
 
         if (payloadUnreadable)
         {
-            // Distinct from CacheReadStatus.Corrupt: the envelope unprotected cleanly and the
-            // payload inside it did not parse, which means a schema the cache does not recognise
-            // rather than damage. Both recover by refetching, and saying which happened costs
-            // nothing and saves a support round trip.
-            return ("Inbox unavailable",
-                "The cached mailbox could not be read in this build's format. It will be refetched.");
+            return CardSituation.PayloadUnreadable;
         }
 
-        if (snapshot is not null)
+        if (snapshot is null)
         {
-            // **The headline is the count in all three of these cases, and that is the point.**
-            // Counts-only and the stale bound withhold message details; neither withholds the
-            // mailbox. Replacing the count with a status word — which both branches originally did
-            // — turned "hide the details" into "hide everything", and in the counts-only case
-            // removed the one thing the mode is named for.
-            //
-            // The headline carries the count itself rather than a word plus a separate badge.
-            // Measured on 0.4.24.0: a "Unread" headline with a right-aligned count badge and a
-            // subtitle reading "1 unread message, 1 in Focused" stated the same fact three times
-            // and spent a line doing it, on a surface where vertical space is the binding
-            // constraint.
-            string headline = snapshot.UnreadItemCount switch
-            {
-                0 => "Inbox up to date",
-                1 => "1 unread",
-                int n => $"{n.ToString(CultureInfo.CurrentCulture)} unread",
-            };
-
-            // Staleness outranks the privacy mode, because a stale counts-only card is stale first:
-            // the number itself is old, and saying only that details are hidden would present an
-            // old count as current.
-            DetailSuppression suppression =
-                detailsAreStale ? DetailSuppression.StaleBound
-                : state.Mode == DisclosureMode.CountsOnly ? DetailSuppression.PrivacyMode
-                : DetailSuppression.None;
-
-            return (headline, ComposeSubtitle(snapshot, suppression) + DescribeAuthBlocker());
+            return CardSituation.NoMailboxContent;
         }
 
+        // Staleness outranks the privacy setting, because a stale counts-only card is stale first:
+        // the number itself is old, and saying only that details are hidden would present an old
+        // count as current.
         if (detailsAreStale)
         {
-            // Unreachable while staleness is derived from a snapshot, and kept so that deriving it
-            // from something else later cannot silently fall through to a mail-describing branch.
-            return ("Not updated recently",
-                "Message details are hidden because there has been no successful refresh for over "
-                + "24 hours. Refresh to reconnect." + DescribeAuthBlocker());
+            return CardSituation.MailboxStale;
         }
 
-        return state.ReadStatus switch
-        {
-            // Reachable when a snapshot committed but carried no payload — a cleared-then-recommitted
-            // race, or an empty protected body. Not an error, and not mail either.
-            CacheReadStatus.Success =>
-                ("Coordination is live",
-                    "Cached state was read and delivered by the provider, but it carried no mailbox "
-                    + "content. " + DescribeSilentAuth()),
-
-            CacheReadStatus.Absent =>
-                ("No cached state yet",
-                    "The provider is running and rendering. Nothing has been committed to the "
-                    + "cache yet. " + DescribeSilentAuth()),
-
-            CacheReadStatus.Cleared =>
-                ("Cache cleared",
-                    "State was explicitly cleared by a logout, account switch, or cache clear."
-                    + DescribeAuthBlocker()),
-
-            CacheReadStatus.UnsupportedVersion =>
-                ("Cache discarded",
-                    "The cached state was written in a format this build does not read. It will "
-                    + "be refetched; there is no migration path."),
-
-            CacheReadStatus.Corrupt =>
-                ("Cache unreadable",
-                    "The cached state is corrupt or failed to unprotect. Refresh to rebuild it."),
-
-            CacheReadStatus.Unreadable =>
-                ("Cache temporarily unavailable",
-                    "The cached state could not be opened. This is usually transient."),
-
-            _ => ("Unknown state", "The provider read a cache status it does not recognise."),
-        };
+        return state.Mode == DisclosureMode.CountsOnly
+            ? CardSituation.MailboxCountsOnly
+            : CardSituation.Mailbox;
     }
+
+    /// <summary>Whether the situation is one where there is no mailbox to act on.</summary>
+    /// <remarks>
+    /// <para>
+    /// A switch expression with no discard arm, so adding a situation is a compile error here rather
+    /// than a silent classification. That is the point of the enum, and it is the whole reason this
+    /// method exists instead of a boolean derived at the call site.
+    /// </para>
+    /// <para>
+    /// CS8524 is suppressed rather than answered with a discard. It fires for values cast in from
+    /// outside the declared members, which cannot happen: the enum is private and every value comes
+    /// from <see cref="Situate"/>. Adding a discard arm to silence it would also silence CS8509 —
+    /// the missing-member check that is the point — so the narrower suppression is the one that
+    /// keeps the guarantee.
+    /// </para>
+    /// </remarks>
+#pragma warning disable CS8524
+    private static bool HasNoMailboxToShow(CardSituation situation) => situation switch
+    {
+        CardSituation.SignedOut => true,
+        CardSituation.CacheAbsent => true,
+        CardSituation.CacheCleared => true,
+        CardSituation.CacheUnsupported => true,
+        CardSituation.CacheCorrupt => true,
+        CardSituation.CacheUnreadable => true,
+        CardSituation.PayloadUnreadable => true,
+        CardSituation.NoMailboxContent => true,
+
+        // The three mailbox situations. Counts-only and stale are deliberately not here: the user
+        // chose one and the other resolves itself, and neither needs a trip to the companion —
+        // while including them also cost the mail actions at the small size, where one row fits.
+        CardSituation.MailboxStale => false,
+        CardSituation.MailboxCountsOnly => false,
+        CardSituation.Mailbox => false,
+    };
+
+    /// <summary>
+    /// The headline and subtitle for one situation.
+    /// </summary>
+    /// <remarks>
+    /// Each branch appends its own authentication sentence where one would otherwise mislead.
+    /// <c>DescribeAuthBlocker</c> returns a status word turned into a sentence and never touches the
+    /// snapshot, so a suppressed card gains no mailbox metadata from it. Withholding it would be the
+    /// actual harm: telling someone to sign in when signing in cannot succeed is the conflation
+    /// section 8 forbids.
+    /// </remarks>
+    private static (string Headline, string Detail) Describe(
+        CardSituation situation,
+        MailboxSnapshot? snapshot) => situation switch
+    {
+        CardSituation.SignedOut =>
+            ("Signed out", "Open the companion to sign in." + DescribeAuthBlocker()),
+
+        CardSituation.CacheAbsent =>
+            ("No cached state yet",
+                "The provider is running and rendering. Nothing has been committed to the cache "
+                + "yet. " + DescribeSilentAuth()),
+
+        CardSituation.CacheCleared =>
+            ("Cache cleared",
+                "State was explicitly cleared by a logout, account switch, or cache clear."
+                + DescribeAuthBlocker()),
+
+        CardSituation.CacheUnsupported =>
+            ("Cache discarded",
+                "The cached state was written in a format this build does not read. It will be "
+                + "refetched; there is no migration path."),
+
+        CardSituation.CacheCorrupt =>
+            ("Cache unreadable",
+                "The cached state is corrupt or failed to unprotect. Refresh to rebuild it."),
+
+        CardSituation.CacheUnreadable =>
+            ("Cache temporarily unavailable",
+                "The cached state could not be opened. This is usually transient."),
+
+        // Distinct from a corrupt cache: the envelope unprotected cleanly and the payload inside it
+        // did not parse, which means a schema this build does not recognise rather than damage.
+        // Both recover by refetching, and saying which happened saves a support round trip.
+        CardSituation.PayloadUnreadable =>
+            ("Inbox unavailable",
+                "The cached mailbox could not be read in this build's format. It will be refetched."),
+
+        CardSituation.NoMailboxContent =>
+            ("Coordination is live",
+                "Cached state was read and delivered by the provider, but it carried no mailbox "
+                + "content. " + DescribeSilentAuth()),
+
+        CardSituation.MailboxStale =>
+            (Headline(snapshot),
+                ComposeSubtitle(snapshot!, DetailSuppression.StaleBound) + DescribeAuthBlocker()),
+
+        CardSituation.MailboxCountsOnly =>
+            (Headline(snapshot),
+                ComposeSubtitle(snapshot!, DetailSuppression.PrivacyMode) + DescribeAuthBlocker()),
+
+        CardSituation.Mailbox =>
+            (Headline(snapshot),
+                ComposeSubtitle(snapshot!, DetailSuppression.None) + DescribeAuthBlocker()),
+    };
+#pragma warning restore CS8524
+
+    /// <summary>
+    /// The unread count as a headline.
+    /// </summary>
+    /// <remarks>
+    /// <b>The count, in all three mailbox situations, and that is the point.</b> Counts-only and the
+    /// stale bound withhold message details; neither withholds the mailbox. Replacing the count with
+    /// a status word — which both branches originally did — turned "hide the details" into "hide
+    /// everything", and in the counts-only case removed the one thing that mode is named for.
+    /// <para>
+    /// It carries the number itself rather than a word plus a separate badge. Measured on 0.4.24.0:
+    /// an "Unread" headline with a right-aligned count and a subtitle reading "1 unread message, 1
+    /// in Focused" stated the same fact three times and spent a line doing it, on a surface where
+    /// vertical space is the binding constraint.
+    /// </para>
+    /// </remarks>
+    private static string Headline(MailboxSnapshot? snapshot) => snapshot?.UnreadItemCount switch
+    {
+        null => "Inbox",
+        0 => "Inbox up to date",
+        1 => "1 unread",
+        int n => $"{n.ToString(CultureInfo.CurrentCulture)} unread",
+    };
 
     /// <summary>
     /// The subtitle for a healthy mailbox: what is unread, and when it was last known good.

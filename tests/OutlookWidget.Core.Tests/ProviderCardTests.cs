@@ -282,13 +282,13 @@ public sealed class ProviderCardTests
         // for. DeliveryWorker withholds the payload only for signed-out, so counts-only genuinely
         // has a snapshot to count.
         //
-        // Enforced at the point the decision is made: the message-row list is the only thing either
-        // suppression may remove, so the row gate names both conditions and the snapshot gate names
-        // neither.
+        // Enforced at the point the decision is made. Exactly one situation renders rows, so no
+        // combination of flags can accidentally agree to show them, and the counts are produced by
+        // a headline shared across all three mailbox situations.
         string source = CardSource();
 
         Assert.Contains(
-            "state.Mode == DisclosureMode.Full && !detailsAreStale",
+            "situation == CardSituation.Mailbox",
             source,
             StringComparison.Ordinal);
 
@@ -306,15 +306,18 @@ public sealed class ProviderCardTests
         // sentence: suppression now selects a reason, and one composer decides what may be said for
         // every state, so a state added later cannot forget a fact because it never chooses them.
         //
-        // A second call site would restore exactly the shape those defects came from.
-        //
-        // The two occurrences are the declaration and the single call.
-        int compositionPoints = Regex.Count(source, @"ComposeSubtitle\(");
+        // The invariant is that one function assembles the subtitle, not that it is called once —
+        // the mailbox situations each pass it a different suppression reason, which is the point of
+        // separating the reason from the prose. What must never come back is a branch writing its
+        // own sentence, so the suppression copy is required to live in exactly one place.
+        int suppressionSentences = Regex.Count(source, "Message details are hidden");
 
         Assert.True(
-            compositionPoints == 2,
-            "The subtitle must have exactly one composition point — a per-state sentence is how the "
-                + $"counts were dropped three times. Found {compositionPoints - 1} call site(s).");
+            suppressionSentences == 2,
+            "The two suppression sentences belong to ComposeSubtitle alone. A third means a branch "
+                + $"is authoring its own copy again. Found {suppressionSentences}.");
+
+        Assert.Contains("ComposeSubtitle(snapshot", source, StringComparison.Ordinal);
 
         // And the composer must still be the thing that states the Focused count, rather than a
         // branch quietly reintroducing its own.
@@ -330,16 +333,71 @@ public sealed class ProviderCardTests
         // stripped both actions from a healthy widget whose counts were still updating, leaving
         // Open companion as the only thing to press.
         //
-        // Asserted on the flag's definition rather than on its uses, so a second use cannot
-        // reintroduce the broader test by accident.
         string source = CardSource();
 
         Assert.Contains(
-            "bool mailboxUnusable = state.Mode == DisclosureMode.SignedOut;",
+            "situation != CardSituation.SignedOut",
             source,
             StringComparison.Ordinal);
 
         Assert.DoesNotContain("state.Mode != DisclosureMode.Full", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Only_the_classifier_reads_the_disclosure_mode()
+    {
+        // The structural rule behind six separate findings. Every rendering decision the card makes
+        // is a switch over one situation classified once; a site that re-derives its own answer from
+        // the mode is how "any mode other than Full" stripped the mail actions, and how a
+        // counts-only check swallowed the cache-status branches.
+        //
+        // Situate is the single place allowed to look at the mode. Everything downstream is handed
+        // a CardSituation and cannot ask a different question of a value it was never given.
+        string source = CardSource();
+
+        int classifier = source.IndexOf("private static CardSituation Situate(", StringComparison.Ordinal);
+        Assert.True(classifier > 0, "Situate should exist as the single classification point.");
+
+        int classifierEnd = source.IndexOf(
+            "private static bool HasNoMailboxToShow",
+            StringComparison.Ordinal);
+        Assert.True(classifierEnd > classifier, "Expected HasNoMailboxToShow to follow Situate.");
+
+        // Comparisons specifically. The diagnostic block prints the mode as a status word, which is
+        // a readout rather than a decision and is exactly the kind of use that should stay
+        // permitted — the rule is that nothing downstream may branch on it.
+        string afterClassifier = source[classifierEnd..];
+
+        Assert.False(
+            Regex.IsMatch(afterClassifier, @"state\.Mode\s*[=!]="),
+            "Only Situate may branch on the disclosure mode. A comparison after it is a site "
+                + "re-deriving its own answer, which is how the mail actions and the cache-status "
+                + "branches were both lost.");
+    }
+
+    [Fact]
+    public void Cache_status_is_classified_before_the_privacy_setting()
+    {
+        // Counts-only is a statement about a mailbox, and with no snapshot there is no mailbox to
+        // make it about. Checking the mode first meant a user who had the privacy setting on before
+        // signing out was told "details are hidden by a privacy setting" when the honest answer was
+        // that the cache had been cleared — recovery guidance replaced by an explanation of
+        // something that was not the problem.
+        string source = CardSource();
+
+        int classifier = source.IndexOf("private static CardSituation Situate(", StringComparison.Ordinal);
+        Assert.True(classifier > 0);
+
+        string body = source[classifier..];
+
+        int clearedCase = body.IndexOf("case CacheReadStatus.Cleared", StringComparison.Ordinal);
+        int countsOnlyCheck = body.IndexOf("DisclosureMode.CountsOnly", StringComparison.Ordinal);
+
+        Assert.True(clearedCase > 0 && countsOnlyCheck > 0);
+        Assert.True(
+            clearedCase < countsOnlyCheck,
+            "The cache-status branches must be classified before the counts-only setting, so a "
+                + "no-snapshot state keeps its own recovery guidance.");
     }
 
     [Fact]
