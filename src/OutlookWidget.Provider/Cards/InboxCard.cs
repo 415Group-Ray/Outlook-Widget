@@ -34,6 +34,14 @@ namespace OutlookWidget.Provider.Cards;
 /// presented as current is a disclosure one.
 /// </para>
 /// <para>
+/// <b>Suppression removes message rows and nothing else.</b> Both reduced states — the 24-hour bound
+/// and <c>CountsOnly</c> — keep the unread count, the Focused count where present, and the last-update
+/// time; each says in its own words why the details are missing. The first version of this card
+/// replaced the count with a status word in both cases, which turned "hide the details" into "hide
+/// the mailbox" and, in counts-only, removed the one thing that mode is named for. The rule to hold
+/// is that a count is not a message.
+/// </para>
+/// <para>
 /// <b>Nothing outside the approved field set reaches this card.</b> Sender, subject, received time
 /// and read state are rendered; the cached link is deliberately never read here, and no message
 /// identifier or link appears in card JSON, which is what section 17 requires of the eventual
@@ -259,22 +267,27 @@ internal static class InboxCard
 
     public static string Data(WidgetInstance instance, DeliveryState state)
     {
-        // Deserialized once, here, and only when the mode permits details at all. A payload that
-        // will not parse is treated exactly like a corrupt cache rather than as an empty inbox:
-        // "no messages" and "the messages could not be read" are different facts and the card must
-        // not conflate them into a reassuring blank.
-        MailboxSnapshot? snapshot =
-            state.Mode == DisclosureMode.Full
+        // Deserialized once, here, for every mode that is given a payload at all — which is every
+        // mode except signed-out, where the worker withholds it before this code runs.
+        //
+        // **Counts-only must reach this too, and gating on Full alone was a defect.** The mode
+        // exists to show counts while withholding details; a card that answers it with neither is
+        // the one thing the name rules out. Suppression is applied below, per decision, rather than
+        // by refusing to look at the snapshot: what counts-only and the stale bound withhold is the
+        // message rows, and the count is not a message.
+        //
+        // A payload that will not parse is treated exactly like a corrupt cache rather than as an
+        // empty inbox: "no messages" and "the messages could not be read" are different facts and
+        // the card must not conflate them into a reassuring blank.
+        bool payloadOffered =
+            state.Mode != DisclosureMode.SignedOut
             && state.ReadStatus == CacheReadStatus.Success
-            && state.Payload is { Length: > 0 } payload
-                ? MailboxSnapshot.TryDeserialize(payload)
-                : null;
+            && state.Payload is { Length: > 0 };
 
-        bool payloadUnreadable =
-            state.Mode == DisclosureMode.Full
-            && state.ReadStatus == CacheReadStatus.Success
-            && state.Payload is { Length: > 0 }
-            && snapshot is null;
+        MailboxSnapshot? snapshot =
+            payloadOffered ? MailboxSnapshot.TryDeserialize(state.Payload!) : null;
+
+        bool payloadUnreadable = payloadOffered && snapshot is null;
 
         // The 24-hour rule. Age is measured from the refresh that produced the snapshot, not from
         // the commit, because a commit that merely re-wrote unchanged content did not make the
@@ -336,10 +349,14 @@ internal static class InboxCard
 
         // Details are shown only when the snapshot parsed, disclosure is full, and the snapshot is
         // inside the staleness window. Every one of those is a separate reason to withhold, and
-        // each has its own headline above, so a single flag here cannot hide which one applied.
+        // each has its own detail line above, so a single flag here cannot hide which one applied.
+        //
+        // This is the only place suppression removes anything. The counts continue to render in
+        // every case where a snapshot exists, which is what distinguishes hiding details from
+        // hiding the mailbox.
         int rows = RowsFor(instance.Size);
         MessageRow[] messages =
-            snapshot is not null && !detailsAreStale && rows > 0
+            snapshot is not null && state.Mode == DisclosureMode.Full && !detailsAreStale && rows > 0
                 ? [.. snapshot.Messages.Take(rows).Select(ToRow)]
                 : [];
 
@@ -430,8 +447,10 @@ internal static class InboxCard
             return ("Signed out", "Open the companion to sign in." + DescribeAuthBlocker());
         }
 
-        if (state.Mode == DisclosureMode.CountsOnly)
+        if (state.Mode == DisclosureMode.CountsOnly && snapshot is null)
         {
+            // Only when there is no snapshot to count. With one, the branch below states the count
+            // and says the details are hidden, which is what the mode is named for.
             return ("Details hidden", "Message details are hidden by a privacy setting or an "
                                      + "in-progress account change." + DescribeAuthBlocker());
         }
@@ -446,28 +465,54 @@ internal static class InboxCard
                 "The cached mailbox could not be read in this build's format. It will be refetched.");
         }
 
-        if (detailsAreStale)
-        {
-            return ("Not updated recently",
-                "Message details are hidden because there has been no successful refresh for over "
-                + "24 hours. Refresh to reconnect." + DescribeAuthBlocker());
-        }
-
         if (snapshot is not null)
         {
+            // **The headline is the count in all three of these cases, and that is the point.**
+            // Counts-only and the stale bound withhold message details; neither withholds the
+            // mailbox. Replacing the count with a status word — which both branches originally did
+            // — turned "hide the details" into "hide everything", and in the counts-only case
+            // removed the one thing the mode is named for.
+            //
             // The headline carries the count itself rather than a word plus a separate badge.
             // Measured on 0.4.24.0: a "Unread" headline with a right-aligned count badge and a
             // subtitle reading "1 unread message, 1 in Focused" stated the same fact three times
             // and spent a line doing it, on a surface where vertical space is the binding
             // constraint.
-            return (
-                snapshot.UnreadItemCount switch
-                {
-                    0 => "Inbox up to date",
-                    1 => "1 unread",
-                    int n => $"{n.ToString(CultureInfo.CurrentCulture)} unread",
-                },
-                DescribeMailbox(snapshot) + DescribeAuthBlocker());
+            string headline = snapshot.UnreadItemCount switch
+            {
+                0 => "Inbox up to date",
+                1 => "1 unread",
+                int n => $"{n.ToString(CultureInfo.CurrentCulture)} unread",
+            };
+
+            // Staleness is checked before the privacy mode, because a stale counts-only card is
+            // stale first: the number itself is old, and saying only that details are hidden would
+            // present an old count as current.
+            if (detailsAreStale)
+            {
+                return (headline,
+                    $"Counts last updated {DescribeUpdated(snapshot)}. Message details are hidden "
+                    + "because there has been no successful refresh for over 24 hours. Refresh to "
+                    + "reconnect." + DescribeAuthBlocker());
+            }
+
+            if (state.Mode == DisclosureMode.CountsOnly)
+            {
+                return (headline,
+                    $"Message details are hidden by a privacy setting or an in-progress account "
+                    + $"change. Updated {DescribeUpdated(snapshot)}." + DescribeAuthBlocker());
+            }
+
+            return (headline, DescribeMailbox(snapshot) + DescribeAuthBlocker());
+        }
+
+        if (detailsAreStale)
+        {
+            // Unreachable while staleness is derived from a snapshot, and kept so that deriving it
+            // from something else later cannot silently fall through to a mail-describing branch.
+            return ("Not updated recently",
+                "Message details are hidden because there has been no successful refresh for over "
+                + "24 hours. Refresh to reconnect." + DescribeAuthBlocker());
         }
 
         return state.ReadStatus switch
@@ -514,10 +559,26 @@ internal static class InboxCard
     /// query's failure non-fatal, so the absence of a Focused number means "not asked, or not
     /// answered" rather than zero, and rendering a zero there would be a fabricated fact.
     /// </remarks>
+    /// <summary>
+    /// When the snapshot was last refreshed, in the reader's timezone.
+    /// </summary>
+    /// <remarks>
+    /// A time of day alone for a snapshot from today, and a date as well once it is older, because
+    /// "Updated 4:58 PM" on a three-day-old card is actively misleading — and a card that has passed
+    /// the 24-hour bound is by definition not from today.
+    /// </remarks>
+    private static string DescribeUpdated(MailboxSnapshot snapshot)
+    {
+        DateTime local = snapshot.RefreshedAtUtc.ToLocalTime().DateTime;
+
+        return local.Date == DateTime.Now.Date
+            ? local.ToString("t", CultureInfo.CurrentCulture)
+            : local.ToString("d MMM, t", CultureInfo.CurrentCulture);
+    }
+
     private static string DescribeMailbox(MailboxSnapshot snapshot)
     {
-        string updated = snapshot.RefreshedAtUtc.ToLocalTime()
-            .ToString("t", CultureInfo.CurrentCulture);
+        string updated = DescribeUpdated(snapshot);
 
         if (snapshot.UnreadItemCount == 0)
         {

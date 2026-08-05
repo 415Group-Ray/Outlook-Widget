@@ -186,6 +186,34 @@ public sealed class ProviderCardTests
     }
 
     [Fact]
+    public void Reduced_disclosure_withholds_message_rows_without_withholding_the_counts()
+    {
+        // Both reduced states — the 24-hour stale bound and CountsOnly — hide message details and
+        // keep the counts. The first version of this card got both wrong in the same way: it
+        // replaced the unread-count headline with a status word, which turned "hide the details"
+        // into "hide the mailbox" and, in counts-only, removed the very thing that mode is named
+        // for. DeliveryWorker withholds the payload only for signed-out, so counts-only genuinely
+        // has a snapshot to count.
+        //
+        // Enforced at the point the decision is made: the message-row list is the only thing either
+        // suppression may remove, so the row gate names both conditions and the snapshot gate names
+        // neither.
+        string source = CardSource();
+
+        Assert.Contains(
+            "state.Mode == DisclosureMode.Full && !detailsAreStale",
+            source,
+            StringComparison.Ordinal);
+
+        // The snapshot must be read for every mode that is offered a payload, not for Full alone.
+        // Gating deserialization on Full is what discarded the counts-only counts.
+        Assert.Contains(
+            "state.Mode != DisclosureMode.SignedOut",
+            source,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_render_path_never_reads_the_cached_message_link()
     {
         // Section 17 requires that no link or message identifier appear in Adaptive Card JSON: the
