@@ -29,11 +29,13 @@ public sealed class SettingsChangeTests : IDisposable
 
     public void Dispose() => _fixture.Dispose();
 
+    private bool _signalDelivers = true;
+
     private SettingsChangeCoordinator Coordinator() =>
         new(_store, _tombstones, logger: null, signalStateChanged: () =>
         {
             _signals++;
-            return true;
+            return _signalDelivers;
         });
 
     private DisclosureMode EffectiveMode() =>
@@ -183,6 +185,44 @@ public sealed class SettingsChangeTests : IDisposable
 
         Assert.Equal(SettingsChangeOutcome.Applied, result.Outcome);
         Assert.True(result.DetailsRemainHidden);
+    }
+
+    [Fact]
+    public void An_undelivered_signal_is_reported_without_failing_the_change()
+    {
+        // No provider running, or an event this process cannot open. The mutation is committed and
+        // authoritative on disk, so the change succeeded — but a live widget may keep rendering the
+        // old disclosure until something else prompts it, and the companion is the only thing
+        // positioned to say so.
+        _signalDelivers = false;
+
+        SettingsChangeResult result = Coordinator().Apply(new WidgetSettings { HideMessageDetails = true });
+
+        Assert.Equal(SettingsChangeOutcome.Applied, result.Outcome);
+        Assert.True(result.IsApplied);
+        Assert.False(result.ProviderNotified);
+
+        // Committed regardless: disk state is authoritative and the event is only an accelerant.
+        Assert.True(_store.Read().Settings.HideMessageDetails);
+    }
+
+    [Fact]
+    public void A_delivered_signal_is_reported_as_delivered()
+    {
+        SettingsChangeResult result = Coordinator().Apply(new WidgetSettings { HideMessageDetails = true });
+
+        Assert.True(result.ProviderNotified);
+    }
+
+    [Fact]
+    public void A_change_that_writes_nothing_reports_no_notification_either_way()
+    {
+        // Null rather than false: nothing was written, so there was nothing to notify anyone about.
+        // Reporting false here would invite the companion to warn about a signal it never needed.
+        SettingsChangeResult result = Coordinator().Apply(new WidgetSettings { HideMessageDetails = false });
+
+        Assert.Equal(SettingsChangeOutcome.Unchanged, result.Outcome);
+        Assert.Null(result.ProviderNotified);
     }
 
     [Fact]

@@ -29,9 +29,22 @@ public enum SettingsChangeOutcome
 /// tombstone and did not clear it — which is the fail-closed direction, and the reason a failure
 /// here is reported rather than retried silently.
 /// </param>
+/// <param name="ProviderNotified">
+/// Whether the running provider was told, or <see langword="null"/> when nothing was written and so
+/// there was nothing to tell it.
+/// </param>
+/// <remarks>
+/// <b><see cref="ProviderNotified"/> is separate from the outcome on purpose.</b> The named event is
+/// an accelerant over authoritative disk state, so a provider that is not running — or an event this
+/// process cannot open — must never turn a committed mutation into a failure. But it must not be
+/// silently discarded either: the setting is stored and a live widget may keep rendering the old
+/// disclosure until something else prompts it, which is a thing the companion can usefully say and
+/// nothing else is positioned to notice.
+/// </remarks>
 public readonly record struct SettingsChangeResult(
     SettingsChangeOutcome Outcome,
-    bool DetailsRemainHidden)
+    bool DetailsRemainHidden,
+    bool? ProviderNotified = null)
 {
     /// <summary>Whether the stored settings now match what was asked for.</summary>
     public bool IsApplied =>
@@ -166,7 +179,7 @@ public sealed class SettingsChangeCoordinator
 
             // Signalled before the tombstone is cleared, so the provider converges on the committed
             // setting rather than on a window where neither is in force.
-            _signalStateChanged();
+            bool notified = _signalStateChanged();
 
             suppression.CommitAndClear();
 
@@ -186,7 +199,8 @@ public sealed class SettingsChangeCoordinator
                 // it stops being correct only if the user later turns details back on.
                 return new SettingsChangeResult(
                     SettingsChangeOutcome.SuppressionClearFailed,
-                    DetailsRemainHidden: true);
+                    DetailsRemainHidden: true,
+                    ProviderNotified: notified);
             }
 
             _logger.Record(OperationalEventId.PrivacySettingChanged, OperationalOutcome.Success);
@@ -195,7 +209,8 @@ public sealed class SettingsChangeCoordinator
             // read rather than assumed.
             return new SettingsChangeResult(
                 SettingsChangeOutcome.Applied,
-                DetailsRemainHidden: SuppressionIsInForce());
+                DetailsRemainHidden: SuppressionIsInForce(),
+                ProviderNotified: notified);
         }
         finally
         {
@@ -223,7 +238,7 @@ public sealed class SettingsChangeCoordinator
             return new SettingsChangeResult(SettingsChangeOutcome.WriteFailed, DetailsRemainHidden: true);
         }
 
-        _signalStateChanged();
+        bool notified = _signalStateChanged();
 
         _logger.Record(OperationalEventId.PrivacySettingChanged, OperationalOutcome.Success);
 
@@ -232,7 +247,8 @@ public sealed class SettingsChangeCoordinator
         // the path a user takes to undo exactly that kind of failure.
         return new SettingsChangeResult(
             SettingsChangeOutcome.Applied,
-            DetailsRemainHidden: SuppressionIsInForce());
+            DetailsRemainHidden: SuppressionIsInForce(),
+            ProviderNotified: notified);
     }
 
     /// <summary>
