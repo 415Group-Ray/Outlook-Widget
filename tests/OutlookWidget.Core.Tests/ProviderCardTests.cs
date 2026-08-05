@@ -185,6 +185,93 @@ public sealed class ProviderCardTests
         Assert.DoesNotContain("TimeSpan.FromHours(24)", source, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The fields carrying mailbox-controlled text. Anyone who can send mail to this mailbox
+    /// chooses both.
+    /// </summary>
+    private static readonly string[] MailboxControlledBindings = ["displaySender", "subject"];
+
+    [Fact]
+    public void Mailbox_text_is_never_bound_into_a_markdown_rendering_element()
+    {
+        // A TextBlock renders a Markdown subset that includes hyperlinks, so a subject of the form
+        // [pay now](https://attacker.example) becomes a clickable sender-controlled link on the
+        // card. That routes around the Action.OpenUrl ban and the Outlook-host allowlist, whose
+        // whole purpose is that the provider decides what may be opened. TextRun is documented as
+        // not supporting Markdown, so mailbox strings must be bound only there.
+        //
+        // The template is walked as JSON rather than matched with a regex, because the thing being
+        // asserted is a relationship between an element's type and its text — which a pattern over
+        // flat source cannot express without being fooled by the next reordering.
+        using JsonDocument document = JsonDocument.Parse(TemplateJson());
+
+        var offenders = new List<string>();
+        var boundIn = new HashSet<string>(StringComparer.Ordinal);
+
+        WalkTextElements(document.RootElement, (elementType, text) =>
+        {
+            foreach (string field in MailboxControlledBindings)
+            {
+                if (!text.Contains("${" + field + "}", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                boundIn.Add(field);
+
+                if (!string.Equals(elementType, "TextRun", StringComparison.Ordinal))
+                {
+                    offenders.Add($"{field} is bound into a {elementType}");
+                }
+            }
+        });
+
+        Assert.True(
+            offenders.Count == 0,
+            "Mailbox-controlled text must be rendered through TextRun, which does not support "
+                + "Markdown: " + string.Join(", ", offenders));
+
+        // Without this the check passes vacuously the moment a field is renamed or the rows are
+        // dropped from the template.
+        Assert.Equal(
+            MailboxControlledBindings.Order(StringComparer.Ordinal),
+            boundIn.Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// Invokes <paramref name="visit"/> with the <c>type</c> and <c>text</c> of every object in the
+    /// card that carries both.
+    /// </summary>
+    private static void WalkTextElements(JsonElement element, Action<string, string> visit)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                if (element.TryGetProperty("type", out JsonElement type)
+                    && element.TryGetProperty("text", out JsonElement text)
+                    && type.ValueKind == JsonValueKind.String
+                    && text.ValueKind == JsonValueKind.String)
+                {
+                    visit(type.GetString()!, text.GetString()!);
+                }
+
+                foreach (JsonProperty property in element.EnumerateObject())
+                {
+                    WalkTextElements(property.Value, visit);
+                }
+
+                break;
+
+            case JsonValueKind.Array:
+                foreach (JsonElement item in element.EnumerateArray())
+                {
+                    WalkTextElements(item, visit);
+                }
+
+                break;
+        }
+    }
+
     [Fact]
     public void Reduced_disclosure_withholds_message_rows_without_withholding_the_counts()
     {

@@ -50,6 +50,21 @@ namespace OutlookWidget.Provider.Cards;
 /// given.
 /// </para>
 /// <para>
+/// <b>Mailbox text is rendered through <c>RichTextBlock</c>/<c>TextRun</c>, never <c>TextBlock</c>,
+/// and that is a security boundary rather than a styling choice.</b> A <c>TextBlock</c>'s
+/// <c>text</c> renders a Markdown subset that includes hyperlinks, so a subject or display name of
+/// the form <c>[pay now](https://attacker.example)</c> — chosen by anyone who can send mail to this
+/// mailbox — would render as a clickable, sender-controlled link on the card. That defeats the
+/// point of section 3's <c>Action.OpenUrl</c> ban and the Outlook-host allowlist: the provider is
+/// supposed to be the only thing that decides what may be opened. <c>TextRun</c> is documented as
+/// not supporting Markdown, which is why the sender and subject go through it and why the received
+/// time, headline, and detail — all provider-authored — may stay <c>TextBlock</c>s.
+/// </para>
+/// <para>
+/// The cost is real and is paid deliberately: <c>RichTextBlock</c> has neither <c>maxLines</c> nor
+/// <c>wrap</c>, so single-line truncation moves into C# as <see cref="DisplayLineBudget"/>.
+/// </para>
+/// <para>
 /// Template and data are separate strings rather than one pre-substituted document because
 /// <c>WidgetUpdateRequestOptions</c> takes them separately and the host does the binding.
 /// </para>
@@ -130,27 +145,38 @@ internal static class InboxCard
                       "width": "stretch",
                       "items": [
                         {
-                          "type": "TextBlock",
-                          "text": "${displaySender}",
-                          "weight": "Bolder",
-                          "wrap": false,
-                          "maxLines": 1,
-                          "$when": "${isUnread}"
+                          "type": "RichTextBlock",
+                          "$when": "${isUnread}",
+                          "inlines": [
+                            {
+                              "type": "TextRun",
+                              "text": "${displaySender}",
+                              "weight": "Bolder"
+                            }
+                          ]
                         },
                         {
-                          "type": "TextBlock",
-                          "text": "${displaySender}",
-                          "wrap": false,
-                          "maxLines": 1,
-                          "$when": "${isRead}"
+                          "type": "RichTextBlock",
+                          "$when": "${isRead}",
+                          "inlines": [
+                            {
+                              "type": "TextRun",
+                              "text": "${displaySender}",
+                              "weight": "Lighter"
+                            }
+                          ]
                         },
                         {
-                          "type": "TextBlock",
-                          "text": "${subject}",
-                          "isSubtle": true,
+                          "type": "RichTextBlock",
                           "spacing": "None",
-                          "wrap": false,
-                          "maxLines": 1
+                          "inlines": [
+                            {
+                              "type": "TextRun",
+                              "text": "${subject}",
+                              "weight": "Lighter",
+                              "isSubtle": true
+                            }
+                          ]
                         }
                       ]
                     },
@@ -394,12 +420,32 @@ internal static class InboxCard
     /// </remarks>
     private static MessageRow ToRow(MessagePreview preview) => new()
     {
-        DisplaySender = preview.DisplaySender,
-        Subject = preview.Subject,
+        DisplaySender = ClampForDisplay(preview.DisplaySender),
+        Subject = ClampForDisplay(preview.Subject),
         ReceivedLabel = ReceivedLabel(preview.ReceivedAt),
         IsUnread = !preview.IsRead,
         IsRead = preview.IsRead,
     };
+
+    /// <summary>
+    /// The display budget for one line of mailbox text in the message column.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not a duplicate of <see cref="MailboxLimits"/>.</b> Those bound what may be cached at all,
+    /// against a hostile response; this bounds what fits on one line, and exists only because
+    /// <c>RichTextBlock</c> — which is what keeps mailbox strings out of a Markdown renderer — has
+    /// neither <c>maxLines</c> nor <c>wrap</c>, so it always wraps. A wrapped row grows a card the
+    /// host clips without reporting, which is the defect already measured on 0.4.24.0. Approximate
+    /// by construction: the medium and large frames share a width, and a character count is a proxy
+    /// for a proportional-font measurement. Erring short costs an ellipsis; erring long costs a
+    /// clipped action row.
+    /// </remarks>
+    private const int DisplayLineBudget = 34;
+
+    private static string ClampForDisplay(string value) =>
+        value.Length <= DisplayLineBudget
+            ? value
+            : string.Concat(value.AsSpan(0, DisplayLineBudget - 1).TrimEnd(), "…");
 
     /// <summary>
     /// Formats a received time for display, in the reader's current timezone.
@@ -732,7 +778,10 @@ internal static class InboxCard
         /// <para>
         /// Read state is rendered as font weight rather than as a glyph or a colour. A glyph costs a
         /// column on a card whose width is the scarce dimension, and colour alone would carry the
-        /// distinction in a way a reader who cannot perceive it would lose entirely.
+        /// distinction in a way a reader who cannot perceive it would lose entirely. The two weights
+        /// are Microsoft's own widget type ramp — Body is <c>Default, Lighter</c> and Body Strong is
+        /// <c>Default, Bolder</c> — rather than a pair chosen here, which is also why the read row
+        /// is Lighter and not the Adaptive Card default weight.
         /// </para>
         /// <para>
         /// <b>Two booleans selecting two whole TextBlocks, rather than one string bound into the
