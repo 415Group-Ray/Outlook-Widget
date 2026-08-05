@@ -145,6 +145,47 @@ public sealed class SettingsChangeTests : IDisposable
     }
 
     [Fact]
+    public void A_no_op_change_still_reports_a_stranded_tombstone()
+    {
+        // The sequence that made this matter: a hide attempt whose write failed leaves its
+        // counts-only marker behind with the stored setting still false. A later request to show
+        // details then finds nothing to write — and would have reported success while the card
+        // stayed suppressed until explicit recovery removed the marker.
+        using (HoldSettingsPathAsDirectory())
+        {
+            SettingsChangeResult failed = Coordinator().Apply(new WidgetSettings { HideMessageDetails = true });
+            Assert.Equal(SettingsChangeOutcome.WriteFailed, failed.Outcome);
+        }
+
+        SettingsChangeResult result = Coordinator().Apply(new WidgetSettings { HideMessageDetails = false });
+
+        Assert.Equal(SettingsChangeOutcome.Unchanged, result.Outcome);
+        Assert.True(result.DetailsRemainHidden);
+
+        // And the widget agrees, which is the fact the companion has to be able to report.
+        Assert.Equal(DisclosureMode.CountsOnly, EffectiveMode());
+    }
+
+    [Fact]
+    public void A_successful_change_reports_a_tombstone_left_by_something_else()
+    {
+        // Not this operation's marker: another disclosure-reducing operation is mid-flight. The
+        // setting is written and the answer is still that details stay hidden, because the question
+        // is what the user will see rather than what this call achieved.
+        //
+        // Hide first so that revealing is a real change rather than a no-op — with nothing stored,
+        // "show details" already matches the default and takes the unchanged path instead.
+        Coordinator().Apply(new WidgetSettings { HideMessageDetails = true });
+
+        _tombstones.Suppress(DisclosureMode.CountsOnly);
+
+        SettingsChangeResult result = Coordinator().Apply(new WidgetSettings { HideMessageDetails = false });
+
+        Assert.Equal(SettingsChangeOutcome.Applied, result.Outcome);
+        Assert.True(result.DetailsRemainHidden);
+    }
+
+    [Fact]
     public void The_provider_is_signalled_so_it_re_renders_without_a_new_refresh()
     {
         // A settings change alters what may be rendered rather than what is cached, so convergence

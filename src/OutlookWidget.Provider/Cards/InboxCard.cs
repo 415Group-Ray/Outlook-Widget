@@ -324,7 +324,13 @@ internal static class InboxCard
 
         (string headline, string detail) = Describe(state, snapshot, payloadUnreadable, detailsAreStale);
 
-        bool disclosureReduced = state.Mode != DisclosureMode.Full;
+        // **Signed-out, not merely "reduced".** Counts-only is a rendering decision — the user asked
+        // not to see subjects, or an operation is briefly hiding them — and the mailbox behind it is
+        // signed in and working. Treating any non-Full mode as unusable removed Refresh and Open
+        // Outlook from a perfectly healthy widget the moment the privacy setting went on, leaving
+        // Open companion as the only action on a card whose counts were updating fine. Only the
+        // signed-out card has actions whose sole possible outcome is failure.
+        bool mailboxUnusable = state.Mode == DisclosureMode.SignedOut;
 
         // An authentication state the companion can actually address — not merely any non-success.
         //
@@ -355,14 +361,18 @@ internal static class InboxCard
         // companion" while both other clauses are false, so the card asked for an action it did not
         // offer. That is the one state where the button is the only thing that can resolve what the
         // card is complaining about.
-        bool needsCompanion = disclosureReduced
+        // Counts-only is deliberately absent from this list. It is a state the user chose, or a
+        // transient one that resolves itself, and neither needs a trip to the companion — while
+        // including it also cost the mail actions at the small size, where only one row fits.
+        bool needsCompanion = mailboxUnusable
                               || state.ReadStatus != CacheReadStatus.Success
                               || payloadUnreadable
                               || authNeedsAttention;
 
-        // Mail actions are withheld whenever disclosure is reduced: offering Refresh and Open
-        // Outlook on a signed-out card would invite an action whose only possible outcome is
-        // failure.
+        // Mail actions are withheld only on the signed-out card, where offering Refresh and Open
+        // Outlook would invite an action whose only possible outcome is failure. A counts-only card
+        // keeps them: refreshing its counts and opening Outlook both work and are both reasonable
+        // things to want while subjects are hidden.
         //
         // They are ALSO withheld at the small size when the companion action is showing, and that
         // is a measured fix rather than a preference. Three buttons at the small size produced two
@@ -404,7 +414,7 @@ internal static class InboxCard
             Messages = messages,
             ShowMessages = messages.Length > 0,
 
-            ShowMailActions = !disclosureReduced && !(oneRowOnly && needsCompanion),
+            ShowMailActions = !mailboxUnusable && !(oneRowOnly && needsCompanion),
             ShowCompanionAction = needsCompanion,
         }, DataOptions);
     }

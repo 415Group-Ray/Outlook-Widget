@@ -322,6 +322,27 @@ public sealed class ProviderCardTests
     }
 
     [Fact]
+    public void Only_the_signed_out_card_withholds_the_mail_actions()
+    {
+        // Refresh and Open Outlook are withheld because their only possible outcome is failure,
+        // which is true when signed out and false when the user has merely asked not to see
+        // subjects. Gating them on "any mode other than Full" meant enabling the privacy setting
+        // stripped both actions from a healthy widget whose counts were still updating, leaving
+        // Open companion as the only thing to press.
+        //
+        // Asserted on the flag's definition rather than on its uses, so a second use cannot
+        // reintroduce the broader test by accident.
+        string source = CardSource();
+
+        Assert.Contains(
+            "bool mailboxUnusable = state.Mode == DisclosureMode.SignedOut;",
+            source,
+            StringComparison.Ordinal);
+
+        Assert.DoesNotContain("state.Mode != DisclosureMode.Full", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_render_path_never_reads_the_cached_message_link()
     {
         // Section 17 requires that no link or message identifier appear in Adaptive Card JSON: the

@@ -103,6 +103,24 @@ public sealed class WidgetSettingsTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{ \"somethingElse\": true }")]
+    [InlineData("{ \"HideMessageDetails\": ")]
+    public void A_record_without_the_privacy_flag_hides_details(string content)
+    {
+        // Valid JSON that says nothing about the preference. A bool defaults to false, so before
+        // the property was marked required this deserialized cleanly into "show everything" and was
+        // reported as a known value — a corrupt file granted full disclosure while looking healthy.
+        // The third case is a truncated write, which is how such a file would actually arise.
+        File.WriteAllText(_paths.SettingsFilePath, content);
+
+        SettingsReadResult result = _store.Read();
+
+        Assert.Equal(SettingsReadStatus.Unreadable, result.Status);
+        Assert.True(result.Settings.HideMessageDetails);
+    }
+
     [Fact]
     public void An_empty_file_hides_details()
     {

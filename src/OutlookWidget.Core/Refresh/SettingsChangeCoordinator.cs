@@ -127,7 +127,15 @@ public sealed class SettingsChangeCoordinator
         if (storedValueIsKnown
             && current.Settings.HideMessageDetails == desired.HideMessageDetails)
         {
-            return new SettingsChangeResult(SettingsChangeOutcome.Unchanged, DetailsRemainHidden: false);
+            // "Nothing to write" is not the same as "nothing is hidden". A previous hide attempt
+            // whose write failed left its counts-only tombstone behind with the stored setting
+            // still false, so a later request to show details finds nothing to change and would
+            // otherwise report success while the card stays suppressed until explicit recovery
+            // removes the marker. The answer is about what the user will see, not about what this
+            // operation did.
+            return new SettingsChangeResult(
+                SettingsChangeOutcome.Unchanged,
+                DetailsRemainHidden: SuppressionIsInForce());
         }
 
         return desired.HideMessageDetails
@@ -182,7 +190,12 @@ public sealed class SettingsChangeCoordinator
             }
 
             _logger.Record(OperationalEventId.PrivacySettingChanged, OperationalOutcome.Success);
-            return new SettingsChangeResult(SettingsChangeOutcome.Applied, DetailsRemainHidden: false);
+
+            // Our own marker is gone, but another operation's may not be, so the honest answer is
+            // read rather than assumed.
+            return new SettingsChangeResult(
+                SettingsChangeOutcome.Applied,
+                DetailsRemainHidden: SuppressionIsInForce());
         }
         finally
         {
@@ -213,6 +226,23 @@ public sealed class SettingsChangeCoordinator
         _signalStateChanged();
 
         _logger.Record(OperationalEventId.PrivacySettingChanged, OperationalOutcome.Success);
-        return new SettingsChangeResult(SettingsChangeOutcome.Applied, DetailsRemainHidden: false);
+
+        // The setting now says show details, which does not mean they are shown: a stranded marker
+        // from an earlier failed operation still suppresses until recovery clears it, and this is
+        // the path a user takes to undo exactly that kind of failure.
+        return new SettingsChangeResult(
+            SettingsChangeOutcome.Applied,
+            DetailsRemainHidden: SuppressionIsInForce());
     }
+
+    /// <summary>
+    /// Whether any tombstone still suppresses, regardless of who wrote it.
+    /// </summary>
+    /// <remarks>
+    /// Read from the tombstone store rather than from this operation's own handle, because the
+    /// question is what the widget will render and not what this call did. A marker stranded by an
+    /// earlier failure suppresses just as effectively as one this operation published.
+    /// </remarks>
+    private bool SuppressionIsInForce() =>
+        _tombstones.GetEffectiveMode() != DisclosureMode.Full;
 }

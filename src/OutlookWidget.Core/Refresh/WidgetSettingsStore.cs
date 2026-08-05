@@ -15,14 +15,26 @@ public sealed record WidgetSettings
     /// Whether every widget size renders counts only, hiding sender and subject.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Section 8: this converts all sizes to counts-only. Turning it <em>on</em> reduces
     /// disclosure and is therefore a suppress-first operation; turning it off increases disclosure
     /// and commits normally, because there is no safety argument for pre-emptively revealing more.
+    /// </para>
+    /// <para>
+    /// <b><c>required</c>, and that keyword is the disclosure control.</b> A <c>bool</c> defaults to
+    /// <see langword="false"/>, so a file corrupted into valid JSON — <c>{}</c>, or a truncated
+    /// write that happens to close its brace — would deserialize successfully into "show
+    /// everything" and be reported as a known preference. Marking it required makes
+    /// <c>System.Text.Json</c> throw when the property is absent, which the read below already
+    /// classifies as unreadable and therefore fails closed. The alternative, checking for the
+    /// property by hand, is the kind of validation that gets forgotten when a second setting is
+    /// added.
+    /// </para>
     /// </remarks>
-    public bool HideMessageDetails { get; init; }
+    public required bool HideMessageDetails { get; init; }
 
     /// <summary>What a fresh install renders before anyone chooses.</summary>
-    public static WidgetSettings Default { get; } = new();
+    public static WidgetSettings Default { get; } = new() { HideMessageDetails = false };
 }
 
 /// <summary>Whether the stored settings could be established, and how.</summary>
@@ -90,6 +102,9 @@ public sealed class WidgetSettingsStore
 
     /// <summary>The most restrictive reading, used whenever the stored value cannot be trusted.</summary>
     private static WidgetSettings FailClosed { get; } = new() { HideMessageDetails = true };
+
+    /// <summary>The settings a fresh install renders with, before anything has been written.</summary>
+    private static WidgetSettings Defaults => WidgetSettings.Default;
 
     /// <summary>Reads the stored settings, or says why it could not.</summary>
     public SettingsReadResult Read()
