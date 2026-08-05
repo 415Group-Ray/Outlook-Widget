@@ -56,7 +56,7 @@ public readonly record struct DisclosureRecoveryResult(
 /// the companion, so recovery requires intent rather than happening silently.
 /// </para>
 /// </remarks>
-public sealed class DisclosureTombstoneStore
+public sealed class DisclosureTombstoneStore : IDisclosurePolicy
 {
     private const string FileExtension = ".suppress";
 

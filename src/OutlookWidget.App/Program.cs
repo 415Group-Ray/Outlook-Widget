@@ -82,7 +82,7 @@ internal static class Program
 
         try
         {
-            IOperationalLogger logger = NullOperationalLogger.Instance;
+            IOperationalLogger logger = new FileOperationalLogger(paths);
 
             _client ??= await BrokerClient
                 .CreateAsync(options, paths, () => CompanionWindow.Handle)
@@ -177,7 +177,7 @@ internal static class Program
 
         try
         {
-            IOperationalLogger logger = NullOperationalLogger.Instance;
+            IOperationalLogger logger = new FileOperationalLogger(paths);
 
             _client ??= await BrokerClient
                 .CreateAsync(options, paths, () => CompanionWindow.Handle)
@@ -330,7 +330,7 @@ internal static class Program
 
         try
         {
-            IOperationalLogger logger = NullOperationalLogger.Instance;
+            IOperationalLogger logger = new FileOperationalLogger(paths);
 
             _client ??= await BrokerClient
                 .CreateAsync(options, paths, () => CompanionWindow.Handle)

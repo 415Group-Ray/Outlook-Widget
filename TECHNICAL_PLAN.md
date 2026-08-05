@@ -178,7 +178,7 @@ flowchart LR
 - Supplies the real parent window handle that brokered sign-in is parented to. Until Phase 2 converts this project to WinUI 3 that window is a minimal Win32 top-level window created for the purpose, because WAM requires a real handle and the packaging probe's ownerless message box could not provide one.
 - Commits state and signals; it never calls `UpdateWidget`. Widget delivery belongs solely to the provider.
 - Displays account, last successful refresh, Graph/permission status, installed New Outlook status, and sanitized diagnostics.
-- Settings:
+- Settings. **Stored in their own file, not in the protected envelope this section's diagram shows them in.** That placement does not survive its own requirements: `ProtectedCache.Clear` writes a header and no payload, so a logout or account switch would erase the settings along with the mailbox — and "hide message details" silently returning to *off* after signing in again is a privacy regression produced by storage layout rather than by any decision. `SelectedAccountStore` is already separate for the same reason, and a test now holds settings to surviving an erased cache. The file is not DPAPI-protected, matching the authorization record: it holds rendering preferences and nothing about a mailbox, and the fail-closed read means tampering can only hide more, never reveal more.
   - Show or hide message details.
   - Enable Focused unread count after the feature passes its gate.
   - Sign in, switch account, logout.

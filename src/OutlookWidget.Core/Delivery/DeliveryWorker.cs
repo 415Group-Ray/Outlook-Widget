@@ -43,7 +43,7 @@ namespace OutlookWidget.Core.Delivery;
 public sealed class DeliveryWorker : IDeliveryRequester, IDisposable
 {
     private readonly ProtectedCache _cache;
-    private readonly DisclosureTombstoneStore _tombstones;
+    private readonly IDisclosurePolicy _disclosure;
     private readonly IWidgetDeliverySink _sink;
     private readonly IOperationalLogger _logger;
 
@@ -64,18 +64,23 @@ public sealed class DeliveryWorker : IDeliveryRequester, IDisposable
     private long _coalescedRequests;
     private bool _disposed;
 
+    /// <param name="disclosure">
+    /// The disclosure question. Production passes a <see cref="DisclosurePolicy"/>, which combines
+    /// in-flight suppression with the standing privacy setting; a <see cref="DisclosureTombstoneStore"/>
+    /// alone answers only the first half and is accepted so tests can isolate it.
+    /// </param>
     public DeliveryWorker(
         ProtectedCache cache,
-        DisclosureTombstoneStore tombstones,
+        IDisclosurePolicy disclosure,
         IWidgetDeliverySink sink,
         IOperationalLogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(cache);
-        ArgumentNullException.ThrowIfNull(tombstones);
+        ArgumentNullException.ThrowIfNull(disclosure);
         ArgumentNullException.ThrowIfNull(sink);
 
         _cache = cache;
-        _tombstones = tombstones;
+        _disclosure = disclosure;
         _sink = sink;
         _logger = logger ?? NullOperationalLogger.Instance;
 
@@ -236,7 +241,7 @@ public sealed class DeliveryWorker : IDeliveryRequester, IDisposable
             // Re-read everything. This is the ordering guarantee: content is chosen now, not
             // when the request was made. The tombstone is read alongside the snapshot so a
             // pass that has not yet entered the host call honours the current suppression.
-            DisclosureMode mode = _tombstones.GetEffectiveMode();
+            DisclosureMode mode = _disclosure.GetEffectiveMode();
             CacheReadResult read = _cache.Read();
 
             var state = new DeliveryState(

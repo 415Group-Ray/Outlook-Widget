@@ -100,7 +100,7 @@ internal static partial class Program
         CoordinationPaths paths = state.Paths!;
         paths.EnsureCreated();
 
-        IOperationalLogger logger = NullOperationalLogger.Instance;
+        IOperationalLogger logger = new FileOperationalLogger(paths);
 
         // Read once at startup rather than on the delivery path, and deliberately NOT fatal. A
         // package shipped without configuration cannot authenticate, which is a card the user
@@ -111,6 +111,14 @@ internal static partial class Program
 
         var cache = new ProtectedCache(paths, logger);
         var tombstones = new DisclosureTombstoneStore(paths, logger);
+
+        // The whole disclosure question, not just the in-flight half. The standing "hide message
+        // details" preference reduces disclosure exactly as a tombstone does, so both the delivery
+        // pass and the sink's per-host-call re-check must consult the same source — giving the sink
+        // the tombstone store alone would let it re-check against a weaker answer than the one the
+        // pass rendered from.
+        var disclosure = new DisclosurePolicy(tombstones, new WidgetSettingsStore(paths));
+
         var registry = new WidgetInstanceRegistry();
 
         // Declaration order below IS disposal order, reversed, and it is chosen rather than incidental.
@@ -136,9 +144,9 @@ internal static partial class Program
         // The sole UpdateWidget call site, reached only through the serialized worker below. It is
         // given the tombstone read rather than the store, so it can re-check disclosure before each
         // host call without acquiring the ability to write or clear one.
-        var sink = new WidgetDeliverySink(registry, tombstones.GetEffectiveMode, logger);
+        var sink = new WidgetDeliverySink(registry, disclosure.GetEffectiveMode, logger);
 
-        using var delivery = new DeliveryWorker(cache, tombstones, sink, logger);
+        using var delivery = new DeliveryWorker(cache, disclosure, sink, logger);
 
         // Declared before the listener so the listener's callback can reach it, and disposed after it
         // for the same reason in reverse: the probe must outlive the thing that can ask for one.

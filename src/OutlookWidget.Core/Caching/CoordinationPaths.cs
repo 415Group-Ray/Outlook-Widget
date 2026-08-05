@@ -165,6 +165,44 @@ public sealed class CoordinationPaths
     public string SelectedAccountTempFilePath =>
         Path.Combine(RootDirectory, $"account-{_scope}.tmp");
 
+    /// <summary>The user's rendering preferences, written by the companion for the provider.</summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Its own file, and a deliberate deviation from section 3's diagram</b>, which places
+    /// settings inside the DPAPI-protected envelope alongside the snapshot. That placement does not
+    /// survive its own requirements: <c>ProtectedCache.Clear</c> writes a header and no payload, so
+    /// a logout or account switch would erase the settings with the mailbox — and "hide message
+    /// details" coming back on as *off* after signing in again is a privacy regression produced by
+    /// storage layout. The same argument already applies to <see cref="SelectedAccountFilePath"/>,
+    /// which is separate for the same reason: it has to outlive a cleared snapshot.
+    /// </para>
+    /// <para>
+    /// Not DPAPI-protected, matching <see cref="AuthorizationStateFilePath"/>. It holds rendering
+    /// preferences and nothing about a mailbox, so there is no content to protect — and the
+    /// fail-closed read below means tampering can only ever hide more, never reveal more.
+    /// </para>
+    /// </remarks>
+    public string SettingsFilePath => Path.Combine(RootDirectory, $"settings-{_scope}.json");
+
+    /// <summary>Temporary file used to replace the settings record atomically.</summary>
+    public string SettingsTempFilePath => Path.Combine(RootDirectory, $"settings-{_scope}.tmp");
+
+    /// <summary>
+    /// The operational diagnostics log both processes append to.
+    /// </summary>
+    /// <remarks>
+    /// Inside the package store like everything else here, so uninstall removes it. It cannot
+    /// contain mailbox or identity content, and that is a property of
+    /// <see cref="Diagnostics.IOperationalLogger"/> rather than of any filtering done on the way
+    /// out: the interface accepts closed enums and bounded numbers and has no string parameter, so
+    /// there is nowhere for a subject line to enter.
+    /// </remarks>
+    public string DiagnosticsLogFilePath => Path.Combine(RootDirectory, $"diagnostics-{_scope}.log");
+
+    /// <summary>The previous log, kept so a rollover does not discard the run that just failed.</summary>
+    public string DiagnosticsLogPreviousFilePath =>
+        Path.Combine(RootDirectory, $"diagnostics-{_scope}.1.log");
+
     /// <summary>Guards synchronous local state commits. Bounded waits only.</summary>
     public string MutationMutexName => $"OutlookWidget-Mutation-{_scope}";
 
