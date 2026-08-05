@@ -81,6 +81,14 @@ public enum OperationalEventId
     AccountSwitchCompleted,
     AccountSwitchFailed,
     PrivacySettingChanged,
+
+    /// <summary>
+    /// A privacy-setting change could not be committed. Notable because a failed change that was
+    /// <em>reducing</em> disclosure leaves its tombstone in place: the widget stays suppressed
+    /// rather than reverting to showing details, so this is a stuck-hidden signal rather than a
+    /// leaked-details one.
+    /// </summary>
+    PrivacySettingChangeFailed,
     CacheCleared,
 
     // Launching

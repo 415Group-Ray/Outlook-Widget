@@ -131,15 +131,24 @@ public sealed class WidgetSettingsStore
     }
 
     /// <summary>
-    /// Replaces the stored settings.
+    /// Replaces the stored settings. <b>Not for production callers.</b>
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// <c>internal</c> for the reason <c>SelectedAccountStore.Write</c> is: this is one step of an
+    /// ordered operation, not the operation. Turning "hide message details" on must publish its
+    /// tombstone first, and a caller that writes the file directly performs the mutation while
+    /// skipping the ordering that makes it safe. Production goes through
+    /// <see cref="SettingsChangeCoordinator"/>; this remains only so tests can seed a stored value.
+    /// </para>
+    /// <para>
     /// Throws on failure rather than reporting it, because every caller's response is to abandon
     /// the change and leave the previous state in place — and a caller that enabled
     /// "hide message details" has already published its tombstone, so an abandoned change stays
     /// suppressed rather than reverting to showing details.
+    /// </para>
     /// </remarks>
-    public void Write(WidgetSettings settings)
+    internal void Write(WidgetSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
