@@ -85,6 +85,18 @@ a value bound into the `weight` property**, because the latter rendered every se
 into non-text properties is unproven on this host; `$when` on a boolean is proven, including inside a
 `$data` repeater.
 
+**Mailbox-controlled text must never be bound into an Adaptive Card `TextBlock`.** Its `text` renders a
+Markdown subset that includes hyperlinks, so a subject or display name — both chosen by anyone who can
+send mail to this mailbox — would render as a live sender-controlled link, defeating the `Action.OpenUrl`
+ban and the Outlook-host allowlist. Sender and subject go through `RichTextBlock`/`TextRun`, which is
+documented as not supporting Markdown, and a test walks the template as JSON to enforce it. `RichTextBlock`
+is measured as rendering correctly on this host on 0.4.27.0 — Microsoft's widget documentation does not
+enumerate supported elements, so that needed a device check. It has neither `maxLines` nor `wrap` and
+always wraps, which is why single-line truncation is a C# display budget rather than a template property;
+a wrapped row grows a card the host clips without reporting. Sender and subject weights follow Microsoft's
+published widget type ramp — Body is `Default, Lighter`, Body Strong is `Default, Bolder` — not the
+Adaptive Card defaults.
+
 The 24-hour `StaleDetailSuppression` rule now has an implementation. It had none before this slice —
 the constant existed and a test asserted its value while nothing consulted it, because nothing rendered a
 subject. Counts survive the cutoff and details do not.

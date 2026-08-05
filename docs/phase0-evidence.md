@@ -1488,6 +1488,40 @@ that produced them was plausible and wrong.
 this host, and `$when` on a boolean as proven — including inside a `$data` repeater**, which the two
 verified screenshots establish, since the per-row sender blocks are gated that way.
 
+### The Markdown exposure, and `RichTextBlock` support
+
+Found by code review on the pull request rather than by looking at the card, and it would not have been
+visible by looking: **an Adaptive Card `TextBlock` renders a Markdown subset that includes hyperlinks.**
+Sender and subject are mailbox-controlled — anyone who can send mail to this mailbox chooses both — so a
+subject of the form `[pay now](https://attacker.example)` would have rendered as a live,
+sender-controlled link on the widget. That defeats the purpose of section 3's `Action.OpenUrl` ban and
+the Outlook-host allowlist, which exist so the provider is the only thing that decides what may open.
+
+The fix renders mailbox strings through `RichTextBlock`/`TextRun`, documented as not supporting Markdown.
+Escaping inside a `TextBlock` was rejected as the alternative: it depends on the host's renderer honouring
+backslash escapes, which is one more unverified host behaviour stacked on the one being fixed.
+
+**`RichTextBlock` renders correctly on this host — measured 2026-08-04 on installed package 0.4.27.0.**
+This needed a device check rather than a documentation one: Microsoft's widget provider and design
+documentation does not enumerate which Adaptive Card elements the Widgets host supports, so support was
+undocumented in both directions. Sender and subject render, one line each, with unread senders in the
+heavier weight. Had it not rendered, the fallback was Markdown escaping — the security boundary held
+either way, because an unrendered element produces absent text rather than a live link.
+
+Two consequences are permanent and are recorded in `AGENTS.md`:
+
+- **Mailbox-controlled text must never be bound into a `TextBlock`.** A test walks the template as JSON
+  and asserts every such binding lands in a `TextRun`.
+- **`RichTextBlock` has neither `maxLines` nor `wrap`**, so it always wraps, and a wrapped row grows a
+  card this host clips without reporting. Single-line truncation therefore lives in C# as a display
+  budget — a character count standing in for a proportional-font measurement, erring short because an
+  ellipsis costs less than a clipped action row.
+
+A related correction came out of reading the widget design guidance: the read-row sender weight was the
+Adaptive Card default, which is off Microsoft's published widget type ramp. Body is `Default, Lighter`
+and Body Strong is `Default, Bolder`, so the read row is now Lighter, which also widens the read/unread
+contrast.
+
 A third change was cosmetic rather than a defect: the header carried a `Unread` word, a right-aligned
 count badge, and a subtitle stating the same count in words, spending a line on a surface where vertical
 space is the binding constraint. The headline now carries the count itself.

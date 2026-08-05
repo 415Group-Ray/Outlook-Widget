@@ -220,8 +220,8 @@
     "semantic_hash": "7a9abd5788b53b2c5ff0fdd974545dcc"
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1785877227.540603,
-    "ast_hash": "96dc9fc1af44dfe2f2195b7c60930008",
+    "mtime": 1785935422.5880208,
+    "ast_hash": "c529ba26deda70d357fabba6c192b464",
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
@@ -230,8 +230,8 @@
     "semantic_hash": "374e9875982caa170fd3c664feb1bde4"
   },
   "AGENTS.md": {
-    "mtime": 1785877175.6903124,
-    "ast_hash": "7907f4fe192407542aac9f9bd0631d92",
+    "mtime": 1785935434.85702,
+    "ast_hash": "621d9efba4eec3720a3b2e48a684a05f",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -330,8 +330,8 @@
     "semantic_hash": "d41b2116a9d9fc3e639eec7633be0e57"
   },
   "tests/OutlookWidget.Core.Tests/ProviderCardTests.cs": {
-    "mtime": 1785875401.3789296,
-    "ast_hash": "7001dbc5c7eff7d1fba0c21c5e29455b",
+    "mtime": 1785935157.3729622,
+    "ast_hash": "ce6c5c074781378b63ff0ced7206b47e",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/TestInfrastructure/RepositorySources.cs": {
@@ -695,8 +695,8 @@
     "semantic_hash": "164e8cb2e31e4266693e50d90cbfc58e"
   },
   "src/OutlookWidget.Provider/Cards/InboxCard.cs": {
-    "mtime": 1785876929.1522105,
-    "ast_hash": "166476246266588a900815c271c8ff62",
+    "mtime": 1785935102.0905063,
+    "ast_hash": "9dbefc99288153274697ba520297ce52",
     "semantic_hash": ""
   }
 }
