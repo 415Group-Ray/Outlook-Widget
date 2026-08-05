@@ -453,25 +453,12 @@ internal static class InboxCard
     /// Formats a received time for display, in the reader's current timezone.
     /// </summary>
     /// <remarks>
-    /// Formatted at delivery rather than at cache time, because a cached card can outlive both the
-    /// timezone it was written in and any relative phrasing. Absolute forms only — "5m ago" is
-    /// wrong the moment the card stops being re-delivered, and a widget's content is expected to
-    /// sit unchanged on screen between refreshes.
+    /// Formatted at delivery rather than at cache time, because a cached card can outlive the
+    /// timezone it was written in. The rule itself is section 7's and lives in
+    /// <see cref="MailboxTime"/> so it can be tested against that specification.
     /// </remarks>
-    private static string ReceivedLabel(DateTimeOffset receivedAt)
-    {
-        DateTime local = receivedAt.ToLocalTime().DateTime;
-        DateTime today = DateTime.Now.Date;
-
-        if (local.Date == today)
-        {
-            return local.ToString("t", CultureInfo.CurrentCulture);
-        }
-
-        return local.Date >= today.AddDays(-6)
-            ? local.ToString("ddd", CultureInfo.CurrentCulture)
-            : local.ToString("d MMM", CultureInfo.CurrentCulture);
-    }
+    private static string ReceivedLabel(DateTimeOffset receivedAt) =>
+        MailboxTime.ReceivedLabel(receivedAt, DateTimeOffset.Now);
 
     private static (string Headline, string Detail) Describe(
         DeliveryState state,
@@ -601,18 +588,13 @@ internal static class InboxCard
     /// When the snapshot was last refreshed, in the reader's timezone.
     /// </summary>
     /// <remarks>
-    /// A time of day alone for a snapshot from today, and a date as well once it is older, because
+    /// A time of day alone for a snapshot from today, and the date as well once it is older, because
     /// "Updated 4:58 PM" on a three-day-old card is actively misleading — and a card that has passed
-    /// the 24-hour bound is by definition not from today.
+    /// the 24-hour bound is by definition not from today. The formats are the locale's, chosen in
+    /// <see cref="MailboxTime"/> rather than hand-built here.
     /// </remarks>
-    private static string DescribeUpdated(MailboxSnapshot snapshot)
-    {
-        DateTime local = snapshot.RefreshedAtUtc.ToLocalTime().DateTime;
-
-        return local.Date == DateTime.Now.Date
-            ? local.ToString("t", CultureInfo.CurrentCulture)
-            : local.ToString("d MMM, t", CultureInfo.CurrentCulture);
-    }
+    private static string DescribeUpdated(MailboxSnapshot snapshot) =>
+        MailboxTime.UpdatedLabel(snapshot.RefreshedAtUtc, DateTimeOffset.Now);
 
     /// <summary>Why the message rows are missing, when they are.</summary>
     private enum DetailSuppression
