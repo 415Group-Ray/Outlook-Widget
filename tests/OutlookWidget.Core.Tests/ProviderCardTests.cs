@@ -298,6 +298,17 @@ public sealed class ProviderCardTests
             "state.Mode != DisclosureMode.SignedOut",
             source,
             StringComparison.Ordinal);
+
+        // "Counts survive" means every count, not just the headline one. The Focused count was
+        // dropped from both reduced subtitles after the unread count had already been rescued,
+        // which is the same rule applied to only half the numbers it covers. Both reduced branches
+        // must carry it; the third use is the helper's own declaration.
+        int focusedUses = Regex.Count(source, @"DescribeFocused\(snapshot\)");
+
+        Assert.True(
+            focusedUses >= 2,
+            "Both reduced-detail branches — the 24-hour stale bound and CountsOnly — must carry the "
+                + $"Focused count. Found {focusedUses} use(s).");
     }
 
     [Fact]

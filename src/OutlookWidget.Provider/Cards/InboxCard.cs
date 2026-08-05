@@ -531,22 +531,27 @@ internal static class InboxCard
                 int n => $"{n.ToString(CultureInfo.CurrentCulture)} unread",
             };
 
+            // Both reduced branches carry the Focused count, for the same reason they carry the
+            // unread count: it is a count, not a message. Dropping it here was the first fix's own
+            // rule applied to only half the numbers it covers.
+            //
             // Staleness is checked before the privacy mode, because a stale counts-only card is
             // stale first: the number itself is old, and saying only that details are hidden would
             // present an old count as current.
             if (detailsAreStale)
             {
                 return (headline,
-                    $"Counts last updated {DescribeUpdated(snapshot)}. Message details are hidden "
-                    + "because there has been no successful refresh for over 24 hours. Refresh to "
-                    + "reconnect." + DescribeAuthBlocker());
+                    $"{DescribeFocused(snapshot)}Counts last updated {DescribeUpdated(snapshot)}. "
+                    + "Message details are hidden because there has been no successful refresh for "
+                    + "over 24 hours. Refresh to reconnect." + DescribeAuthBlocker());
             }
 
             if (state.Mode == DisclosureMode.CountsOnly)
             {
                 return (headline,
-                    $"Message details are hidden by a privacy setting or an in-progress account "
-                    + $"change. Updated {DescribeUpdated(snapshot)}." + DescribeAuthBlocker());
+                    $"{DescribeFocused(snapshot)}Message details are hidden by a privacy setting or "
+                    + $"an in-progress account change. Updated {DescribeUpdated(snapshot)}."
+                    + DescribeAuthBlocker());
             }
 
             return (headline, DescribeMailbox(snapshot) + DescribeAuthBlocker());
@@ -621,6 +626,25 @@ internal static class InboxCard
             ? local.ToString("t", CultureInfo.CurrentCulture)
             : local.ToString("d MMM, t", CultureInfo.CurrentCulture);
     }
+
+    /// <summary>
+    /// The Focused clause for the reduced-detail subtitles, or empty when there is nothing to say.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Trailing space, because callers prepend it to a completed sentence.
+    /// </para>
+    /// <para>
+    /// Empty when the optional query produced no count — section 8 makes that query's failure
+    /// non-fatal, so its absence means "not asked, or not answered" rather than zero, and printing a
+    /// zero there would be a fabricated fact. Empty too when nothing is unread, matching
+    /// <see cref="DescribeMailbox"/>: "0 in Focused" alongside "Inbox up to date" is noise.
+    /// </para>
+    /// </remarks>
+    private static string DescribeFocused(MailboxSnapshot snapshot) =>
+        snapshot is { UnreadItemCount: > 0, FocusedUnreadCount: int focused }
+            ? $"{focused.ToString(CultureInfo.CurrentCulture)} in Focused. "
+            : string.Empty;
 
     private static string DescribeMailbox(MailboxSnapshot snapshot)
     {
