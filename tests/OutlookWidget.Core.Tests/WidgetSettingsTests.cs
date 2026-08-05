@@ -75,6 +75,35 @@ public sealed class WidgetSettingsTests : IDisposable
     }
 
     [Fact]
+    public void A_settings_path_that_cannot_be_read_hides_details_rather_than_reading_as_absent()
+    {
+        // The hole an existence pre-check opened. File.Exists reports false for every failure it
+        // meets — ACL damage, a path it cannot traverse, a transient error — so a present but
+        // unreadable file was classified Absent, Absent meant the defaults, and the defaults meant
+        // full disclosure. One convenience call inverted the entire fail-closed policy.
+        //
+        // A directory standing where the file belongs reproduces that shape: something is there,
+        // and it cannot be read as a settings file.
+        Directory.CreateDirectory(_paths.SettingsFilePath);
+
+        try
+        {
+            SettingsReadResult result = _store.Read();
+
+            Assert.Equal(SettingsReadStatus.Unreadable, result.Status);
+            Assert.True(result.Settings.HideMessageDetails);
+
+            // And the effective mode follows, which is the part that actually protects a mailbox.
+            var policy = new DisclosurePolicy(new DisclosureTombstoneStore(_paths), _store);
+            Assert.Equal(DisclosureMode.CountsOnly, policy.GetEffectiveMode());
+        }
+        finally
+        {
+            Directory.Delete(_paths.SettingsFilePath, recursive: true);
+        }
+    }
+
+    [Fact]
     public void An_empty_file_hides_details()
     {
         // Deserializing an empty document yields null rather than throwing, so this reaches the

@@ -76,18 +76,41 @@ public sealed class SettingsChangeTests : IDisposable
     }
 
     [Fact]
-    public void Hiding_details_when_the_stored_value_is_unreadable_is_not_a_reduction()
+    public void Hiding_details_when_the_stored_value_is_unreadable_records_the_choice()
     {
-        // An unreadable file already renders counts-only, so asking to hide details changes nothing
-        // that is visible. Publishing a tombstone here would create one that then has to be cleared,
-        // and would make the operation's safety depend on the very file whose unreadability is the
-        // reason the safety exists.
+        // An unreadable file renders counts-only, which once looked like "already hidden, nothing to
+        // do". It is not: the stored preference is unknown, and reporting the request Unchanged
+        // dropped it — so a transient failure, or a user asking precisely because the file is
+        // damaged, would have let details reappear the moment it became readable again.
         File.WriteAllText(_paths.SettingsFilePath, "{ broken");
 
         SettingsChangeResult result = Coordinator().Apply(new WidgetSettings { HideMessageDetails = true });
 
-        Assert.Equal(SettingsChangeOutcome.Unchanged, result.Outcome);
+        Assert.Equal(SettingsChangeOutcome.Applied, result.Outcome);
+
+        // Written, so the file is repaired and the preference now survives a readable read.
+        SettingsReadResult stored = _store.Read();
+        Assert.Equal(SettingsReadStatus.Success, stored.Status);
+        Assert.True(stored.Settings.HideMessageDetails);
         Assert.Equal(DisclosureMode.CountsOnly, EffectiveMode());
+    }
+
+    [Fact]
+    public void Revealing_details_when_the_stored_value_is_unreadable_repairs_the_file()
+    {
+        // The same rule in the other direction. The user's explicit choice is honoured and the
+        // damaged file is replaced, rather than the request being swallowed because the unreadable
+        // state happened to render the way a hidden setting would.
+        File.WriteAllText(_paths.SettingsFilePath, "{ broken");
+
+        SettingsChangeResult result = Coordinator().Apply(new WidgetSettings { HideMessageDetails = false });
+
+        Assert.Equal(SettingsChangeOutcome.Applied, result.Outcome);
+
+        SettingsReadResult stored = _store.Read();
+        Assert.Equal(SettingsReadStatus.Success, stored.Status);
+        Assert.False(stored.Settings.HideMessageDetails);
+        Assert.Equal(DisclosureMode.Full, EffectiveMode());
     }
 
     [Fact]

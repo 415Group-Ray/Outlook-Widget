@@ -54,11 +54,13 @@ public readonly record struct SettingsChangeResult(
 /// pre-emptively revealing more.
 /// </para>
 /// <para>
-/// <b>The comparison is against the stored value read through the same fail-closed lens the
-/// provider uses.</b> An unreadable settings file already renders as counts-only, so a request to
-/// hide details in that state is not a reduction and must not publish a tombstone it would then
-/// have to clear. Reading it any other way would make the operation's safety depend on a file whose
-/// unreadability is the reason the safety exists.
+/// <b>An unreadable stored value is unknown, not "already hidden".</b> The read substitutes a
+/// fail-closed value so a caller that ignores the status cannot disclose more than it should — but
+/// that substitution is for rendering, not for deciding whether a change is needed. Treating it as
+/// the current preference made a hide request compare equal and return unchanged, dropping it: the
+/// user's choice went unrecorded, and details could reappear as soon as the file became readable.
+/// An unknown state therefore always writes, which records the preference and repairs the file in
+/// the same step.
 /// </para>
 /// <para>
 /// This is the one settings path. The companion must not write
@@ -109,10 +111,21 @@ public sealed class SettingsChangeCoordinator
     {
         ArgumentNullException.ThrowIfNull(desired);
 
-        // Deliberately the fail-closed reading, not the raw stored value. See the remarks.
-        WidgetSettings current = _settings.Read().Settings;
+        SettingsReadResult current = _settings.Read();
 
-        if (current.HideMessageDetails == desired.HideMessageDetails)
+        // **The status decides whether a comparison is possible at all, not the substituted value.**
+        // An unreadable file renders as counts-only, and an earlier version treated that as "already
+        // hidden" and reported a hide request Unchanged — dropping it. The stored preference was
+        // never unknown-and-therefore-satisfied: it was unknown. If the unreadability was transient,
+        // or the user is asking precisely because the file is damaged, the request would be silently
+        // discarded and details could reappear the moment the file became readable again.
+        //
+        // So an unknown state always writes. That both records the preference and repairs the file.
+        bool storedValueIsKnown =
+            current.Status is SettingsReadStatus.Success or SettingsReadStatus.Absent;
+
+        if (storedValueIsKnown
+            && current.Settings.HideMessageDetails == desired.HideMessageDetails)
         {
             return new SettingsChangeResult(SettingsChangeOutcome.Unchanged, DetailsRemainHidden: false);
         }

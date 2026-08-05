@@ -96,11 +96,13 @@ public sealed class WidgetSettingsStore
     {
         try
         {
-            if (!File.Exists(_paths.SettingsFilePath))
-            {
-                return new SettingsReadResult(SettingsReadStatus.Absent, WidgetSettings.Default);
-            }
-
+            // **No File.Exists pre-check, deliberately.** It reports false for every failure it
+            // meets — ACL damage, a transient sharing error, a path it cannot traverse — so a
+            // present-but-unreadable file would be classified Absent, and Absent means the
+            // defaults, and the defaults mean full disclosure. That single convenience call would
+            // have inverted the fail-closed policy this whole type exists for. Absence is proven
+            // only by the exception that means absence.
+            //
             // Share both write and delete: the companion may be replacing this file at the moment
             // the provider reads it, and a sharing violation here must not become a disclosure
             // decision. Matches how every other cross-process reader in this project opens a file.
@@ -117,6 +119,14 @@ public sealed class WidgetSettingsStore
             return settings is null
                 ? new SettingsReadResult(SettingsReadStatus.Unreadable, FailClosed)
                 : new SettingsReadResult(SettingsReadStatus.Success, settings);
+        }
+        catch (Exception exception) when (
+            exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            // The only two failures that actually mean "nothing has been written yet". Listed
+            // before the broad clause below, because both derive from IOException and would
+            // otherwise be swallowed by it.
+            return new SettingsReadResult(SettingsReadStatus.Absent, WidgetSettings.Default);
         }
         catch (Exception exception) when (
             exception is IOException

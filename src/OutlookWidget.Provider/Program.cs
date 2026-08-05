@@ -100,7 +100,7 @@ internal static partial class Program
         CoordinationPaths paths = state.Paths!;
         paths.EnsureCreated();
 
-        IOperationalLogger logger = NullOperationalLogger.Instance;
+        IOperationalLogger logger = new FileOperationalLogger(paths);
 
         // Read once at startup rather than on the delivery path, and deliberately NOT fatal. A
         // package shipped without configuration cannot authenticate, which is a card the user
