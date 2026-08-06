@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Identity.Client;
 using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
@@ -56,7 +57,160 @@ internal static class Program
             () => SignInAsync(state, configuration),
             () => SwitchAccountAsync(state, configuration),
             () => SignOutAsync(state, configuration),
-            () => Task.FromResult(ClearInterruptedOperations(state)));
+            () => Task.FromResult(ClearInterruptedOperations(state)),
+            () => Task.FromResult(TogglePrivacySetting(state)),
+            () => Task.FromResult(ShowDiagnostics(state)),
+            () => PrivacyToggleCaption(state));
+    }
+
+    /// <summary>
+    /// The caption the privacy toggle should carry, given what is stored right now.
+    /// </summary>
+    /// <remarks>
+    /// Reads the store on every call rather than caching, because the provider shares this file and
+    /// an unreadable one must offer to hide rather than to reveal — the same fail-closed direction
+    /// the renderer takes, so the button never invites the user to expose details the system has
+    /// already decided to withhold.
+    /// </remarks>
+    private static string PrivacyToggleCaption(PackagedStateResult state)
+    {
+        if (!state.IsResolved)
+        {
+            return "Hide message details";
+        }
+
+        SettingsReadResult stored = new WidgetSettingsStore(state.Paths!).Read();
+
+        return stored.Settings.HideMessageDetails
+            ? "Show message details"
+            : "Hide message details";
+    }
+
+    /// <summary>
+    /// Flips "hide message details" through the coordinator that owns the ordering.
+    /// </summary>
+    /// <remarks>
+    /// The desired value is derived from the store rather than from the button, so a caption that
+    /// has gone stale — because the provider or another window changed the setting — cannot ask for
+    /// a change that was already made.
+    /// </remarks>
+    private static string TogglePrivacySetting(PackagedStateResult state)
+    {
+        if (!state.IsResolved)
+        {
+            return "Cannot change the privacy setting: this process has no package identity. Launch "
+                   + "the installed app rather than the executable directly.";
+        }
+
+        CoordinationPaths paths = state.Paths!;
+        var settings = new WidgetSettingsStore(paths);
+        var logger = new FileOperationalLogger(paths);
+
+        var coordinator = new SettingsChangeCoordinator(
+            paths,
+            settings,
+            new DisclosureTombstoneStore(paths, logger),
+            logger);
+
+        bool desired = !settings.Read().Settings.HideMessageDetails;
+
+        SettingsChangeResult result = coordinator.Apply(new WidgetSettings
+        {
+            HideMessageDetails = desired,
+        });
+
+        return DescribeSettingsChange(result, desired);
+    }
+
+    /// <summary>
+    /// Turns a settings-change result into the report line, including the parts that are easy to
+    /// present as success and are not.
+    /// </summary>
+    private static string DescribeSettingsChange(SettingsChangeResult result, bool desired)
+    {
+        string intent = desired ? "Message details are now hidden." : "Message details are now shown.";
+
+        string outcome = result.Outcome switch
+        {
+            SettingsChangeOutcome.Applied => intent,
+
+            SettingsChangeOutcome.Unchanged =>
+                "The setting already had that value; nothing was written.",
+
+            // Reported as a failure even when the widget is left showing what was asked for: the
+            // stored preference did not change, so the next thing to read it will disagree.
+            SettingsChangeOutcome.WriteFailed =>
+                "The setting could not be saved.",
+
+            SettingsChangeOutcome.SuppressionClearFailed =>
+                "The setting was saved, but this operation's suppression marker could not be "
+                + "removed. Use Clear interrupted operations.",
+
+            _ => "The setting change reported an outcome this build does not recognise.",
+        };
+
+        // Stated separately from the outcome, because they answer different questions: one is what
+        // happened to the stored preference, the other is what the widget is currently showing.
+        string visible = result.DetailsRemainHidden
+            ? " Message details remain hidden on the widget."
+            : string.Empty;
+
+        // Null means nothing was written, so there was nothing to deliver. False is worth saying:
+        // the setting is committed and a running widget may not have noticed yet.
+        string delivery = result.ProviderNotified == false
+            ? " The running widget was not notified and may show the previous setting until it "
+              + "next refreshes."
+            : string.Empty;
+
+        return outcome + visible + delivery;
+    }
+
+    /// <summary>
+    /// Opens the diagnostics log with the shell.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The log is metadata-free by construction — <c>IOperationalLogger</c> has no string parameter
+    /// — so handing it to the default text handler discloses nothing about a mailbox. This is the
+    /// surface that replaces the widget card's diagnostic block, which stays on the card until this
+    /// exists and is measured.
+    /// </para>
+    /// <para>
+    /// <c>UseShellExecute</c>, because the file has no meaning as an executable and the point is to
+    /// open it in whatever the user reads text with.
+    /// </para>
+    /// </remarks>
+    private static string ShowDiagnostics(PackagedStateResult state)
+    {
+        if (!state.IsResolved)
+        {
+            return "Cannot open diagnostics: this process has no package identity.";
+        }
+
+        string path = state.Paths!.DiagnosticsLogFilePath;
+
+        if (!File.Exists(path))
+        {
+            // Not a failure. Nothing has been logged yet, which is the ordinary state of a fresh
+            // install before the provider has run.
+            return "No diagnostics have been recorded yet.";
+        }
+
+        try
+        {
+            using Process? opened = Process.Start(new ProcessStartInfo(path)
+            {
+                UseShellExecute = true,
+            });
+
+            return "Opened the diagnostics log.";
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            // The path is reported rather than the exception, which can name a handler or a shell
+            // error string. Somewhere to look beats a message that cannot be acted on.
+            return "The diagnostics log could not be opened. It is at: " + path;
+        }
     }
 
     private static async Task<string> SwitchAccountAsync(

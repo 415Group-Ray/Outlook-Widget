@@ -1612,6 +1612,52 @@ measured separately on `0.4.24.1`.
 **Still unmeasured after this**: the signed-out, counts-only, stale, and the five cache-status
 situations. Counts-only remains unreachable until the companion can set the privacy setting.
 
+## Measured: the counts-only privacy setting, end to end
+
+Verified 2026-08-06 on the reference machine with installed package `0.5.28.0`. This is the first
+time the counts-only card has rendered on hardware: through all of the work that produced it, the
+mode could only be reached by an in-flight tombstone, so the branch was source-tested only.
+
+The companion's **Hide message details** button was pressed. Observed afterwards:
+
+- `settings-v1.json` read `{"HideMessageDetails":true}`.
+- The suppression directory was **empty**, so the operation published its counts-only tombstone,
+  wrote the setting, and cleared its own marker — the whole suppress-first sequence completing.
+- The provider had been running since before the change and was signalled, and the pinned card
+  re-rendered without a new Graph request.
+
+The large card then read:
+
+```
+6 unread
+5 in Focused. Updated 11:17 AM. Message details are hidden by a privacy setting or
+an in-progress account change.
+
+generation 134 · delivered 134 · mode CountsOnly · read Success · payload 2527 bytes · cached 5
+```
+
+Four things this confirms that could not be confirmed any other way, each of which was a defect
+found on review and fixed without ever being seen:
+
+- **The counts survive.** The unread count is the headline and the Focused count leads the subtitle.
+  Both were dropped by earlier versions that replaced the count with a status word, which turned
+  "hide the details" into "hide the mailbox".
+- **The mail actions survive.** **Open Outlook** and **Refresh** are both present. An earlier version
+  treated any mode other than `Full` as unusable and removed them from a signed-in, updating widget.
+- **No companion prompt.** Counts-only is a state the user chose, so it does not ask them to go and
+  fix something.
+- **`cached 5` with no rows on screen.** The five previews are in the snapshot and deliberately not
+  rendered, which distinguishes withholding details from having none — the distinction the whole
+  disclosure design rests on.
+
+The subtitle's fact ordering — Focused count, update time, then the reason — is the single composer
+emitting every permitted fact, rather than the per-state prose that dropped a different fact each
+time it was written by hand.
+
+**Also verified in the same session:** the companion's two new controls render in two rows with
+nothing clipped, and **Show diagnostics** opens the log. That is the surface the widget card's
+diagnostic block was waiting on, so the block can now be removed.
+
 ## Measured: package minor raised to 0.5 to clear the squash-merge collision
 
 Recorded 2026-08-05. Installing feature-branch builds during Phase 2 spent version headroom that
