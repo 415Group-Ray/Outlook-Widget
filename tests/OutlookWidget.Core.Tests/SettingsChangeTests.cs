@@ -32,11 +32,29 @@ public sealed class SettingsChangeTests : IDisposable
     private bool _signalDelivers = true;
 
     private SettingsChangeCoordinator Coordinator() =>
-        new(_store, _tombstones, logger: null, signalStateChanged: () =>
+        new(_paths, _store, _tombstones, logger: null, signalStateChanged: () =>
         {
             _signals++;
             return _signalDelivers;
         });
+
+    [Fact]
+    public void A_hide_request_fails_closed_when_a_peer_holds_the_mutation_mutex()
+    {
+        using var peer = MutexHoldingPeer.Start(
+            _paths.MutationMutexName,
+            CoordinationBounds.MutexWait + TimeSpan.FromSeconds(5),
+            _paths.RootDirectory);
+        peer.WaitUntilHolding(TimeSpan.FromSeconds(5));
+
+        SettingsChangeResult result = Coordinator().Apply(
+            new WidgetSettings { HideMessageDetails = true });
+
+        Assert.Equal(SettingsChangeOutcome.WriteFailed, result.Outcome);
+        Assert.True(result.DetailsRemainHidden);
+        Assert.Equal(SettingsReadStatus.Absent, _store.Read().Status);
+        Assert.Equal(DisclosureMode.CountsOnly, _tombstones.GetEffectiveMode());
+    }
 
     private DisclosureMode EffectiveMode() =>
         new DisclosurePolicy(_tombstones, _store).GetEffectiveMode();
