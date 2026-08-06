@@ -50,9 +50,20 @@
     this workflow breaks. Uninstalling would also have unblocked it and is what the build script
     refuses to offer, because it destroys the widget pin.
 
-    This stays fixed while installs come from main, whose height now climbs from 11 unopposed.
-    Installing a feature-branch build again re-creates the same collision and will need the same
-    decision.
+    Minor was raised 0.4 -> 0.5 on 2026-08-05, and it is the same collision the paragraph above said
+    would recur — because the prediction that it "stays fixed while installs come from main" assumed
+    installs would come from main, and Phase 2's were made from feature branches so their card and
+    settings work could be looked at before merging. Two branches were installed at heights 24 and
+    30, then squash-merged; main's height fell to 26 and the derivation produced 0.4.26.0, below the
+    installed 0.4.30.0.
+
+    So the rule is sharper than it first appeared: installing a feature-branch build spends version
+    headroom that the squash merge does not give back, and enough of them will always outrun main.
+    Raising minor is the intended answer rather than a workaround, which is why the build script
+    names it and refuses to offer uninstalling.
+
+    0.5 is also honest as a version rather than merely convenient. It is the first line in which the
+    widget renders real mail and carries a working privacy setting.
 
     The reason it is derived: any commit changes every assembly in the package, because the .NET SDK
     embeds the git commit SHA in each assembly's informational version. So a documentation-only commit
@@ -63,7 +74,7 @@
   <Identity
     Name="415Group.OutlookInboxWidget"
     Publisher="CN=&quot;415 Group, Inc.&quot;"
-    Version="0.4.0.0"
+    Version="0.5.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
