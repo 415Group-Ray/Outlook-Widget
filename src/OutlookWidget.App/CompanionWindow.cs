@@ -367,12 +367,18 @@ internal static partial class CompanionWindow
                 IntPtr.Zero);
         }
 
+        // Asked before the button exists, not after the first operation finishes. A fixed initial
+        // caption meant reopening the companion with the setting already on displayed "Hide message
+        // details" over a click that would have revealed them — a label describing the opposite of
+        // its effect, which is worse than no label at all.
+        string privacyCaption = _privacyToggleCaption?.Invoke() ?? "Hide message details";
+
         fixed (char* buttonClass = "BUTTON")
-        fixed (char* caption = "Hide message details")
+        fixed (char* caption = privacyCaption)
         {
-            // The caption states the action rather than the state, and is rewritten after every
-            // toggle from what the store actually says — not from a local flag, because the setting
-            // is shared with another process and a cached copy would drift.
+            // The caption states the action rather than the state, and is re-read from the store
+            // after every operation — not from a local flag, because the setting is shared with
+            // another process and a cached copy would drift.
             _privacyToggleButton = CreateWindowExW(
                 0,
                 (IntPtr)buttonClass,

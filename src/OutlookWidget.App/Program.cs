@@ -64,35 +64,71 @@ internal static class Program
     }
 
     /// <summary>
-    /// The caption the privacy toggle should carry, given what is stored right now.
+    /// What the privacy toggle would do if pressed right now: the value it would store, and the
+    /// caption that describes it.
     /// </summary>
     /// <remarks>
-    /// Reads the store on every call rather than caching, because the provider shares this file and
-    /// an unreadable one must offer to hide rather than to reveal — the same fail-closed direction
-    /// the renderer takes, so the button never invites the user to expose details the system has
-    /// already decided to withhold.
+    /// <b>One function, because a caption and an action computed separately can disagree — and
+    /// did.</b> The button was created with a fixed caption and only relabelled after an operation
+    /// finished, so reopening the companion with the setting already on showed "Hide message
+    /// details" over a click that would reveal them. A label that lies about its effect is worse
+    /// than no label, and the only reliable fix is for one place to decide both.
     /// </remarks>
-    private static string PrivacyToggleCaption(PackagedStateResult state)
+    private readonly record struct PrivacyToggleAction(bool DesiredHideValue, string Caption);
+
+    /// <summary>
+    /// Decides that action from the stored setting.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Branches on the read status, not on the substituted value.</b> An unreadable file reads
+    /// back as <c>HideMessageDetails = true</c> so that a renderer ignoring the status still
+    /// withholds — but that substitution is a rendering decision, not a record of what anyone
+    /// chose. Negating it asks to <em>show</em> details, which would repair a damaged file by
+    /// explicitly enabling disclosure on the strength of a value nobody stored. Unknown therefore
+    /// offers to hide: it is the fail-closed direction, and writing it repairs the file in the safe
+    /// direction rather than the unsafe one.
+    /// </para>
+    /// <para>
+    /// Read on every call rather than cached, because the provider shares this file and a remembered
+    /// answer would drift.
+    /// </para>
+    /// </remarks>
+    private static PrivacyToggleAction NextPrivacyToggleAction(PackagedStateResult state)
     {
+        const string Hide = "Hide message details";
+        const string Show = "Show message details";
+
         if (!state.IsResolved)
         {
-            return "Hide message details";
+            // No identity means no settings to read, and the button will refuse when pressed.
+            return new PrivacyToggleAction(DesiredHideValue: true, Hide);
         }
 
         SettingsReadResult stored = new WidgetSettingsStore(state.Paths!).Read();
 
+        if (stored.Status == SettingsReadStatus.Unreadable)
+        {
+            return new PrivacyToggleAction(DesiredHideValue: true, Hide);
+        }
+
         return stored.Settings.HideMessageDetails
-            ? "Show message details"
-            : "Hide message details";
+            ? new PrivacyToggleAction(DesiredHideValue: false, Show)
+            : new PrivacyToggleAction(DesiredHideValue: true, Hide);
     }
 
+    /// <summary>The caption the privacy toggle should carry right now.</summary>
+    private static string PrivacyToggleCaption(PackagedStateResult state) =>
+        NextPrivacyToggleAction(state).Caption;
+
     /// <summary>
-    /// Flips "hide message details" through the coordinator that owns the ordering.
+    /// Applies "hide message details" through the coordinator that owns the ordering.
     /// </summary>
     /// <remarks>
-    /// The desired value is derived from the store rather than from the button, so a caption that
-    /// has gone stale — because the provider or another window changed the setting — cannot ask for
-    /// a change that was already made.
+    /// The value comes from <see cref="NextPrivacyToggleAction"/> — the same call the caption came
+    /// from — rather than from the button, so a caption that has gone stale because the provider or
+    /// another path changed the setting cannot ask for a change that was already made, and the
+    /// label can never describe a different action from the one performed.
     /// </remarks>
     private static string TogglePrivacySetting(PackagedStateResult state)
     {
@@ -112,7 +148,7 @@ internal static class Program
             new DisclosureTombstoneStore(paths, logger),
             logger);
 
-        bool desired = !settings.Read().Settings.HideMessageDetails;
+        bool desired = NextPrivacyToggleAction(state).DesiredHideValue;
 
         SettingsChangeResult result = coordinator.Apply(new WidgetSettings
         {
