@@ -1531,6 +1531,71 @@ stale-detail suppression. The stale rule gained its first implementation in this
 existed since Phase 1 with nothing consulting it — but reaching it on a device requires a snapshot 24
 hours old, which no run so far has produced.
 
+## Measured: the diagnostics log, over eighteen hours of provider operation
+
+Verified 2026-08-06 on the reference machine with installed package `0.5.26.0`. The provider was
+cold-activated through its registered COM class on 2026-08-05 at 16:02:49 local and was still the
+same process, PID 44996, when the log was read the following morning — so this is roughly eighteen
+hours of ordinary operation rather than a probe.
+
+**622 records, none of them malformed.** Every line was matched against the record shape the logger
+writes — an ISO-8601 UTC instant, an event name, an outcome, and optional `ms=`, `n=`, `http=`
+numbers — and **zero lines failed**. That is the privacy property checked against real production
+output rather than against the type system: nothing resembling a sender, subject, account, tenant,
+URL, or token can appear, because `IOperationalLogger` has no string parameter and there is nowhere
+for one to enter.
+
+The event distribution is itself a coordination result:
+
+| Event | Count |
+|---|---|
+| `RefreshRequested` | 31 |
+| `RefreshLeaseClaimed` | 31 |
+| `GraphRequestCompleted` | 31 |
+| `StateCommitted` | 31 |
+| `RefreshCompleted` | 31 |
+| `RefreshLeaseCleared` | 31 |
+| `DeliveryCompleted` | 230 |
+| `DeliveryRequested` | 112 |
+| `DeliveryCoalesced` | 32 |
+| `SilentTokenAcquired` | 62 |
+
+**Every refresh that claimed a lease also cleared it, thirty-one times out of thirty-one.** A
+stranded lease is the failure the expiring-lease design exists to survive, and eighteen hours of
+real operation produced none. `DeliveryRequested` exceeding `DeliveryCoalesced` while
+`DeliveryCompleted` exceeds both is the coalescing worker behaving as designed: requests arriving
+during an in-progress pass are absorbed rather than queued.
+
+A representative refresh, showing the fields the logger is allowed to carry:
+
+```
+GraphRequestCompleted Success ms=1105 n=5 http=200
+StateCommitted Success
+RefreshCompleted Success n=5
+```
+
+**What this does not establish.** The log was written entirely by the provider; the companion's
+paths were not exercised in this window, so its use of the same logger is wired and unmeasured.
+Rollover was not reached — 36 KB against a 256 KB bound — so the rollover path remains covered by
+unit tests only. And the companion button that opens this log does not exist yet, which is why the
+widget card still carries its diagnostic block.
+
+## Measured: package minor raised to 0.5 to clear the squash-merge collision
+
+Recorded 2026-08-05. Installing feature-branch builds during Phase 2 spent version headroom that
+squash-merging does not give back: branches were installed at commit heights 24 and 30, and after
+both merged, `main`'s height was 26, deriving `0.4.26.0` against an installed `0.4.30.0`.
+`Build-Package.ps1` refused, correctly.
+
+Minor was raised `0.4` → `0.5`, which is the answer the script names and the second time this exact
+collision has occurred — the manifest comment written for the `0.3` → `0.4` bump predicted it would
+recur, while assuming installs would come from `main`. The sharper rule is now recorded there:
+installing a feature-branch build spends headroom the merge does not return, and enough of them will
+always outrun `main`. Uninstalling would also have cleared it and remains deliberately unoffered,
+because it destroys the widget pin.
+
+`0.5.26.0` installed over the existing pin with `-ForceApplicationShutdown` and the pin survived.
+
 ## Reproducing the provider evidence
 
 ```powershell
