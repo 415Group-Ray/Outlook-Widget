@@ -1538,33 +1538,49 @@ cold-activated through its registered COM class on 2026-08-05 at 16:02:49 local 
 same process, PID 44996, when the log was read the following morning — so this is roughly eighteen
 hours of ordinary operation rather than a probe.
 
-**622 records, none of them malformed.** Every line was matched against the record shape the logger
+**878 records, none of them malformed.** Every line was matched against the record shape the logger
 writes — an ISO-8601 UTC instant, an event name, an outcome, and optional `ms=`, `n=`, `http=`
-numbers — and **zero lines failed**. That is the privacy property checked against real production
-output rather than against the type system: nothing resembling a sender, subject, account, tenant,
-URL, or token can appear, because `IOperationalLogger` has no string parameter and there is nowhere
-for one to enter.
+numbers — and **zero lines failed**, re-checked at each reading as the log grew. That is the privacy
+property checked against real production output rather than against the type system: nothing
+resembling a sender, subject, account, tenant, URL, or token can appear, because
+`IOperationalLogger` has no string parameter and there is nowhere for one to enter.
 
-The event distribution is itself a coordination result:
+Counts below are a snapshot read at 2026-08-06 15:20 UTC; the log keeps growing, so re-reading it
+gives larger numbers and the ratios are what matter.
 
 | Event | Count |
 |---|---|
-| `RefreshRequested` | 31 |
-| `RefreshLeaseClaimed` | 31 |
-| `GraphRequestCompleted` | 31 |
-| `StateCommitted` | 31 |
-| `RefreshCompleted` | 31 |
-| `RefreshLeaseCleared` | 31 |
-| `DeliveryCompleted` | 230 |
-| `DeliveryRequested` | 112 |
-| `DeliveryCoalesced` | 32 |
-| `SilentTokenAcquired` | 62 |
+| `RefreshRequested` | 41 |
+| `RefreshLeaseClaimed` | 41 |
+| `RefreshLeaseCleared` | 41 |
+| `GraphRequestCompleted` | 41 |
+| `StateCommitted` | 41 |
+| `RefreshCompleted` | 39 |
+| `DeliveryRequested` | 160 |
+| `DeliveryCoalesced` | 45 |
+| `DeliveryCompleted` | 326 |
+| `DeliveryFailed` | 0 |
+| `SilentTokenAcquired` | 86 |
 
-**Every refresh that claimed a lease also cleared it, thirty-one times out of thirty-one.** A
-stranded lease is the failure the expiring-lease design exists to survive, and eighteen hours of
-real operation produced none. `DeliveryRequested` exceeding `DeliveryCoalesced` while
-`DeliveryCompleted` exceeds both is the coalescing worker behaving as designed: requests arriving
-during an in-progress pass are absorbed rather than queued.
+**The coordination result is the lease pair: 41 claimed, 41 cleared.** A stranded lease is the
+failure the expiring-lease design exists to survive, and this window produced none. That equality is
+the claim worth making here; the others need care, and two readings of this table were wrong before
+they were corrected on review.
+
+**`DeliveryCompleted` is recorded twice per pass, and its total is not a coordination result.**
+`DeliveryWorker.RunOnePass` records one, and `WidgetDeliverySink.Deliver` records another carrying
+the delivered instance count. The split is exactly 163 with an `n=` field and 163 without — equal by
+construction, which is what identifies them as one pass counted twice rather than as passes
+outnumbering requests. **`DeliveryCoalesced` is the only record that identifies an absorbed
+request**, and at 45 it is the number to read for coalescing.
+
+**`StateCommitted` is not refresh-exclusive**, which is why it exceeds `RefreshCompleted` by two.
+Other commit paths record it, and at least one commit in this window came from outside a refresh.
+The two events count different populations and should not be compared.
+
+The delivery-request total is likewise not simply the pass count minus the coalesced ones: 163
+passes against 160 requests means passes are also started by paths that do not record a request.
+That relationship was not investigated and no claim is made about it.
 
 A representative refresh, showing the fields the logger is allowed to carry:
 
