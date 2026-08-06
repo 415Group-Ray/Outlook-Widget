@@ -1580,6 +1580,38 @@ Rollover was not reached — 36 KB against a 256 KB bound — so the rollover pa
 unit tests only. And the companion button that opens this log does not exist yet, which is why the
 widget card still carries its diagnostic block.
 
+## Measured: the card after the situation refactor, and two rules it confirms
+
+Verified 2026-08-06 on the reference machine with installed package `0.5.26.0`, large size. The
+`CardSituation` refactor rewrote how all eleven rendering states are chosen, so the ordinary mailbox
+path was the one that had to be unchanged, and it is.
+
+Observed: headline **Inbox up to date**, subtitle **Updated 10:55 AM.**, four message rows, both
+action buttons fully visible, and the diagnostic block reading `generation 127 · delivered 127 ·
+mode Full · read Success · payload 2281 bytes · cached 5` with `silent auth Acquired`.
+
+Four things this settles that automated tests could not:
+
+- **The zero-unread branch renders**, and it had never been seen. Every prior observation had unread
+  mail, so `Inbox up to date` existed only as a switch arm.
+- **The Focused clause is correctly absent.** It is suppressed when nothing is unread, because
+  "0 in Focused" beside an up-to-date inbox is noise. With unread at zero this is the first time that
+  suppression has been visible rather than reasoned about.
+- **Section 7's date rule holds on a real card.** Three rows from today show a short time — `9:04 AM`,
+  `7:57 AM`, `5:29 AM` — and the fourth, from the previous day, shows the locale short date
+  `8/5/2026`. That is exactly the binary the plan specifies, and it is the rule whose weekday variant
+  was removed on review.
+- **`RichTextBlock` truncation works with the C# display budget.** `Re: Take Control Repair Script
+  up…` is one line with an ellipsis, produced by the character budget rather than by `maxLines`,
+  which `RichTextBlock` does not have.
+
+Read state could not be distinguished in this observation and that is not a defect: the mailbox had
+**zero unread**, so every sender correctly rendered at the lighter body weight. The heavier weight was
+measured separately on `0.4.24.1`.
+
+**Still unmeasured after this**: the signed-out, counts-only, stale, and the five cache-status
+situations. Counts-only remains unreachable until the companion can set the privacy setting.
+
 ## Measured: package minor raised to 0.5 to clear the squash-merge collision
 
 Recorded 2026-08-05. Installing feature-branch builds during Phase 2 spent version headroom that
