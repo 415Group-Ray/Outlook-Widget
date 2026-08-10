@@ -22,6 +22,21 @@ public sealed class CompanionWinUiTests
     }
 
     [Fact]
+    public void The_companion_publishes_its_compiled_XAML_and_loads_WinUI_resources()
+    {
+        string project = AppSource("OutlookWidget.App.csproj");
+        string applicationMarkup = AppSource("App.xaml");
+
+        Assert.Contains("CopyWinUIResourcesToPublishDirectory", project, StringComparison.Ordinal);
+        Assert.Contains("$(TargetDir)*.xbf", project, StringComparison.Ordinal);
+        Assert.Contains("$(TargetDir)$(AssemblyName).pri", project, StringComparison.Ordinal);
+        Assert.Contains(
+            "<XamlControlsResources xmlns=\"using:Microsoft.UI.Xaml.Controls\" />",
+            applicationMarkup,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void WAM_receives_the_real_WinUI_window_handle()
     {
         string program = AppSource("Program.cs");

@@ -47,4 +47,25 @@
     <ProjectReference Include="..\OutlookWidget.Packaging\OutlookWidget.Packaging.csproj" />
   </ItemGroup>
 
+  <!--
+    The WinUI compiler writes the component PRI and XBF files to TargetDir, but the .NET Publish
+    target does not include them in PublishDir for this separately assembled MSIX. Without these
+    files the package installs successfully and then fails in Application.InitializeComponent.
+    Keep the resources beside the executable so Build-Package.ps1 can copy a complete application
+    directory into the package layout.
+  -->
+  <Target Name="CopyWinUIResourcesToPublishDirectory" AfterTargets="Publish">
+    <ItemGroup>
+      <_WinUIResourceToPublish Include="$(TargetDir)*.xbf" />
+      <_WinUIResourceToPublish Include="$(TargetDir)$(AssemblyName).pri" />
+    </ItemGroup>
+    <Error
+      Condition="'@(_WinUIResourceToPublish)' == ''"
+      Text="The WinUI compiler produced no PRI or XBF resources for the publish output." />
+    <Copy
+      SourceFiles="@(_WinUIResourceToPublish)"
+      DestinationFolder="$(PublishDir)"
+      SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

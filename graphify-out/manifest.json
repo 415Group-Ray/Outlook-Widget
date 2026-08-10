@@ -10,9 +10,9 @@
     "semantic_hash": "44ec409a71f10e4b0f6ab5411c82d71a"
   },
   "scripts/Build-Package.ps1": {
-    "mtime": 1785421605.7922215,
-    "ast_hash": "ac6041deabd9b05966a129f90554567e",
-    "semantic_hash": "ac6041deabd9b05966a129f90554567e"
+    "mtime": 1786384365.546793,
+    "ast_hash": "067125a130d8800a3d2d6c6733d21552",
+    "semantic_hash": ""
   },
   "scripts/Install-DevelopmentPackage.ps1": {
     "mtime": 1785269253.6272268,
@@ -35,8 +35,8 @@
     "semantic_hash": "2983e4d273faee03cfcdec272c0dab6a"
   },
   "src/OutlookWidget.App/OutlookWidget.App.csproj": {
-    "mtime": 1786381607.3104963,
-    "ast_hash": "a59ce1b38051731008892d6cd5514ff7",
+    "mtime": 1786384327.6005309,
+    "ast_hash": "6a29bfed849b14c5d5994bfb9c34d106",
     "semantic_hash": ""
   },
   "src/OutlookWidget.App/Program.cs": {
@@ -220,8 +220,8 @@
     "semantic_hash": "7a9abd5788b53b2c5ff0fdd974545dcc"
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1786381878.1843371,
-    "ast_hash": "c6b93240ed38851adc74cc0e0e04011f",
+    "mtime": 1786384876.665813,
+    "ast_hash": "f85ff114bdd6a4bddf77f75bb5b092e3",
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
@@ -760,13 +760,13 @@
     "semantic_hash": ""
   },
   "src/OutlookWidget.App/App.xaml": {
-    "mtime": 1786381607.3023856,
-    "ast_hash": "599ee923f6abb993f17057ed17e06396",
+    "mtime": 1786384634.7469413,
+    "ast_hash": "7fdb87e3968428f3826584aceec7a876",
     "semantic_hash": ""
   },
   "src/OutlookWidget.App/App.xaml.cs": {
-    "mtime": 1786381607.3050542,
-    "ast_hash": "d3cf9541b380c4af4bd575a549018961",
+    "mtime": 1786384638.1253467,
+    "ast_hash": "673d54565d6441b956db96c22bed5989",
     "semantic_hash": ""
   },
   "src/OutlookWidget.App/MainWindow.xaml": {
@@ -780,8 +780,8 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/CompanionWinUiTests.cs": {
-    "mtime": 1786381607.3235693,
-    "ast_hash": "9c34f595e5329741feff6886d712e9ce",
+    "mtime": 1786384641.4258075,
+    "ast_hash": "5e651a5f382df3e0bbac5c2f1de188c5",
     "semantic_hash": ""
   },
   "graphify-out/memory/query_20260810_171128_merge__delete_branch__sync__then_continue_with_nex.md": {

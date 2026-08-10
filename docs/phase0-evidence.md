@@ -1757,7 +1757,33 @@ process was not elevated to exercise certificate trust. Widgets Platform Runtime
 App Runtime 2.3.1, New Outlook, the `olk.exe` alias, .NET 10, and the Windows SDK packaging tools all
 passed on this machine.
 
-The package was deliberately left unsigned and uninstalled. This tree still contains the version
-decision as an uncommitted change, and committing changes every packaged assembly's informational
-version. Installing the pre-commit payload would therefore create another different-payload version
-collision on the very next commit. Installed-host evidence remains outstanding.
+The version decision was then committed before signed installation work began. The first signed
+package exposed two independent WinUI deployment defects that the ordinary solution build could not
+detect: `dotnet publish` omitted `App.xbf`, `MainWindow.xbf`, and `OutlookWidget.App.pri`, and the
+application resource dictionary did not merge WinUI's `XamlControlsResources`. The first package
+installed and failed in `Microsoft.UI.Xaml.dll`; after the compiled files were included, a temporary
+startup-only diagnostic identified the remaining `XamlParseException` as the missing
+`TextFillColorSecondaryBrush`. The diagnostic code and its temporary file were removed after use.
+
+Verified 2026-08-10 on the reference machine with the committed signed package `0.6.31.0`:
+
+- `Build-Package.ps1` packed all three compiled-XAML resources beside the companion executable,
+  validated them before packing, signed the MSIX with certificate thumbprint
+  `F39705644AC44B95EA8E9245A9F7642C732F1B46`, and verified the timestamped signature with no errors or
+  warnings.
+- `Install-DevelopmentPackage.ps1 -SkipCertificateTrust -ForceApplicationShutdown` upgraded the
+  existing package without uninstalling it. Opening the Widgets Board started the provider from the
+  `0.6.31.0` install, and the privacy-safe diagnostics recorded successful deliveries to `n=1`, so
+  the existing widget pin survived the upgrade and recovered.
+- The companion opened as a responsive WinUI window titled **Outlook Inbox Widget**. The Account,
+  Privacy and recovery, and Diagnostics surfaces rendered with their expected controls, and Current
+  status reported **The companion is ready.** No new application-error event was recorded.
+- A second packaged activation redirected to the existing process: the PID remained unchanged and
+  exactly one companion process and window remained.
+
+The regression coverage now requires both the WinUI resource dictionary and the PRI/XBF publish
+target. The packaging script separately refuses an app publish that lacks any of the three runtime
+files, so this failure is caught before MakeAppx can produce another installable-but-crashing MSIX.
+
+This run did not invoke interactive WAM or visually inspect the Widgets Board card, so WAM interaction
+with the WinUI parent handle and the five-row large-card fit remain installed-package evidence gaps.
