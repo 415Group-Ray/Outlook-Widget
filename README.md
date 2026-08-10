@@ -185,8 +185,8 @@ pwsh -File scripts/Test-PackagePrerequisites.ps1
 ```text
 src/OutlookWidget.Core       Surface-agnostic coordination, caching, refresh, delivery, launching
 src/OutlookWidget.Packaging  MSIX package-identity interop, shared by the two executables
-src/OutlookWidget.App        Packaged companion; Phase 0 probe plus the only interactive sign-in
-src/OutlookWidget.Provider   Packaged COM Widgets provider; lifecycle and delivery, no mail yet
+src/OutlookWidget.App        Packaged WinUI companion; account, privacy, recovery, and diagnostics
+src/OutlookWidget.Provider   Packaged COM Widgets provider; silent refresh, lifecycle, and delivery
 src/OutlookWidget.Package    MSIX identity, assets, COM server and widget registration
 tests/                       Automated tests, including the concurrency suite
 docs/                        Evidence report, app registration, troubleshooting

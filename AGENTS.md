@@ -166,10 +166,11 @@ identify the mismatch and update every affected source as part of the approved c
 - `src/OutlookWidget.Packaging` — MSIX package-identity interop only, shared by the two
   executables so the core stays free of any knowledge that MSIX exists. Do not grow it into a
   general utility assembly.
-- `src/OutlookWidget.App` — packaged companion application; a Phase 0 probe with a minimal Win32
-  window, and the home of `InteractiveAuthService` — **the single `AcquireTokenInteractive` call site
-  in the product.** It is here rather than in the core so the provider cannot link the interactive API
-  at all; see the deviation note above.
+- `src/OutlookWidget.App` — packaged WinUI companion for sign-in, account switching, privacy,
+  recovery, diagnostics, and the New Outlook launch probe; it is also the home of
+  `InteractiveAuthService` — **the single `AcquireTokenInteractive` call site in the product.** It is
+  here rather than in the core so the provider cannot link the interactive API at all; see the
+  deviation note above.
 - `src/OutlookWidget.Provider` — the packaged COM Windows Widgets provider: lifecycle, the six
   callbacks, the instance registry, the single `UpdateWidget` call site, and `SilentAuthProbe`, which
   acquires silently with a zero parent handle and re-probes on the state-changed signal. The provider
