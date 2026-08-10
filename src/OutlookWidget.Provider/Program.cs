@@ -229,7 +229,9 @@ internal static partial class Program
             paths,
             () =>
             {
-                refreshPresentation.Clear();
+                // This payload-free signal is an accelerant, not evidence that an in-flight retry
+                // has made cached details safe or that a peer lease completed. The auth probe,
+                // refresh outcome, and lease/generation monitor own those transitions.
                 authProbe.RequestProbe();
                 delivery.RequestDelivery();
                 // Account-aware staleness makes a new interactive selection refresh immediately

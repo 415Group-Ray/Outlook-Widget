@@ -487,9 +487,10 @@ public sealed class ProviderCardTests
         Assert.True(decision > 0 && rows > decision && serialization > rows);
 
         string rowDecision = source[decision..serialization];
-        Assert.Contains("RefreshPresentationStatus.Unauthorized", rowDecision, StringComparison.Ordinal);
-        Assert.Contains("RefreshPresentationStatus.Forbidden", rowDecision, StringComparison.Ordinal);
-        Assert.Contains("RefreshPresentationStatus.MailboxNotSupported", rowDecision, StringComparison.Ordinal);
+        Assert.Contains(
+            "refreshPresentation.AuthorizationInvalidatesDetails",
+            rowDecision,
+            StringComparison.Ordinal);
         Assert.Contains("TokenAcquisitionStatus.InteractionRequired", rowDecision, StringComparison.Ordinal);
         Assert.Contains("&& !authorizationInvalidatesDetails", rowDecision, StringComparison.Ordinal);
         Assert.Contains("|| refreshNeedsAttention", source, StringComparison.Ordinal);
@@ -522,20 +523,14 @@ public sealed class ProviderCardTests
     }
 
     [Fact]
-    public void A_debounced_refresh_restores_the_preceding_presentation()
+    public void Payload_free_state_change_events_do_not_reset_refresh_evidence()
     {
-        string presentation = File.ReadAllText(Path.Combine(
+        string composition = File.ReadAllText(Path.Combine(
             RepositorySources.ProviderSourceDirectory,
-            "Cards",
-            "RefreshPresentation.cs"));
+            "Program.cs"));
 
-        Assert.Contains(
-            "Complete(RefreshResult result, RefreshPresentationStatus previousStatus)",
-            presentation,
-            StringComparison.Ordinal);
-        Assert.Contains("case RefreshOutcome.SkippedDebounce:", presentation, StringComparison.Ordinal);
-        Assert.Contains("(int)previousStatus", presentation, StringComparison.Ordinal);
-        Assert.Contains("(int)RefreshPresentationStatus.Loading", presentation, StringComparison.Ordinal);
+        Assert.DoesNotContain("refreshPresentation.Clear()", composition, StringComparison.Ordinal);
+        Assert.Contains("lease/generation monitor own those transitions", composition, StringComparison.Ordinal);
     }
 
     [Fact]

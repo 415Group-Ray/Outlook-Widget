@@ -147,14 +147,14 @@ internal sealed class ProviderRefreshWorker : IDisposable
                 }
 
                 long generationBeforeRefresh = _cache.ReadGeneration();
-                RefreshPresentationStatus previousStatus = _presentation.Begin();
+                RefreshPresentationState previousState = _presentation.Begin();
                 _delivery.RequestDelivery();
 
                 RefreshResult result = await _coordinator
                     .RefreshAsync(_fetcher, work.Trigger, _shutdown.Token)
                     .ConfigureAwait(false);
 
-                _presentation.Complete(result, previousStatus);
+                _presentation.Complete(result, previousState);
 
                 if (result.Outcome == RefreshOutcome.SkippedLeaseHeld)
                 {
@@ -193,7 +193,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
     {
         try
         {
-            while (_presentation.Current == RefreshPresentationStatus.RefreshInProgress)
+            while (_presentation.Current.Status == RefreshPresentationStatus.RefreshInProgress)
             {
                 // The lease may already be near expiry when this process first observes it. Waiting
                 // a fresh full horizon would leave the card claiming work is active for almost 30

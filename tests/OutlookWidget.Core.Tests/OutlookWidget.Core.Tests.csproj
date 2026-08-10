@@ -27,6 +27,16 @@
 
   <ItemGroup>
     <!--
+      RefreshPresentation is deliberately provider-only but has no Windows Widgets dependency.
+      Compile the same source into this test assembly so transition sequences receive executable
+      coverage without moving the whole test host onto the provider's Windows-SDK-versioned TFM.
+    -->
+    <Compile Include="..\..\src\OutlookWidget.Provider\Cards\RefreshPresentation.cs"
+             Link="Provider\RefreshPresentation.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
       The static-analysis tests read the product's own source, so they need its path at
       runtime rather than a copy of the compiled output.
     -->

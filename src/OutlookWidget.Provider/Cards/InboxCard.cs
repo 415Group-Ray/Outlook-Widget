@@ -249,8 +249,9 @@ internal static class InboxCard
     public static string Data(
         WidgetInstance instance,
         DeliveryState state,
-        RefreshPresentationStatus refreshStatus)
+        RefreshPresentationState refreshPresentation)
     {
+        RefreshPresentationStatus refreshStatus = refreshPresentation.Status;
         // Deserialized once, here, for every mode that is given a payload at all — which is every
         // mode except signed-out, where the worker withholds it before this code runs.
         //
@@ -352,9 +353,7 @@ internal static class InboxCard
         // mailbox.
         int rows = RowsFor(instance.Size);
         bool authorizationInvalidatesDetails =
-            refreshStatus is RefreshPresentationStatus.Unauthorized
-                or RefreshPresentationStatus.Forbidden
-                or RefreshPresentationStatus.MailboxNotSupported
+            refreshPresentation.AuthorizationInvalidatesDetails
             || SilentAuthStatus is TokenAcquisitionStatus.InteractionRequired
                 or TokenAcquisitionStatus.Cancelled
                 or TokenAcquisitionStatus.ApprovalRequired;
