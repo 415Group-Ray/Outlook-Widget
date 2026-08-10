@@ -8,6 +8,7 @@ namespace OutlookWidget.App;
 public sealed partial class MainWindow : Window
 {
     private readonly CompanionCommands _commands;
+    private readonly IntPtr _windowHandle;
     private PrivacyToggleAction _privacyToggleAction;
     private int _operationRunning;
 
@@ -17,6 +18,9 @@ public sealed partial class MainWindow : Window
         ArgumentNullException.ThrowIfNull(commands);
 
         InitializeComponent();
+        // WindowNative is UI-thread-affine. Cache the HWND while construction is still on the
+        // dispatcher so WAM's parent-window callback can safely run from the Task.Run worker.
+        _windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         _commands = commands;
         _privacyToggleAction = _commands.NextPrivacyToggleAction();
         PrivacyToggleButton.Content = _privacyToggleAction.Caption;
@@ -26,7 +30,7 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>The real WinUI HWND supplied to MSAL/WAM.</summary>
-    internal IntPtr Handle => WinRT.Interop.WindowNative.GetWindowHandle(this);
+    internal IntPtr Handle => _windowHandle;
 
     private async void SignInButton_Click(object sender, RoutedEventArgs e) =>
         await RunOperationAsync(_commands.SignIn, "Signing in…", "Sign-in");
@@ -56,7 +60,7 @@ public sealed partial class MainWindow : Window
         await RunOperationAsync(_commands.TestOutlook, "Opening New Outlook…", "New Outlook test");
 
     private async Task RunOperationAsync(
-        Func<Task<string>> operation,
+        Func<Task<CompanionOperationResult>> operation,
         string progressMessage,
         string failurePrefix)
     {
@@ -72,26 +76,29 @@ public sealed partial class MainWindow : Window
         OperationInfoBar.Severity = InfoBarSeverity.Informational;
         OperationInfoBar.IsOpen = true;
 
-        string report;
-        bool failed = false;
+        CompanionOperationResult result;
 
         try
         {
             // Preserve the measured companion contract: brokered acquisition runs away from the UI
             // dispatcher while its modal surface is parented to this window's real HWND.
-            report = await Task.Run(operation);
+            result = await Task.Run(operation);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException and not StackOverflowException)
         {
             // Type only. Authentication exception messages can contain account or server details.
-            report = failurePrefix + " failed unexpectedly: " + exception.GetType().Name;
-            failed = true;
+            result = CompanionOperationResult.Failure(
+                failurePrefix + " failed unexpectedly: " + exception.GetType().Name);
         }
 
-        StatusTextBox.Text = report;
-        OperationInfoBar.Title = failed ? failurePrefix + " failed" : failurePrefix + " finished";
-        OperationInfoBar.Message = FirstLine(report);
-        OperationInfoBar.Severity = failed ? InfoBarSeverity.Error : InfoBarSeverity.Success;
+        StatusTextBox.Text = result.Report;
+        OperationInfoBar.Title = result.IsSuccess
+            ? failurePrefix + " finished"
+            : failurePrefix + " failed";
+        OperationInfoBar.Message = FirstLine(result.Report);
+        OperationInfoBar.Severity = result.IsSuccess
+            ? InfoBarSeverity.Success
+            : InfoBarSeverity.Error;
 
         _privacyToggleAction = _commands.NextPrivacyToggleAction();
         PrivacyToggleButton.Content = _privacyToggleAction.Caption;
@@ -121,11 +128,19 @@ public sealed partial class MainWindow : Window
 
 /// <summary>The already-reviewed operations surfaced by the WinUI window.</summary>
 internal sealed record CompanionCommands(
-    Func<Task<string>> SignIn,
-    Func<Task<string>> SwitchAccount,
-    Func<Task<string>> SignOut,
-    Func<Task<string>> ClearInterruptedOperations,
-    Func<bool, Task<string>> TogglePrivacy,
-    Func<Task<string>> ShowDiagnostics,
-    Func<Task<string>> TestOutlook,
+    Func<Task<CompanionOperationResult>> SignIn,
+    Func<Task<CompanionOperationResult>> SwitchAccount,
+    Func<Task<CompanionOperationResult>> SignOut,
+    Func<Task<CompanionOperationResult>> ClearInterruptedOperations,
+    Func<bool, Task<CompanionOperationResult>> TogglePrivacy,
+    Func<Task<CompanionOperationResult>> ShowDiagnostics,
+    Func<Task<CompanionOperationResult>> TestOutlook,
     Func<PrivacyToggleAction> NextPrivacyToggleAction);
+
+/// <summary>A companion command's user-visible report and explicit presentation status.</summary>
+internal readonly record struct CompanionOperationResult(bool IsSuccess, string Report)
+{
+    internal static CompanionOperationResult Success(string report) => new(true, report);
+
+    internal static CompanionOperationResult Failure(string report) => new(false, report);
+}

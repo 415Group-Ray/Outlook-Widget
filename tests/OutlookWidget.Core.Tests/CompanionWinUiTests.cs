@@ -29,8 +29,41 @@ public sealed class CompanionWinUiTests
 
         Assert.Contains("_parentWindow = () => window.Handle;", program, StringComparison.Ordinal);
         Assert.Contains(".CreateAsync(options, paths, _parentWindow)", program, StringComparison.Ordinal);
-        Assert.Contains("WindowNative.GetWindowHandle(this)", window, StringComparison.Ordinal);
+        Assert.Contains(
+            "_windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);",
+            window,
+            StringComparison.Ordinal);
+        Assert.Contains("Handle => _windowHandle", window, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "Handle => WinRT.Interop.WindowNative.GetWindowHandle(this)",
+            window,
+            StringComparison.Ordinal);
         Assert.DoesNotContain("AcquireTokenInteractive", window, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Operation_results_explicitly_control_success_and_error_presentation()
+    {
+        string program = AppSource("Program.cs");
+        string window = AppSource("MainWindow.xaml.cs");
+
+        Assert.Contains("record struct CompanionOperationResult", window, StringComparison.Ordinal);
+        Assert.Contains("result.IsSuccess", window, StringComparison.Ordinal);
+        Assert.Contains("InfoBarSeverity.Error", window, StringComparison.Ordinal);
+        Assert.Contains("InfoBarSeverity.Success", window, StringComparison.Ordinal);
+
+        Assert.Contains(
+            "result.IsAcquired\n            ? CompanionOperationResult.Success(report)",
+            program.Replace("\r\n", "\n", StringComparison.Ordinal),
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "result.Outcome == AccountSwitchOutcome.Switched",
+            program,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "result.Outcome == SignOutOutcome.SignedOut",
+            program,
+            StringComparison.Ordinal);
     }
 
     [Fact]

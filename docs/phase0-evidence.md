@@ -1725,7 +1725,9 @@ does not report overflow, so that conclusion still requires visual inspection of
 Automated validation for this implementation:
 
 - `dotnet build OutlookWidget.slnx --no-restore --nologo`: passed, 0 warnings and 0 errors.
-- `dotnet test OutlookWidget.slnx --no-build --nologo`: passed, 426 of 426 tests.
+- `dotnet test OutlookWidget.slnx --no-build --nologo`: passed, 427 of 427 tests after
+  review coverage was added for caching the WinUI HWND on the dispatcher thread and presenting
+  returned operation failures with error rather than success severity.
 - Release framework-dependent publishes for both `OutlookWidget.App` and
   `OutlookWidget.Provider`: passed.
 - `scripts/Build-Package.ps1 -SkipSigning`: stopped before publishing at the deliberate package
