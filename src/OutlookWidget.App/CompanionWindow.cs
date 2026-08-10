@@ -54,6 +54,12 @@ internal static partial class CompanionWindow
     /// <summary>The interrupted-operation recovery button's control identifier.</summary>
     private const int ClearInterruptedButtonId = 4;
 
+    /// <summary>The privacy-setting toggle's control identifier.</summary>
+    private const int PrivacyToggleButtonId = 5;
+
+    /// <summary>The diagnostics-log button's control identifier.</summary>
+    private const int ShowDiagnosticsButtonId = 6;
+
     /// <summary>
     /// Posted to the window when the sign-in task completes. <c>WM_APP</c> is the range Windows
     /// reserves for an application's own messages, so it cannot collide with a control notification.
@@ -66,6 +72,8 @@ internal static partial class CompanionWindow
     private static IntPtr _switchAccountButton;
     private static IntPtr _signOutButton;
     private static IntPtr _clearInterruptedButton;
+    private static IntPtr _privacyToggleButton;
+    private static IntPtr _showDiagnosticsButton;
 
     /// <summary>The sign-in operation, supplied by the composition root.</summary>
     private static Func<Task<string>>? _signIn;
@@ -78,6 +86,28 @@ internal static partial class CompanionWindow
 
     /// <summary>The explicit orphaned-suppression recovery action.</summary>
     private static Func<Task<string>>? _clearInterruptedOperations;
+
+    /// <summary>
+    /// Flips "hide message details" and reports the result.
+    /// </summary>
+    /// <remarks>
+    /// A single toggle rather than a checkbox, because turning the setting on is a suppress-first
+    /// operation that can fail in ways a checkbox cannot express — the widget can end up hidden by a
+    /// tombstone while the stored setting says otherwise, and the report line is where that gets
+    /// said. It also runs through <c>BeginOperation</c> like every other mutation here, which is what
+    /// keeps two disclosure changes from overlapping in this process.
+    /// </remarks>
+    private static Func<bool, Task<string>>? _togglePrivacy;
+
+    /// <summary>Opens the diagnostics log and reports whether it could be shown.</summary>
+    private static Func<Task<string>>? _showDiagnostics;
+
+    /// <summary>The next caption/action pair for the privacy toggle, read from the store.</summary>
+    private static Func<PrivacyToggleAction>? _nextPrivacyToggleAction;
+
+    /// <summary>The action paired with the caption currently displayed by the privacy button.</summary>
+    private static PrivacyToggleAction _privacyToggleAction =
+        new(DesiredHideValue: true, "Hide message details");
 
     /// <summary>
     /// The completed sign-in report, handed from the worker to the message loop.
@@ -116,18 +146,27 @@ internal static partial class CompanionWindow
         Func<Task<string>> signIn,
         Func<Task<string>> switchAccount,
         Func<Task<string>> signOut,
-        Func<Task<string>> clearInterruptedOperations)
+        Func<Task<string>> clearInterruptedOperations,
+        Func<bool, Task<string>> togglePrivacy,
+        Func<Task<string>> showDiagnostics,
+        Func<PrivacyToggleAction> nextPrivacyToggleAction)
     {
         ArgumentNullException.ThrowIfNull(report);
         ArgumentNullException.ThrowIfNull(signIn);
         ArgumentNullException.ThrowIfNull(switchAccount);
         ArgumentNullException.ThrowIfNull(signOut);
         ArgumentNullException.ThrowIfNull(clearInterruptedOperations);
+        ArgumentNullException.ThrowIfNull(togglePrivacy);
+        ArgumentNullException.ThrowIfNull(showDiagnostics);
+        ArgumentNullException.ThrowIfNull(nextPrivacyToggleAction);
 
         _signIn = signIn;
         _switchAccount = switchAccount;
         _signOut = signOut;
         _clearInterruptedOperations = clearInterruptedOperations;
+        _togglePrivacy = togglePrivacy;
+        _showDiagnostics = showDiagnostics;
+        _nextPrivacyToggleAction = nextPrivacyToggleAction;
 
         IntPtr instance = GetModuleHandleW(null);
 
@@ -198,6 +237,26 @@ internal static partial class CompanionWindow
     private const int RecoveryButtonWidth = 220;
     private const int ButtonHeight = 34;
 
+    /// <summary>Width of the two settings-row buttons, whose captions are longer.</summary>
+    private const int WideButtonWidth = 200;
+
+    /// <summary>
+    /// The top of the first of two button rows, measured from the client height.
+    /// </summary>
+    /// <remarks>
+    /// Two rows, because the four account buttons already occupied the width of one and the two
+    /// settings buttons would have run past the client area — the same class of defect as the
+    /// original layout, which derived child positions from the outer window size and rendered a
+    /// button visibly cut off. The report box gives up the space rather than the buttons
+    /// overflowing, because a shorter report is a cost and a clipped control is a bug.
+    /// </remarks>
+    private static int FirstButtonRowTop(int clientHeight) =>
+        clientHeight - (ButtonHeight * 2) - (Margin * 2);
+
+    /// <summary>The top of the second button row.</summary>
+    private static int SecondButtonRowTop(int clientHeight) =>
+        clientHeight - ButtonHeight - Margin;
+
     /// <summary>
     /// Creates the report box and the sign-in button, sized from the window's actual client area.
     /// </summary>
@@ -233,7 +292,7 @@ internal static partial class CompanionWindow
                 Margin,
                 Margin,
                 width - (Margin * 2),
-                height - ButtonHeight - (Margin * 3),
+                FirstButtonRowTop(height) - (Margin * 2),
                 _window,
                 IntPtr.Zero,
                 instance,
@@ -249,7 +308,7 @@ internal static partial class CompanionWindow
                 (IntPtr)caption,
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON,
                 Margin,
-                height - ButtonHeight - Margin,
+                FirstButtonRowTop(height),
                 ButtonWidth,
                 ButtonHeight,
                 _window,
@@ -267,7 +326,7 @@ internal static partial class CompanionWindow
                 (IntPtr)caption,
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP,
                 Margin + ButtonWidth + Margin,
-                height - ButtonHeight - Margin,
+                FirstButtonRowTop(height),
                 ButtonWidth,
                 ButtonHeight,
                 _window,
@@ -285,7 +344,7 @@ internal static partial class CompanionWindow
                 (IntPtr)caption,
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP,
                 Margin + (ButtonWidth * 2) + (Margin * 2),
-                height - ButtonHeight - Margin,
+                FirstButtonRowTop(height),
                 ButtonWidth,
                 ButtonHeight,
                 _window,
@@ -303,11 +362,57 @@ internal static partial class CompanionWindow
                 (IntPtr)caption,
                 WS_CHILD | WS_VISIBLE | WS_TABSTOP,
                 Margin + (ButtonWidth * 3) + (Margin * 3),
-                height - ButtonHeight - Margin,
+                FirstButtonRowTop(height),
                 RecoveryButtonWidth,
                 ButtonHeight,
                 _window,
                 (IntPtr)ClearInterruptedButtonId,
+                instance,
+                IntPtr.Zero);
+        }
+
+        // Asked before the button exists, not after the first operation finishes. A fixed initial
+        // caption meant reopening the companion with the setting already on displayed "Hide message
+        // details" over a click that would have revealed them — a label describing the opposite of
+        // its effect, which is worse than no label at all.
+        _privacyToggleAction = _nextPrivacyToggleAction?.Invoke()
+            ?? new PrivacyToggleAction(DesiredHideValue: true, "Hide message details");
+
+        fixed (char* buttonClass = "BUTTON")
+        fixed (char* caption = _privacyToggleAction.Caption)
+        {
+            // The caption states the action rather than the state, and is re-read from the store
+            // after every operation — not from a local flag, because the setting is shared with
+            // another process and a cached copy would drift.
+            _privacyToggleButton = CreateWindowExW(
+                0,
+                (IntPtr)buttonClass,
+                (IntPtr)caption,
+                WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+                Margin,
+                SecondButtonRowTop(height),
+                WideButtonWidth,
+                ButtonHeight,
+                _window,
+                (IntPtr)PrivacyToggleButtonId,
+                instance,
+                IntPtr.Zero);
+        }
+
+        fixed (char* buttonClass = "BUTTON")
+        fixed (char* caption = "Show diagnostics")
+        {
+            _showDiagnosticsButton = CreateWindowExW(
+                0,
+                (IntPtr)buttonClass,
+                (IntPtr)caption,
+                WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+                Margin + WideButtonWidth + Margin,
+                SecondButtonRowTop(height),
+                WideButtonWidth,
+                ButtonHeight,
+                _window,
+                (IntPtr)ShowDiagnosticsButtonId,
                 instance,
                 IntPtr.Zero);
         }
@@ -320,6 +425,8 @@ internal static partial class CompanionWindow
         SendMessageW(_switchAccountButton, WM_SETFONT, font, 1);
         SendMessageW(_signOutButton, WM_SETFONT, font, 1);
         SendMessageW(_clearInterruptedButton, WM_SETFONT, font, 1);
+        SendMessageW(_privacyToggleButton, WM_SETFONT, font, 1);
+        SendMessageW(_showDiagnosticsButton, WM_SETFONT, font, 1);
     }
 
     [UnmanagedCallersOnly]
@@ -349,6 +456,23 @@ internal static partial class CompanionWindow
                     _clearInterruptedButton,
                     "Clearing…",
                     "Recovery");
+                return IntPtr.Zero;
+
+            case WM_COMMAND when (wParam.ToInt64() & 0xFFFF) == PrivacyToggleButtonId:
+                bool desiredHide = _privacyToggleAction.DesiredHideValue;
+                BeginOperation(
+                    () => _togglePrivacy!(desiredHide),
+                    _privacyToggleButton,
+                    "Applying…",
+                    "Privacy setting");
+                return IntPtr.Zero;
+
+            case WM_COMMAND when (wParam.ToInt64() & 0xFFFF) == ShowDiagnosticsButtonId:
+                BeginOperation(
+                    _showDiagnostics!,
+                    _showDiagnosticsButton,
+                    "Opening…",
+                    "Diagnostics");
                 return IntPtr.Zero;
 
             case WmOperationFinished:
@@ -424,6 +548,14 @@ internal static partial class CompanionWindow
         SetButtonText(_switchAccountButton, "Switch account");
         SetButtonText(_signOutButton, "Sign out");
         SetButtonText(_clearInterruptedButton, "Clear interrupted operations");
+        SetButtonText(_showDiagnosticsButton, "Show diagnostics");
+
+        // Refresh the pair together. Until this relabel happens, a click must preserve the action
+        // described by the caption already on screen even if shared state changed underneath it.
+        _privacyToggleAction = _nextPrivacyToggleAction?.Invoke()
+            ?? new PrivacyToggleAction(DesiredHideValue: true, "Hide message details");
+        SetButtonText(_privacyToggleButton, _privacyToggleAction.Caption);
+
         Volatile.Write(ref _operationRunning, 0);
     }
 

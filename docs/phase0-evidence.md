@@ -1531,6 +1531,165 @@ stale-detail suppression. The stale rule gained its first implementation in this
 existed since Phase 1 with nothing consulting it — but reaching it on a device requires a snapshot 24
 hours old, which no run so far has produced.
 
+## Measured: the diagnostics log, over eighteen hours of provider operation
+
+Verified 2026-08-06 on the reference machine with installed package `0.5.26.0`. The provider was
+cold-activated through its registered COM class on 2026-08-05 at 16:02:49 local and was still the
+same process, PID 44996, when the log was read the following morning — so this is roughly eighteen
+hours of ordinary operation rather than a probe.
+
+**878 records, none of them malformed.** Every line was matched against the record shape the logger
+writes — an ISO-8601 UTC instant, an event name, an outcome, and optional `ms=`, `n=`, `http=`
+numbers — and **zero lines failed**, re-checked at each reading as the log grew. That is the privacy
+property checked against real production output rather than against the type system: nothing
+resembling a sender, subject, account, tenant, URL, or token can appear, because
+`IOperationalLogger` has no string parameter and there is nowhere for one to enter.
+
+Counts below are a snapshot read at 2026-08-06 15:20 UTC; the log keeps growing, so re-reading it
+gives larger numbers and the ratios are what matter.
+
+| Event | Count |
+|---|---|
+| `RefreshRequested` | 41 |
+| `RefreshLeaseClaimed` | 41 |
+| `RefreshLeaseCleared` | 41 |
+| `GraphRequestCompleted` | 41 |
+| `StateCommitted` | 41 |
+| `RefreshCompleted` | 39 |
+| `DeliveryRequested` | 160 |
+| `DeliveryCoalesced` | 45 |
+| `DeliveryCompleted` | 326 |
+| `DeliveryFailed` | 0 |
+| `SilentTokenAcquired` | 86 |
+
+**The coordination result is the lease pair: 41 claimed, 41 cleared.** A stranded lease is the
+failure the expiring-lease design exists to survive, and this window produced none. That equality is
+the claim worth making here; the others need care, and two readings of this table were wrong before
+they were corrected on review.
+
+**`DeliveryCompleted` is recorded twice per pass, and its total is not a coordination result.**
+`DeliveryWorker.RunOnePass` records one, and `WidgetDeliverySink.Deliver` records another carrying
+the delivered instance count. The split is exactly 163 with an `n=` field and 163 without — equal by
+construction, which is what identifies them as one pass counted twice rather than as passes
+outnumbering requests. **`DeliveryCoalesced` is the only record that identifies an absorbed
+request**, and at 45 it is the number to read for coalescing.
+
+**`StateCommitted` is not refresh-exclusive**, which is why it exceeds `RefreshCompleted` by two.
+Other commit paths record it, and at least one commit in this window came from outside a refresh.
+The two events count different populations and should not be compared.
+
+The delivery-request total is likewise not simply the pass count minus the coalesced ones: 163
+passes against 160 requests means passes are also started by paths that do not record a request.
+That relationship was not investigated and no claim is made about it.
+
+A representative refresh, showing the fields the logger is allowed to carry:
+
+```
+GraphRequestCompleted Success ms=1105 n=5 http=200
+StateCommitted Success
+RefreshCompleted Success n=5
+```
+
+**What this does not establish.** The log was written entirely by the provider; the companion's
+paths were not exercised in this window, so its use of the same logger is wired and unmeasured.
+Rollover was not reached — 36 KB against a 256 KB bound — so the rollover path remains covered by
+unit tests only. And the companion button that opens this log does not exist yet, which is why the
+widget card still carries its diagnostic block.
+
+## Measured: the card after the situation refactor, and two rules it confirms
+
+Verified 2026-08-06 on the reference machine with installed package `0.5.26.0`, large size. The
+`CardSituation` refactor rewrote how all eleven rendering states are chosen, so the ordinary mailbox
+path was the one that had to be unchanged, and it is.
+
+Observed: headline **Inbox up to date**, subtitle **Updated 10:55 AM.**, four message rows, both
+action buttons fully visible, and the diagnostic block reading `generation 127 · delivered 127 ·
+mode Full · read Success · payload 2281 bytes · cached 5` with `silent auth Acquired`.
+
+Four things this settles that automated tests could not:
+
+- **The zero-unread branch renders**, and it had never been seen. Every prior observation had unread
+  mail, so `Inbox up to date` existed only as a switch arm.
+- **The Focused clause is correctly absent.** It is suppressed when nothing is unread, because
+  "0 in Focused" beside an up-to-date inbox is noise. With unread at zero this is the first time that
+  suppression has been visible rather than reasoned about.
+- **Section 7's date rule holds on a real card.** Three rows from today show a short time — `9:04 AM`,
+  `7:57 AM`, `5:29 AM` — and the fourth, from the previous day, shows the locale short date
+  `8/5/2026`. That is exactly the binary the plan specifies, and it is the rule whose weekday variant
+  was removed on review.
+- **`RichTextBlock` truncation works with the C# display budget.** `Re: Take Control Repair Script
+  up…` is one line with an ellipsis, produced by the character budget rather than by `maxLines`,
+  which `RichTextBlock` does not have.
+
+Read state could not be distinguished in this observation and that is not a defect: the mailbox had
+**zero unread**, so every sender correctly rendered at the lighter body weight. The heavier weight was
+measured separately on `0.4.24.1`.
+
+**Still unmeasured after this**: the signed-out, counts-only, stale, and the five cache-status
+situations. Counts-only remains unreachable until the companion can set the privacy setting.
+
+## Measured: the counts-only privacy setting, end to end
+
+Verified 2026-08-06 on the reference machine with installed package `0.5.28.0`. This is the first
+time the counts-only card has rendered on hardware: through all of the work that produced it, the
+mode could only be reached by an in-flight tombstone, so the branch was source-tested only.
+
+The companion's **Hide message details** button was pressed. Observed afterwards:
+
+- `settings-v1.json` read `{"HideMessageDetails":true}`.
+- The suppression directory was **empty**, so the operation published its counts-only tombstone,
+  wrote the setting, and cleared its own marker — the whole suppress-first sequence completing.
+- The provider had been running since before the change and was signalled, and the pinned card
+  re-rendered without a new Graph request.
+
+The large card then read:
+
+```
+6 unread
+5 in Focused. Updated 11:17 AM. Message details are hidden by a privacy setting or
+an in-progress account change.
+
+generation 134 · delivered 134 · mode CountsOnly · read Success · payload 2527 bytes · cached 5
+```
+
+Four things this confirms that could not be confirmed any other way, each of which was a defect
+found on review and fixed without ever being seen:
+
+- **The counts survive.** The unread count is the headline and the Focused count leads the subtitle.
+  Both were dropped by earlier versions that replaced the count with a status word, which turned
+  "hide the details" into "hide the mailbox".
+- **The mail actions survive.** **Open Outlook** and **Refresh** are both present. An earlier version
+  treated any mode other than `Full` as unusable and removed them from a signed-in, updating widget.
+- **No companion prompt.** Counts-only is a state the user chose, so it does not ask them to go and
+  fix something.
+- **`cached 5` with no rows on screen.** The five previews are in the snapshot and deliberately not
+  rendered, which distinguishes withholding details from having none — the distinction the whole
+  disclosure design rests on.
+
+The subtitle's fact ordering — Focused count, update time, then the reason — is the single composer
+emitting every permitted fact, rather than the per-state prose that dropped a different fact each
+time it was written by hand.
+
+**Also verified in the same session:** the companion's two new controls render in two rows with
+nothing clipped, and **Show diagnostics** opens the log. That is the surface the widget card's
+diagnostic block was waiting on, so the block can now be removed.
+
+## Measured: package minor raised to 0.5 to clear the squash-merge collision
+
+Recorded 2026-08-05. Installing feature-branch builds during Phase 2 spent version headroom that
+squash-merging does not give back: branches were installed at commit heights 24 and 30, and after
+both merged, `main`'s height was 26, deriving `0.4.26.0` against an installed `0.4.30.0`.
+`Build-Package.ps1` refused, correctly.
+
+Minor was raised `0.4` → `0.5`, which is the answer the script names and the second time this exact
+collision has occurred — the manifest comment written for the `0.3` → `0.4` bump predicted it would
+recur, while assuming installs would come from `main`. The sharper rule is now recorded there:
+installing a feature-branch build spends headroom the merge does not return, and enough of them will
+always outrun `main`. Uninstalling would also have cleared it and remains deliberately unoffered,
+because it destroys the widget pin.
+
+`0.5.26.0` installed over the existing pin with `-ForceApplicationShutdown` and the pin survived.
+
 ## Reproducing the provider evidence
 
 ```powershell
