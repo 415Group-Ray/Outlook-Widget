@@ -452,6 +452,11 @@ public sealed class ProviderCardTests
             Assert.Contains($"GraphMailStatus.{status}", presentation, StringComparison.Ordinal);
         }
 
+        Assert.Contains(
+            "GraphMailStatus.Cancelled => RefreshPresentationStatus.TimedOut",
+            presentation,
+            StringComparison.Ordinal);
+
         Assert.Contains("Showing the last cached state.", card, StringComparison.Ordinal);
         Assert.DoesNotContain("GraphMailResult", card, StringComparison.Ordinal);
         Assert.Contains(
@@ -477,6 +482,27 @@ public sealed class ProviderCardTests
         Assert.Contains("TokenAcquisitionStatus.InteractionRequired", rowDecision, StringComparison.Ordinal);
         Assert.Contains("&& !authorizationInvalidatesDetails", rowDecision, StringComparison.Ordinal);
         Assert.Contains("|| refreshNeedsAttention", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_peer_lease_is_polled_before_a_fresh_full_horizon_elapses()
+    {
+        string worker = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "ProviderRefreshWorker.cs"));
+
+        Assert.Contains(
+            "PeerLeasePollInterval = TimeSpan.FromSeconds(1)",
+            worker,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Task.Delay(PeerLeasePollInterval, _shutdown.Token)",
+            worker,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "Task.Delay(CoordinationBounds.LeaseHorizon, _shutdown.Token)",
+            worker,
+            StringComparison.Ordinal);
     }
 
     [Fact]

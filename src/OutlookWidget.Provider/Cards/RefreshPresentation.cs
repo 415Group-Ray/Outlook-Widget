@@ -43,7 +43,11 @@ internal sealed class RefreshPresentation
         GraphMailStatus.ItemNotFound => RefreshPresentationStatus.ItemNotFound,
         GraphMailStatus.Throttled => RefreshPresentationStatus.Throttled,
         GraphMailStatus.TimedOut => RefreshPresentationStatus.TimedOut,
-        GraphMailStatus.Cancelled => RefreshPresentationStatus.Idle,
+        // Graph returns Cancelled both for provider shutdown and when the outer refresh deadline
+        // cancels its in-flight request before the nested Graph timeout. Shutdown requests no
+        // delivery, so classifying this as TimedOut preserves the user-visible deadline failure
+        // without rendering a spurious card while the provider exits.
+        GraphMailStatus.Cancelled => RefreshPresentationStatus.TimedOut,
         GraphMailStatus.NetworkFailure => RefreshPresentationStatus.Offline,
         GraphMailStatus.InvalidResponse => RefreshPresentationStatus.InvalidResponse,
         GraphMailStatus.ServiceFailure => RefreshPresentationStatus.ServiceFailure,

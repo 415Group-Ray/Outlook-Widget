@@ -12,6 +12,7 @@ namespace OutlookWidget.Provider;
 internal sealed class ProviderRefreshWorker : IDisposable
 {
     private static readonly TimeSpan ShutdownDrain = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan PeerLeasePollInterval = TimeSpan.FromSeconds(1);
 
     private readonly RefreshCoordinator _coordinator;
     private readonly IRefreshFetcher _fetcher;
@@ -193,7 +194,11 @@ internal sealed class ProviderRefreshWorker : IDisposable
         {
             while (_presentation.Current == RefreshPresentationStatus.RefreshInProgress)
             {
-                await Task.Delay(CoordinationBounds.LeaseHorizon, _shutdown.Token).ConfigureAwait(false);
+                // The lease may already be near expiry when this process first observes it. Waiting
+                // a fresh full horizon would leave the card claiming work is active for almost 30
+                // seconds after the peer has gone. A bounded one-second poll keeps disk reads modest
+                // while converging promptly after the authoritative lease stops being live.
+                await Task.Delay(PeerLeasePollInterval, _shutdown.Token).ConfigureAwait(false);
 
                 if (!_coordinator.IsRefreshInProgress() && _presentation.MarkUnknownIfWaiting())
                 {
