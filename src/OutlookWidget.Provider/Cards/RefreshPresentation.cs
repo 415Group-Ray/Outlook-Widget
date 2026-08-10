@@ -32,7 +32,10 @@ internal sealed class RefreshPresentation
     public RefreshPresentationStatus Current =>
         (RefreshPresentationStatus)Volatile.Read(ref _status);
 
-    public void Begin() => Set(RefreshPresentationStatus.Loading);
+    public RefreshPresentationStatus Begin() =>
+        (RefreshPresentationStatus)Interlocked.Exchange(
+            ref _status,
+            (int)RefreshPresentationStatus.Loading);
 
     public void ReportGraphStatus(GraphMailStatus status) => Set(status switch
     {
@@ -54,15 +57,23 @@ internal sealed class RefreshPresentation
         _ => RefreshPresentationStatus.ServiceFailure,
     });
 
-    public void Complete(RefreshResult result)
+    public void Complete(RefreshResult result, RefreshPresentationStatus previousStatus)
     {
         switch (result.Outcome)
         {
             case RefreshOutcome.Committed:
             case RefreshOutcome.Discarded:
-            case RefreshOutcome.SkippedDebounce:
             case RefreshOutcome.Cancelled:
                 Set(RefreshPresentationStatus.Idle);
+                break;
+            case RefreshOutcome.SkippedDebounce:
+                // Begin temporarily replaces the prior presentation with Loading. A debounce is
+                // not a successful refresh, so restore the preceding error if nothing else changed
+                // presentation state while the skipped request was being classified.
+                Interlocked.CompareExchange(
+                    ref _status,
+                    (int)previousStatus,
+                    (int)RefreshPresentationStatus.Loading);
                 break;
             case RefreshOutcome.SkippedLeaseHeld:
                 Set(RefreshPresentationStatus.RefreshInProgress);
@@ -93,6 +104,13 @@ internal sealed class RefreshPresentation
         Interlocked.CompareExchange(
             ref _status,
             (int)RefreshPresentationStatus.StatusUnknown,
+            (int)RefreshPresentationStatus.RefreshInProgress)
+        == (int)RefreshPresentationStatus.RefreshInProgress;
+
+    public bool MarkCompleteIfWaiting() =>
+        Interlocked.CompareExchange(
+            ref _status,
+            (int)RefreshPresentationStatus.Idle,
             (int)RefreshPresentationStatus.RefreshInProgress)
         == (int)RefreshPresentationStatus.RefreshInProgress;
 

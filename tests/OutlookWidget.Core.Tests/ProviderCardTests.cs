@@ -458,6 +458,17 @@ public sealed class ProviderCardTests
             StringComparison.Ordinal);
 
         Assert.Contains("Showing the last cached state.", card, StringComparison.Ordinal);
+        Assert.Contains("instance.Size == WidgetSize.Small", card, StringComparison.Ordinal);
+        Assert.Contains("WithRefreshHeadline(\"Refreshing\", headline, compactHeadline)", card, StringComparison.Ordinal);
+        Assert.Contains("WithRefreshHeadline(\"Refresh delayed\", headline, compactHeadline)", card, StringComparison.Ordinal);
+        Assert.Contains("WithRefreshHeadline(\"Refresh timed out\", headline, compactHeadline)", card, StringComparison.Ordinal);
+        Assert.Contains("WithRefreshHeadline(\"Offline\", headline, compactHeadline)", card, StringComparison.Ordinal);
+        Assert.Contains("WithRefreshHeadline(\"Refresh unavailable\", headline, compactHeadline)", card, StringComparison.Ordinal);
+        Assert.Contains("WithRefreshHeadline(\"Refresh failed\", headline, compactHeadline)", card, StringComparison.Ordinal);
+        Assert.Contains(
+            "compactHeadline ? refreshLabel : $\"{refreshLabel} · {mailboxHeadline}\"",
+            card,
+            StringComparison.Ordinal);
         Assert.DoesNotContain("GraphMailResult", card, StringComparison.Ordinal);
         Assert.Contains(
             "refreshPresentation.ReportGraphStatus(result.Status)",
@@ -503,6 +514,28 @@ public sealed class ProviderCardTests
             "Task.Delay(CoordinationBounds.LeaseHorizon, _shutdown.Token)",
             worker,
             StringComparison.Ordinal);
+        Assert.Contains(
+            "_cache.ReadGeneration() > generationBeforeRefresh",
+            worker,
+            StringComparison.Ordinal);
+        Assert.Contains("MarkCompleteIfWaiting()", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_debounced_refresh_restores_the_preceding_presentation()
+    {
+        string presentation = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "Cards",
+            "RefreshPresentation.cs"));
+
+        Assert.Contains(
+            "Complete(RefreshResult result, RefreshPresentationStatus previousStatus)",
+            presentation,
+            StringComparison.Ordinal);
+        Assert.Contains("case RefreshOutcome.SkippedDebounce:", presentation, StringComparison.Ordinal);
+        Assert.Contains("(int)previousStatus", presentation, StringComparison.Ordinal);
+        Assert.Contains("(int)RefreshPresentationStatus.Loading", presentation, StringComparison.Ordinal);
     }
 
     [Fact]

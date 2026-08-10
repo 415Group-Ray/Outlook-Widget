@@ -286,7 +286,12 @@ internal static class InboxCard
         CardSituation situation = Situate(state, snapshot, payloadUnreadable, detailsAreStale);
 
         (string headline, string detail) = Describe(situation, snapshot);
-        (headline, detail) = ApplyRefreshStatus(refreshStatus, snapshot, headline, detail);
+        (headline, detail) = ApplyRefreshStatus(
+            refreshStatus,
+            snapshot,
+            headline,
+            detail,
+            instance.Size == WidgetSize.Small);
 
         // An authentication state the companion can actually address — not merely any non-success.
         //
@@ -663,7 +668,8 @@ internal static class InboxCard
         RefreshPresentationStatus status,
         MailboxSnapshot? snapshot,
         string headline,
-        string detail)
+        string detail,
+        bool compactHeadline)
     {
         if (status == RefreshPresentationStatus.Idle)
         {
@@ -676,11 +682,11 @@ internal static class InboxCard
         {
             RefreshPresentationStatus.Loading => snapshot is null
                 ? ("Loading inbox", "Fetching the latest mailbox state.")
-                : (headline, "Refreshing. " + detail),
+                : (WithRefreshHeadline("Refreshing", headline, compactHeadline), "Refreshing. " + detail),
             RefreshPresentationStatus.RefreshInProgress =>
-                (headline, "Refresh already in progress." + cached),
+                (WithRefreshHeadline("Refreshing", headline, compactHeadline), "Refresh already in progress." + cached),
             RefreshPresentationStatus.StatusUnknown =>
-                (headline, "Refresh status unknown — try again." + cached),
+                (WithRefreshHeadline("Refresh unknown", headline, compactHeadline), "Refresh status unknown — try again." + cached),
             RefreshPresentationStatus.Unauthorized =>
                 ("Sign in required", "The mailbox session could not be renewed. Open the companion."),
             RefreshPresentationStatus.Forbidden =>
@@ -688,20 +694,30 @@ internal static class InboxCard
             RefreshPresentationStatus.MailboxNotSupported =>
                 ("Mailbox not supported", "This account has no supported Exchange Online mailbox."),
             RefreshPresentationStatus.ItemNotFound =>
-                (headline, "The inbox changed while it was refreshing. Try again." + cached),
+                (WithRefreshHeadline("Inbox changed", headline, compactHeadline), "The inbox changed while it was refreshing. Try again." + cached),
             RefreshPresentationStatus.Throttled =>
-                (headline, "Refresh delayed by the mail service. Try again later." + cached),
+                (WithRefreshHeadline("Refresh delayed", headline, compactHeadline), "Refresh delayed by the mail service. Try again later." + cached),
             RefreshPresentationStatus.TimedOut =>
-                (headline, "Refresh timed out." + cached),
+                (WithRefreshHeadline("Refresh timed out", headline, compactHeadline), "Refresh timed out." + cached),
             RefreshPresentationStatus.Offline =>
-                (headline, "You appear to be offline." + cached),
+                (WithRefreshHeadline("Offline", headline, compactHeadline), "You appear to be offline." + cached),
             RefreshPresentationStatus.InvalidResponse =>
-                (headline, "The latest mailbox response could not be validated." + cached),
+                (WithRefreshHeadline("Refresh unavailable", headline, compactHeadline), "The latest mailbox response could not be validated." + cached),
             RefreshPresentationStatus.ServiceFailure =>
-                (headline, "The mail service could not refresh the inbox." + cached),
+                (WithRefreshHeadline("Refresh failed", headline, compactHeadline), "The mail service could not refresh the inbox." + cached),
             _ => (headline, detail),
         };
     }
+
+    /// <summary>
+    /// Keeps transient refresh state visible on the small card, whose template deliberately hides
+    /// the detail line, while retaining the cached unread headline on every size.
+    /// </summary>
+    private static string WithRefreshHeadline(
+        string refreshLabel,
+        string mailboxHeadline,
+        bool compactHeadline) =>
+        compactHeadline ? refreshLabel : $"{refreshLabel} · {mailboxHeadline}";
 
     /// <summary>
     /// The unread count as a headline.

@@ -146,18 +146,19 @@ internal sealed class ProviderRefreshWorker : IDisposable
                     continue;
                 }
 
-                _presentation.Begin();
+                long generationBeforeRefresh = _cache.ReadGeneration();
+                RefreshPresentationStatus previousStatus = _presentation.Begin();
                 _delivery.RequestDelivery();
 
                 RefreshResult result = await _coordinator
                     .RefreshAsync(_fetcher, work.Trigger, _shutdown.Token)
                     .ConfigureAwait(false);
 
-                _presentation.Complete(result);
+                _presentation.Complete(result, previousStatus);
 
                 if (result.Outcome == RefreshOutcome.SkippedLeaseHeld)
                 {
-                    _ = ClearPeerIndicatorAfterLeaseAsync();
+                    _ = ClearPeerIndicatorAfterLeaseAsync(generationBeforeRefresh);
                 }
 
                 // Token acquisition can change the card's authentication state even when there is
@@ -188,7 +189,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
         }
     }
 
-    private async Task ClearPeerIndicatorAfterLeaseAsync()
+    private async Task ClearPeerIndicatorAfterLeaseAsync(long generationBeforeRefresh)
     {
         try
         {
@@ -200,11 +201,25 @@ internal sealed class ProviderRefreshWorker : IDisposable
                 // while converging promptly after the authoritative lease stops being live.
                 await Task.Delay(PeerLeasePollInterval, _shutdown.Token).ConfigureAwait(false);
 
-                if (!_coordinator.IsRefreshInProgress() && _presentation.MarkUnknownIfWaiting())
+                if (_coordinator.IsRefreshInProgress())
+                {
+                    continue;
+                }
+
+                // The state-change event is only an accelerant. If it was missed, the monotonic
+                // cache generation is still authoritative evidence that the peer committed. Only
+                // an ended lease with no generation advance is genuinely unknown.
+                bool peerCommitted = _cache.ReadGeneration() > generationBeforeRefresh;
+                bool changed = peerCommitted
+                    ? _presentation.MarkCompleteIfWaiting()
+                    : _presentation.MarkUnknownIfWaiting();
+
+                if (changed)
                 {
                     _delivery.RequestDelivery();
-                    return;
                 }
+
+                return;
             }
         }
         catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
