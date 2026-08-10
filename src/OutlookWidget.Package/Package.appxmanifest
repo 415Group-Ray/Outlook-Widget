@@ -65,6 +65,13 @@
     0.5 is also honest as a version rather than merely convenient. It is the first line in which the
     widget renders real mail and carries a working privacy setting.
 
+    Minor was raised 0.5 -> 0.6 on 2026-08-10 after the WinUI companion branch was squash-merged.
+    That branch had already produced local package 0.5.30.0, while merged main had commit height 29
+    and therefore derived 0.5.29.0. The payload is now materially different — the companion is WinUI
+    3 and the large card no longer carries its diagnostic footer — so 0.6 is both the required
+    monotonic upgrade and an honest feature boundary. The prior installed package is retained; it is
+    never uninstalled merely to reclaim version headroom or avoid this deliberate decision.
+
     The reason it is derived: any commit changes every assembly in the package, because the .NET SDK
     embeds the git commit SHA in each assembly's informational version. So a documentation-only commit
     produces a different payload, and a manual bump became a per-commit obligation whose omission always
@@ -74,7 +81,7 @@
   <Identity
     Name="415Group.OutlookInboxWidget"
     Publisher="CN=&quot;415 Group, Inc.&quot;"
-    Version="0.5.0.0"
+    Version="0.6.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>

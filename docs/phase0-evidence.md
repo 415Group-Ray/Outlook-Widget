@@ -1737,3 +1737,27 @@ Automated validation for this implementation:
 An installed-package check still owes evidence for WinUI rendering, single-instance activation
 redirection, WAM interaction with the WinUI parent handle, all companion controls, and the five-row
 large-card fit. None is claimed here.
+
+## Package line advanced to 0.6 after the WinUI squash merge
+
+Recorded 2026-08-10. PR #19 squash-merged the WinUI companion work into `main` at commit height 29.
+The last locally built package remained `0.5.30.0`, so the merged tree derived `0.5.29.0` and the
+package script correctly refused to build a non-monotonic upgrade. The manifest minor was deliberately
+advanced from `0.5` to `0.6`; Build and Revision remain package-time derived values and were not edited.
+
+This records the version decision only. A successful build or installation, preservation of the pin,
+WinUI rendering, activation redirection, WAM interaction, and the five-row large-card fit require the
+separate checks below and are not implied by changing the manifest.
+
+The unsigned package build then passed as `0.6.29.0`: both executables published, authentication
+configuration was staged and loaded, all 10 manifest path references and the three provider CLSID
+copies agreed, PRI generation completed, and MakeAppx packed 157 files. The prerequisite probe reported
+14 pass, 0 fail, 1 blocked, 2 warnings, and 1 information result; the only block was that the current
+process was not elevated to exercise certificate trust. Widgets Platform Runtime, Widgets Board, Windows
+App Runtime 2.3.1, New Outlook, the `olk.exe` alias, .NET 10, and the Windows SDK packaging tools all
+passed on this machine.
+
+The package was deliberately left unsigned and uninstalled. This tree still contains the version
+decision as an uncommitted change, and committing changes every packaged assembly's informational
+version. Installing the pre-commit payload would therefore create another different-payload version
+collision on the very next commit. Installed-host evidence remains outstanding.
