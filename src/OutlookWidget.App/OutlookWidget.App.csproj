@@ -1,32 +1,28 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!--
-      Deliberately NOT a WinUI 3 project yet.
-
-      Phase 0's gate 1 asks one question: does a signed MSIX install on this Entra-managed PC,
-      and can the certificate be trusted there? That question is about signing, packaging, and
-      device policy. Bringing WinUI in now would add a framework dependency, a runtime
-      requirement, and an XAML toolchain to the very first thing being tested, so a failure
-      would be ambiguous between "sideloading is blocked" and "the app does not start".
-
-      Phase 2 owns the companion experience and converts this into the real WinUI 3 app. Until
-      then this is the smallest thing that can be packaged, launched, and observed.
-    -->
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- WinUI 3 is the approved Phase 2 companion surface. The Windows SDK floor matches the
+         package manifest and the provider so compile-time API availability cannot drift from the
+         platform the package declares. -->
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <OutputType>WinExe</OutputType>
     <RootNamespace>OutlookWidget.App</RootNamespace>
     <AssemblyName>OutlookWidget.App</AssemblyName>
+    <UseWinUI>true</UseWinUI>
+
+    <!-- WinUI generates a Main method by default. This app supplies its own so AppInstance can
+         redirect a second activation before a second window or any coordination state is opened. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
 
     <!-- Trimming and single-file are packaging concerns and stay off while identity is settled. -->
     <PublishSingleFile>false</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
     <SelfContained>false</SelfContained>
 
     <!--
-      Required by LibraryImport, whose generated string marshalling is pointer-based, and by
-      CompanionWindow, which passes its window procedure as a function pointer rather than a
-      marshalled delegate so there is no delegate lifetime to get wrong. The package-identity interop
-      moved to OutlookWidget.Packaging so the companion and the provider share one copy.
+      Required by the small blittable interop surface used by single-instance activation redirection.
+      Package-identity interop remains in OutlookWidget.Packaging so the companion and provider share
+      one copy.
 
       OutlookWidget.Core has no unsafe code and must not acquire any.
     -->
@@ -43,6 +39,7 @@
       configuration and the token cache belong to the core, which both executables share.
     -->
     <PackageReference Include="Microsoft.Identity.Client" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
   </ItemGroup>
 
   <ItemGroup>

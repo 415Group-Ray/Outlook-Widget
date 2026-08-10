@@ -25,7 +25,7 @@ public sealed class CompanionPrivacyToggleTests
         File.ReadAllText(Path.Combine(RepositorySources.AppSourceDirectory, "Program.cs"));
 
     private static string WindowSource() =>
-        File.ReadAllText(Path.Combine(RepositorySources.AppSourceDirectory, "CompanionWindow.cs"));
+        File.ReadAllText(Path.Combine(RepositorySources.AppSourceDirectory, "MainWindow.xaml.cs"));
 
     [Fact]
     public void An_unreadable_setting_makes_the_toggle_offer_to_hide()
@@ -69,7 +69,7 @@ public sealed class CompanionPrivacyToggleTests
             "bool desiredHide = _privacyToggleAction.DesiredHideValue;",
             window,
             StringComparison.Ordinal);
-        Assert.Contains("() => _togglePrivacy!(desiredHide)", window, StringComparison.Ordinal);
+        Assert.Contains("() => _commands.TogglePrivacy(desiredHide)", window, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -79,15 +79,19 @@ public sealed class CompanionPrivacyToggleTests
         // leaves the initial label wrong for a whole session.
         string source = WindowSource();
 
-        Assert.Contains("_nextPrivacyToggleAction?.Invoke()", source, StringComparison.Ordinal);
+        Assert.Contains("_commands.NextPrivacyToggleAction()", source, StringComparison.Ordinal);
 
-        int callbackUse = source.IndexOf("_privacyToggleAction =", StringComparison.Ordinal);
-        int buttonCreated = source.IndexOf("_privacyToggleButton = CreateWindowExW", StringComparison.Ordinal);
+        int callbackUse = source.IndexOf(
+            "_privacyToggleAction = _commands.NextPrivacyToggleAction();",
+            StringComparison.Ordinal);
+        int captionApplied = source.IndexOf(
+            "PrivacyToggleButton.Content = _privacyToggleAction.Caption;",
+            StringComparison.Ordinal);
 
         Assert.True(callbackUse > 0, "The initial caption should be read from the callback.");
         Assert.True(
-            callbackUse < buttonCreated,
-            "The caption must be established before the button is created, not after the first "
+            callbackUse < captionApplied,
+            "The action must be established before its caption is applied, not after the first "
                 + "operation completes.");
     }
 

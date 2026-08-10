@@ -78,9 +78,11 @@ reclassification at different instants, so a transient one-message disagreement 
 must not be reported as a defect. **Phase 2 has begun and its first slice is done.** `InboxCard` replaced the Phase 0 `SkeletonCard` and
 renders the cached snapshot — unread count, newest messages, sender, subject, received time, and read
 state as font weight — measured on installed package 0.4.24.1. Two constraints there were established by
-looking at the rendered card and must not be undone by reasoning: **the large size shows four rows, not
-the cached five**, because five plus the diagnostic block clipped the action row and the host neither
-scrolls nor reports overflow; and **read state is two `TextBlock`s selected by `$when` on a boolean, not
+looking at the rendered card and must not be undone by reasoning: **the measured large size showed four
+rows, not the cached five**, because five plus the former diagnostic block clipped the action row and the
+host neither scrolls nor reports overflow. The diagnostic block has now moved into the bounded log and
+companion, so source restores five rows, but that new fit is not yet installed-package measured. Do not
+call it proven until it is inspected on the Widgets host. **Read state is two `TextBlock`s selected by `$when` on a boolean, not
 a value bound into the `weight` property**, because the latter rendered every sender identically. Binding
 into non-text properties is unproven on this host; `$when` on a boolean is proven, including inside a
 `$data` repeater.
@@ -101,10 +103,13 @@ The 24-hour `StaleDetailSuppression` rule now has an implementation. It had none
 the constant existed and a test asserted its value while nothing consulted it, because nothing rendered a
 subject. Counts survive the cutoff and details do not.
 
-The settings-change trigger remains a later slice.
+The privacy setting is now wired through `SettingsChangeCoordinator`; it signals the provider to re-read
+state and deliver without a new Graph request.
 
-The current companion is a packaging and authentication probe with a minimal Win32 window and Sign in,
-Switch account, Sign out, and Clear interrupted operations controls, not the finished WinUI experience.
+The companion is now a WinUI 3 window with Sign in, Switch account, Sign out, privacy, diagnostics,
+New Outlook testing, and Clear interrupted operations controls. It is single-instance and redirects
+secondary activations to the primary window. This shell has automated coverage and compiles, but has not
+yet been installed-package measured; do not inherit the old Win32 surface's device evidence.
 Every failed sign-out or account-switch path after suppression is published, whether it returns or
 throws, must complete its in-process suppression handle without deleting the marker, so the explicit
 recovery control can remove that orphan

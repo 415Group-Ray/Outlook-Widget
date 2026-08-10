@@ -1,8 +1,14 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Microsoft.Identity.Client;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
+using Microsoft.Windows.AppLifecycle;
 using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
 using OutlookWidget.Core.Diagnostics;
+using OutlookWidget.Core.Launching;
+using OutlookWidget.Core.Models;
 using OutlookWidget.Core.Refresh;
 using OutlookWidget.Packaging;
 
@@ -12,30 +18,22 @@ namespace OutlookWidget.App;
 internal readonly record struct PrivacyToggleAction(bool DesiredHideValue, string Caption);
 
 /// <summary>
-/// A minimal packaged companion, sufficient to prove Phase 0 gate 1, the companion-activation half of
-/// the packaging work, and the interactive half of authentication.
+/// Starts the single-instance WinUI companion and composes its reviewed operations.
 /// </summary>
 /// <remarks>
-/// <para>
-/// This is not the companion described in section 3. It has no settings, no diagnostics page, and no
-/// WinUI. What it now does have is a real top-level window and real brokered sign-in, because gate 8
-/// cannot be measured without either: WAM requires a parent window handle, and the provider cannot
-/// acquire a token silently until the broker holds one for this registration.
-/// </para>
-/// <para>
-/// It also reports two facts that are cheap here and awkward to establish later: whether the process
-/// has package identity at all, and where the packaged per-user local data directory actually resolves
-/// to. The second matters because the whole coordination design assumed
-/// <c>LocalApplicationData</c> is redirected into the package's own store when running packaged, and
-/// measurement on this machine showed it is not.
-/// </para>
-/// <para>
-/// Since the provider exists, this probe is also how the widget action that launches the companion is
-/// observed: gate 6 passes when clicking the widget's action makes this window appear.
-/// </para>
+/// The custom entry point is load-bearing. WinUI apps are multi-instance by default, while disclosure
+/// operations in this companion must be serialized in one process. The instance key is claimed before
+/// XAML starts; a later activation is redirected to and foregrounds the existing window.
 /// </remarks>
-internal static class Program
+internal static partial class Program
 {
+    private const string InstanceKey = "OutlookWidget.Companion";
+    private const uint Infinite = 0xFFFFFFFF;
+
+    private static DispatcherQueue? _dispatcher;
+    private static Action? _activateMainWindow;
+    private static Func<IntPtr> _parentWindow = static () => IntPtr.Zero;
+
     /// <summary>
     /// The MSAL client, built on first use.
     /// </summary>
@@ -50,20 +48,119 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        WinRT.ComWrappersSupport.InitializeComWrappers();
+
+        if (RedirectToExistingInstance())
+        {
+            return 0;
+        }
+
+        Application.Start(initialization =>
+        {
+            _dispatcher = DispatcherQueue.GetForCurrentThread();
+            SynchronizationContext.SetSynchronizationContext(
+                new DispatcherQueueSynchronizationContext(_dispatcher));
+            _ = new App();
+        });
+
+        return 0;
+    }
+
+    internal static MainWindow CreateMainWindow(string[] args)
+    {
         PackagedStateResult state = PackagedState.Locate();
         AuthenticationConfigurationResult configuration = AuthenticationConfiguration.Load();
 
-        string report = BuildIdentityReport(args, state, configuration);
-
-        return CompanionWindow.Run(
-            report,
+        var commands = new CompanionCommands(
             () => SignInAsync(state, configuration),
             () => SwitchAccountAsync(state, configuration),
             () => SignOutAsync(state, configuration),
             () => Task.FromResult(ClearInterruptedOperations(state)),
             desiredHide => Task.FromResult(TogglePrivacySetting(state, desiredHide)),
             () => Task.FromResult(ShowDiagnostics(state)),
+            () => Task.FromResult(TestOutlook(state)),
             () => NextPrivacyToggleAction(state));
+
+        var window = new MainWindow(BuildStatusReport(args, state, configuration), commands);
+        _parentWindow = () => window.Handle;
+        return window;
+    }
+
+    internal static void SetActivationHandler(Action activateMainWindow)
+    {
+        ArgumentNullException.ThrowIfNull(activateMainWindow);
+        _activateMainWindow = activateMainWindow;
+    }
+
+    private static bool RedirectToExistingInstance()
+    {
+        AppActivationArguments activation = AppInstance.GetCurrent().GetActivatedEventArgs();
+        AppInstance mainInstance = AppInstance.FindOrRegisterForKey(InstanceKey);
+
+        if (mainInstance.IsCurrent)
+        {
+            mainInstance.Activated += OnActivated;
+            return false;
+        }
+
+        RedirectActivation(activation, mainInstance);
+        return true;
+    }
+
+    private static void OnActivated(object? sender, AppActivationArguments args)
+    {
+        _dispatcher?.TryEnqueue(() => _activateMainWindow?.Invoke());
+    }
+
+    /// <summary>
+    /// Redirects on a worker and waits with a COM-aware STA wait, following the Windows App SDK's
+    /// single-instance guidance. A plain Task.Wait on this thread can deadlock the redirection.
+    /// </summary>
+    private static void RedirectActivation(
+        AppActivationArguments activation,
+        AppInstance mainInstance)
+    {
+        using var completed = new EventWaitHandle(false, EventResetMode.ManualReset);
+        Exception? failure = null;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await mainInstance.RedirectActivationToAsync(activation);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException
+                                                and not StackOverflowException)
+            {
+                failure = exception;
+            }
+            finally
+            {
+                completed.Set();
+            }
+        });
+
+        WaitForRedirection(completed.SafeWaitHandle.DangerousGetHandle());
+
+        if (failure is null)
+        {
+            try
+            {
+                using Process process = Process.GetProcessById((int)mainInstance.ProcessId);
+                _ = SetForegroundWindow(process.MainWindowHandle);
+            }
+            catch (Exception exception) when (exception is ArgumentException
+                                                 or InvalidOperationException)
+            {
+                // The primary process may have exited after accepting redirection. A new launch can
+                // register the now-free key; this secondary has no state of its own to preserve.
+            }
+        }
+    }
+
+    private static unsafe void WaitForRedirection(IntPtr completedEvent)
+    {
+        _ = CoWaitForMultipleObjects(0, Infinite, 1, &completedEvent, out _);
     }
 
     /// <summary>
@@ -126,12 +223,15 @@ internal static class Program
     /// window. It is deliberately not re-read here: shared state can change after the button is
     /// labelled, and recomputing would let a button that still says "Hide" perform "Show".
     /// </remarks>
-    private static string TogglePrivacySetting(PackagedStateResult state, bool desired)
+    private static CompanionOperationResult TogglePrivacySetting(
+        PackagedStateResult state,
+        bool desired)
     {
         if (!state.IsResolved)
         {
-            return "Cannot change the privacy setting: this process has no package identity. Launch "
-                   + "the installed app rather than the executable directly.";
+            return CompanionOperationResult.Failure(
+                "Cannot change the privacy setting: this process has no package identity. Launch "
+                + "the installed app rather than the executable directly.");
         }
 
         CoordinationPaths paths = state.Paths!;
@@ -149,7 +249,10 @@ internal static class Program
             HideMessageDetails = desired,
         });
 
-        return DescribeSettingsChange(result, desired);
+        string report = DescribeSettingsChange(result, desired);
+        return result.Outcome is SettingsChangeOutcome.Applied or SettingsChangeOutcome.Unchanged
+            ? CompanionOperationResult.Success(report)
+            : CompanionOperationResult.Failure(report);
     }
 
     /// <summary>
@@ -202,19 +305,21 @@ internal static class Program
     /// <para>
     /// The log is metadata-free by construction — <c>IOperationalLogger</c> has no string parameter
     /// — so handing it to the default text handler discloses nothing about a mailbox. This is the
-    /// surface that replaces the widget card's diagnostic block, which stays on the card until this
-    /// exists and is measured.
+    /// surface that replaces the widget card's diagnostic block. The original Win32 control was
+    /// measured before the block was removed; the WinUI replacement still needs its own installed-
+    /// package visual check.
     /// </para>
     /// <para>
     /// <c>UseShellExecute</c>, because the file has no meaning as an executable and the point is to
     /// open it in whatever the user reads text with.
     /// </para>
     /// </remarks>
-    private static string ShowDiagnostics(PackagedStateResult state)
+    private static CompanionOperationResult ShowDiagnostics(PackagedStateResult state)
     {
         if (!state.IsResolved)
         {
-            return "Cannot open diagnostics: this process has no package identity.";
+            return CompanionOperationResult.Failure(
+                "Cannot open diagnostics: this process has no package identity.");
         }
 
         string path = state.Paths!.DiagnosticsLogFilePath;
@@ -223,7 +328,7 @@ internal static class Program
         {
             // Not a failure. Nothing has been logged yet, which is the ordinary state of a fresh
             // install before the provider has run.
-            return "No diagnostics have been recorded yet.";
+            return CompanionOperationResult.Success("No diagnostics have been recorded yet.");
         }
 
         try
@@ -233,31 +338,34 @@ internal static class Program
                 UseShellExecute = true,
             });
 
-            return "Opened the diagnostics log.";
+            return CompanionOperationResult.Success("Opened the diagnostics log.");
         }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
             // The path is reported rather than the exception, which can name a handler or a shell
             // error string. Somewhere to look beats a message that cannot be acted on.
-            return "The diagnostics log could not be opened. It is at: " + path;
+            return CompanionOperationResult.Failure(
+                "The diagnostics log could not be opened. It is at: " + path);
         }
     }
 
-    private static async Task<string> SwitchAccountAsync(
+    private static async Task<CompanionOperationResult> SwitchAccountAsync(
         PackagedStateResult state,
         AuthenticationConfigurationResult configuration)
     {
         if (!state.IsResolved)
         {
-            return "Cannot switch accounts safely: this process has no package identity. Launch the "
-                   + "installed package rather than the build output.";
+            return CompanionOperationResult.Failure(
+                "Cannot switch accounts safely: this process has no package identity. Launch the "
+                + "installed package rather than the build output.");
         }
 
         if (!configuration.IsLoaded)
         {
-            return $"Cannot switch accounts: the Entra registration configuration is "
-                   + $"{configuration.Status}. The package must ship a valid "
-                   + $"{AuthenticationConfiguration.FileName}.";
+            return CompanionOperationResult.Failure(
+                $"Cannot switch accounts: the Entra registration configuration is "
+                + $"{configuration.Status}. The package must ship a valid "
+                + $"{AuthenticationConfiguration.FileName}.");
         }
 
         CoordinationPaths paths = state.Paths!;
@@ -269,7 +377,7 @@ internal static class Program
             IOperationalLogger logger = new FileOperationalLogger(paths);
 
             _client ??= await BrokerClient
-                .CreateAsync(options, paths, () => CompanionWindow.Handle)
+                .CreateAsync(options, paths, _parentWindow)
                 .ConfigureAwait(false);
 
             var selectedAccounts = new SelectedAccountStore(paths, options, logger);
@@ -304,7 +412,7 @@ internal static class Program
                 ? string.Empty
                 : $" Signals: {service.LastFailure}.";
 
-            return result.Outcome switch
+            string report = result.Outcome switch
             {
                 AccountSwitchOutcome.Switched =>
                     "Account-switch result: Switched\r\n\r\n"
@@ -330,29 +438,36 @@ internal static class Program
                     + "interrupted operations to restore the prior display before retrying."
                     + failure,
             };
+
+            return result.Outcome == AccountSwitchOutcome.Switched
+                ? CompanionOperationResult.Success(report)
+                : CompanionOperationResult.Failure(report);
         }
         catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
         {
-            return "Account switching failed before the new selection could be committed. Message "
-                   + "details remain hidden if suppression had already begun. Signals: "
-                   + AuthenticationFailures.Describe(e);
+            return CompanionOperationResult.Failure(
+                "Account switching failed before the new selection could be committed. Message "
+                + "details remain hidden if suppression had already begun. Signals: "
+                + AuthenticationFailures.Describe(e));
         }
     }
 
-    private static async Task<string> SignOutAsync(
+    private static async Task<CompanionOperationResult> SignOutAsync(
         PackagedStateResult state,
         AuthenticationConfigurationResult configuration)
     {
         if (!state.IsResolved)
         {
-            return "Cannot sign out safely: this process has no package identity. Launch the "
-                   + "installed package rather than the build output.";
+            return CompanionOperationResult.Failure(
+                "Cannot sign out safely: this process has no package identity. Launch the "
+                + "installed package rather than the build output.");
         }
 
         if (!configuration.IsLoaded)
         {
-            return $"Cannot sign out: the Entra registration configuration is {configuration.Status}. "
-                   + $"The package must ship a valid {AuthenticationConfiguration.FileName}.";
+            return CompanionOperationResult.Failure(
+                $"Cannot sign out: the Entra registration configuration is {configuration.Status}. "
+                + $"The package must ship a valid {AuthenticationConfiguration.FileName}.");
         }
 
         CoordinationPaths paths = state.Paths!;
@@ -364,7 +479,7 @@ internal static class Program
             IOperationalLogger logger = new FileOperationalLogger(paths);
 
             _client ??= await BrokerClient
-                .CreateAsync(options, paths, () => CompanionWindow.Handle)
+                .CreateAsync(options, paths, _parentWindow)
                 .ConfigureAwait(false);
 
             var selectedAccounts = new SelectedAccountStore(paths, options, logger);
@@ -379,7 +494,7 @@ internal static class Program
                 .SignOutAsync(() => RemoveSelectedAccountAsync(_client, selectedAccounts))
                 .ConfigureAwait(false);
 
-            return result.Outcome switch
+            string report = result.Outcome switch
             {
                 SignOutOutcome.SignedOut =>
                     "Sign-out result: SignedOut\r\n\r\n"
@@ -404,21 +519,27 @@ internal static class Program
                     + "hidden by an interrupted-operation marker. Use Clear interrupted operations "
                     + "to restore the prior display, then try sign-out again.",
             };
+
+            return result.Outcome == SignOutOutcome.SignedOut
+                ? CompanionOperationResult.Success(report)
+                : CompanionOperationResult.Failure(report);
         }
         catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
         {
-            return "Sign-out failed before local state could be committed. Message details remain "
-                   + "hidden if suppression had already begun. Signals: "
-                   + AuthenticationFailures.Describe(e);
+            return CompanionOperationResult.Failure(
+                "Sign-out failed before local state could be committed. Message details remain "
+                + "hidden if suppression had already begun. Signals: "
+                + AuthenticationFailures.Describe(e));
         }
     }
 
-    private static string ClearInterruptedOperations(PackagedStateResult state)
+    private static CompanionOperationResult ClearInterruptedOperations(PackagedStateResult state)
     {
         if (!state.IsResolved)
         {
-            return "Cannot clear interrupted operations safely: this process has no package identity. "
-                   + "Launch the installed package rather than the build output.";
+            return CompanionOperationResult.Failure(
+                "Cannot clear interrupted operations safely: this process has no package identity. "
+                + "Launch the installed package rather than the build output.");
         }
 
         var tombstones = new DisclosureTombstoneStore(state.Paths!);
@@ -426,15 +547,16 @@ internal static class Program
 
         if (recovery.Status == DisclosureRecoveryStatus.Unreadable)
         {
-            return "Recovery result: Unknown\r\n\r\nThe suppression directory could not be read, "
-                   + "so no cleanup success is being claimed. Message details remain hidden; "
-                   + "retry once. If this persists, use the provider-recycle steps in "
-                   + "troubleshooting; do not unpin the widget.";
+            return CompanionOperationResult.Failure(
+                "Recovery result: Unknown\r\n\r\nThe suppression directory could not be read, "
+                + "so no cleanup success is being claimed. Message details remain hidden; "
+                + "retry once. If this persists, use the provider-recycle steps in "
+                + "troubleshooting; do not unpin the widget.");
         }
 
         int remaining = tombstones.CountSuppressionFiles();
 
-        return remaining switch
+        string report = remaining switch
         {
             0 => $"Recovery result: Cleared\r\n\r\nRemoved {recovery.RemovedCount} interrupted-operation "
                  + "marker(s). A running provider was signalled best-effort; every provider re-reads "
@@ -446,6 +568,10 @@ internal static class Program
                  + $"marker(s); {remaining} active or unreadable marker(s) remain. Message details "
                  + "remain hidden.",
         };
+
+        return remaining == 0
+            ? CompanionOperationResult.Success(report)
+            : CompanionOperationResult.Failure(report);
     }
 
     private static async Task RemoveSelectedAccountAsync(
@@ -485,24 +611,26 @@ internal static class Program
     /// Signs in and describes the outcome, for gate 8.
     /// </summary>
     /// <remarks>
-    /// Runs on a thread-pool thread; see <see cref="CompanionWindow"/>. Every return value is a
+    /// Runs on a thread-pool thread; see <see cref="MainWindow"/>. Every result contains a
     /// human-readable status, never a token, an account, or an exception message.
     /// </remarks>
-    private static async Task<string> SignInAsync(
+    private static async Task<CompanionOperationResult> SignInAsync(
         PackagedStateResult state,
         AuthenticationConfigurationResult configuration)
     {
         if (!state.IsResolved)
         {
-            return "Cannot sign in: this process has no package identity, so there is nowhere "
-                   + "inside the package store to keep the token cache. Launch the installed "
-                   + "package rather than the build output.";
+            return CompanionOperationResult.Failure(
+                "Cannot sign in: this process has no package identity, so there is nowhere "
+                + "inside the package store to keep the token cache. Launch the installed "
+                + "package rather than the build output.");
         }
 
         if (!configuration.IsLoaded)
         {
-            return $"Cannot sign in: the Entra registration configuration is {configuration.Status}. "
-                   + $"The package must ship a valid {AuthenticationConfiguration.FileName}.";
+            return CompanionOperationResult.Failure(
+                $"Cannot sign in: the Entra registration configuration is {configuration.Status}. "
+                + $"The package must ship a valid {AuthenticationConfiguration.FileName}.");
         }
 
         CoordinationPaths paths = state.Paths!;
@@ -517,7 +645,7 @@ internal static class Program
             IOperationalLogger logger = new FileOperationalLogger(paths);
 
             _client ??= await BrokerClient
-                .CreateAsync(options, paths, () => CompanionWindow.Handle)
+                .CreateAsync(options, paths, _parentWindow)
                 .ConfigureAwait(false);
 
             // The cache and the commit coordinator are here because publishing the selected account is
@@ -541,7 +669,7 @@ internal static class Program
         {
             // Building the client can fail before InteractiveAuthService exists — a broker whose native
             // runtime will not initialise, or an unreadable shared token cache — so nothing downstream has
-            // classified it. Left unhandled it escaped to CompanionWindow's outer catch and displayed
+            // classified it. Left unhandled it escaped to MainWindow's outer catch and displayed
             // "Sign-in failed unexpectedly: <type>", which cannot tell a broker problem from anything else.
             //
             // The provider already got this right: SilentAuthProbe wraps its own client construction and
@@ -602,7 +730,7 @@ internal static class Program
     /// expiry, and — on success — the fact that the broker now holds a token the provider can acquire
     /// silently, which gate 9 confirmed it does.
     /// </remarks>
-    private static string Describe(
+    private static CompanionOperationResult Describe(
         TokenAcquisitionResult result,
         CoordinationPaths paths,
         string? failureDetail,
@@ -713,20 +841,38 @@ internal static class Program
                 break;
         }
 
-        return string.Join(Environment.NewLine, lines);
+        string report = string.Join(Environment.NewLine, lines);
+        return result.IsAcquired
+            ? CompanionOperationResult.Success(report)
+            : CompanionOperationResult.Failure(report);
     }
 
-    private static string BuildIdentityReport(
+    private static CompanionOperationResult TestOutlook(PackagedStateResult state)
+    {
+        IOperationalLogger logger = state.IsResolved
+            ? new FileOperationalLogger(state.Paths!)
+            : NullOperationalLogger.Instance;
+
+        OutlookLaunchResult result = new OutlookLauncher(logger).Launch();
+
+        string report = result.IsSuccess
+            ? $"New Outlook accepted the launch request via {result.Strategy}."
+            : "New Outlook could not be opened through either supported launch path. The widget "
+              + "does not fall back to Classic Outlook.";
+
+        return result.IsSuccess
+            ? CompanionOperationResult.Success(report)
+            : CompanionOperationResult.Failure(report);
+    }
+
+    private static string BuildStatusReport(
         string[] args,
         PackagedStateResult state,
         AuthenticationConfigurationResult configuration)
     {
         var lines = new List<string>
         {
-            "Phase 0 packaging and authentication probe. This is not the real companion app.",
-            string.Empty,
-            "Press Sign in to exercise brokered WAM sign-in and self-consent to Mail.ReadBasic.",
-            "Nothing touches the broker or the token cache until you do.",
+            "The companion is ready.",
             string.Empty,
         };
 
@@ -734,7 +880,7 @@ internal static class Program
         // "the widget action started the companion" from the user starting it from Start.
         if (args.Length > 0)
         {
-            lines.Add($"Launched with argument: {string.Join(' ', args)}");
+            lines.Add("Opened from the widget.");
             lines.Add(string.Empty);
         }
 
@@ -744,79 +890,80 @@ internal static class Program
         // combination of "identity may be null" and "Resolve accepts null" gets written.
         if (state.Status == PackagedStateStatus.IdentityQueryFailed)
         {
-            lines.Add("Package identity: QUERY FAILED.");
-            lines.Add("State location cannot be determined safely. Nothing was read or written.");
+            lines.Add("Package identity: unavailable.");
+            lines.Add("State cannot be located safely, so every account and settings action is disabled by its operation guard.");
             return string.Join(Environment.NewLine, lines);
         }
 
         if (state.Status == PackagedStateStatus.Unpackaged)
         {
-            lines.Add("Package identity: NONE — running unpackaged.");
-            lines.Add(
-                "If this appears after installing the MSIX, the app was launched from its build "
-                + "output rather than through the installed package.");
+            lines.Add("Package identity: missing.");
+            lines.Add("Launch Outlook Inbox Widget from Start or the widget rather than running its build output.");
             lines.Add(string.Empty);
-            lines.Add("No coordination state path was resolved and nothing was created. The real "
-                      + "companion will refuse to run in this state for the same reason the provider "
-                      + "does: state outside the package store survives uninstall.");
+            lines.Add("No coordination path was resolved and nothing was read or written.");
             return string.Join(Environment.NewLine, lines);
         }
 
         string packageFamilyName = state.PackageFamilyName!;
 
-        lines.Add("Package identity: present.");
-
-        // The full name is diagnostic only. It carries the version, so it must never place state.
-        try
-        {
-            lines.Add($"Package full name: {PackageIdentity.TryGetFullName()}");
-        }
-        catch (PackageIdentityException)
-        {
-            lines.Add("Package full name: unavailable (family name resolved, so state is placed).");
-        }
-
-        lines.Add($"Package family:    {packageFamilyName}");
-        lines.Add(string.Empty);
-
-        // The family name, not LocalApplicationData, is what places packaged state. Measurement
-        // on this machine showed LocalApplicationData is NOT redirected for a packaged full-trust
-        // desktop app, so state located that way would survive uninstall — contradicting the
-        // product's own privacy claim. CoordinationPaths places it explicitly instead.
         CoordinationPaths paths = state.Paths!;
-        lines.Add("Coordination state root:");
-        lines.Add(paths.RootDirectory);
-        lines.Add(string.Empty);
-
         bool insidePackageStore = paths.RootDirectory.Contains(
             Path.Combine("Packages", packageFamilyName),
             StringComparison.OrdinalIgnoreCase);
 
-        lines.Add(insidePackageStore
-            ? "Inside the package store, so uninstall removes it. This is what section 11 "
-              + "promises about cached mailbox data."
-            : "WARNING: outside the package store. Cached mailbox data would survive "
-              + "uninstall, contradicting the stated privacy behaviour.");
-
-        lines.Add(string.Empty);
-
-        // Status only, never the tenant or client ID. Neither is a secret, but a diagnostic report
-        // the user may paste into a support thread is not the place for them either.
-        lines.Add($"Entra registration configuration: {configuration.Status}.");
+        lines.Add("Package: " + (insidePackageStore ? "Installed" : "State location needs attention"));
+        lines.Add($"Microsoft 365 configuration: {configuration.Status}");
+        lines.Add("Permission: Mail.ReadBasic only");
 
         if (configuration.IsLoaded)
         {
-            lines.Add("Requested scope: " + string.Join(", ", AuthenticationOptions.Scopes)
-                      + " (compile-time constant; configuration cannot widen it).");
-            lines.Add("Shared token cache:");
-            lines.Add(paths.TokenCacheFilePath);
+            AuthenticationOptions options = configuration.Options!;
+            IOperationalLogger logger = new FileOperationalLogger(paths);
+            SelectedAccountResult selected = new SelectedAccountStore(paths, options, logger).Read();
+
+            string accountStatus = selected.Status switch
+            {
+                SelectedAccountStatus.Recorded => "Signed in",
+                SelectedAccountStatus.SignedOut => "Signed out",
+                SelectedAccountStatus.Unreadable => "Needs attention — sign in again",
+                _ => "Not signed in",
+            };
+
+            lines.Add("Account: " + accountStatus);
+
+            if (AuthorizationStateStore.TryRead(paths, options)
+                == TokenAcquisitionStatus.ApprovalRequired)
+            {
+                lines.Add("Consent: Administrator approval required");
+            }
+
+            CacheReadResult cached = new ProtectedCache(paths, logger).Read();
+            MailboxSnapshot? snapshot = cached.IsSuccess && cached.Payload is not null
+                ? MailboxSnapshot.TryDeserialize(cached.Payload)
+                : null;
+
+            lines.Add(snapshot is null
+                ? "Last successful refresh: None"
+                : "Last successful refresh: "
+                  + snapshot.RefreshedAtUtc.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture));
         }
 
         lines.Add(string.Empty);
-        lines.Add($"Bounds in force: mutex wait {CoordinationBounds.MutexWait.TotalSeconds:0}s, "
-                  + $"async deadline {CoordinationBounds.AsyncDeadline.TotalSeconds:0}s, "
-                  + $"lease horizon {CoordinationBounds.LeaseHorizon.TotalSeconds:0}s.");
+        lines.Add("Use Test New Outlook to verify the supported client can accept a launch request.");
+        lines.Add("Show diagnostics opens the bounded, metadata-free local log.");
 
         return string.Join(Environment.NewLine, lines);
     }
+
+    [LibraryImport("ole32.dll")]
+    private static unsafe partial uint CoWaitForMultipleObjects(
+        uint flags,
+        uint milliseconds,
+        ulong handleCount,
+        IntPtr* handles,
+        out uint index);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetForegroundWindow(IntPtr window);
 }

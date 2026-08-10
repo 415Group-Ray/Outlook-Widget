@@ -89,9 +89,15 @@ the same provider process remained alive.
 and large cards show the unread count, the newest messages with sender, subject and received time, and
 unread senders in a heavier weight. Message details are withheld after 24 hours without a successful
 refresh, so old subjects are never presented as current — the counts survive that cutoff and the details
-do not. Still to come in Phase 2: the companion's real settings and diagnostics experience, the remaining
-loading and error states, opening an individual message, and the settings-change refresh trigger. The app
-icon that ships today is interim. See the evidence report for exactly what has been proven, and
+do not. The bounded diagnostics log has replaced the card's diagnostic footer, and source now restores
+the approved fifth row at large size; that latest fit still needs an installed Widgets-host check.
+
+**The WinUI 3 companion is implemented but not yet installed-package measured.** It preserves Sign in,
+Switch account, Sign out, and interrupted-operation recovery; exposes the privacy setting and bounded
+diagnostics log; tests New Outlook; and redirects secondary launches to its single primary instance.
+Privacy changes signal the provider to render current state without an unnecessary Graph request. Still
+to come in Phase 2: installed-device verification of this shell, the remaining loading and error states,
+and opening an individual message. The app icon that ships today is interim. See the evidence report for exactly what has been proven, and
 [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
 
 ### Known platform limitation: one widget instance only
@@ -108,8 +114,8 @@ package's.
   subject, received time, and read state.
 - Renders cached content immediately, then refreshes when activation and platform lifetime
   permit.
-- Offers user-initiated paths into New Outlook, or into Outlook on the web for an individual
-  message.
+- Offers a user-initiated path into New Outlook. Opening an individual message in Outlook on
+  the web remains an approved Phase 2 item, not current behavior.
 
 ## What it deliberately does not do
 

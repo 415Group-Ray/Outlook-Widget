@@ -35,13 +35,13 @@
     "semantic_hash": "2983e4d273faee03cfcdec272c0dab6a"
   },
   "src/OutlookWidget.App/OutlookWidget.App.csproj": {
-    "mtime": 1785421605.7958272,
-    "ast_hash": "0b4a139aea6464d3289603f8b8f3e7c7",
-    "semantic_hash": "0b4a139aea6464d3289603f8b8f3e7c7"
+    "mtime": 1786376919.1105225,
+    "ast_hash": "45922e6abf2a23d83bac9642bb84f112",
+    "semantic_hash": ""
   },
   "src/OutlookWidget.App/Program.cs": {
-    "mtime": 1786374352.6984842,
-    "ast_hash": "9a71d8d72ba72d32e16491c1dc11917c",
+    "mtime": 1786380544.163438,
+    "ast_hash": "e4387acd674b063ebd5c339b5b98e419",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Caching/CoordinationPaths.cs": {
@@ -140,9 +140,9 @@
     "semantic_hash": "1053a8d25467c0f931bc2bacd73ffac6"
   },
   "tests/OutlookWidget.Core.Tests/CoordinationStaticAnalysisTests.cs": {
-    "mtime": 1785854190.0349433,
-    "ast_hash": "d057394f4f9186de47cb3fdd0bfc5ffa",
-    "semantic_hash": "d057394f4f9186de47cb3fdd0bfc5ffa"
+    "mtime": 1786377271.771824,
+    "ast_hash": "0e9a0634d1b03e1bd89342c585b1518c",
+    "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/DeliveryWorkerTests.cs": {
     "mtime": 1785858563.4889944,
@@ -165,9 +165,9 @@
     "semantic_hash": "19116b7eaa8c743d44f6c4a91262987b"
   },
   "tests/OutlookWidget.Core.Tests/OutlookWidget.Core.Tests.csproj": {
-    "mtime": 1785421605.8183222,
-    "ast_hash": "22e7f676e72a375bfa4af9e2ed5dfca6",
-    "semantic_hash": "22e7f676e72a375bfa4af9e2ed5dfca6"
+    "mtime": 1786377492.8348184,
+    "ast_hash": "c5ed51e2860e32a82fa224b683db4a63",
+    "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/ProtectedCacheTests.cs": {
     "mtime": 1785858563.490745,
@@ -205,13 +205,13 @@
     "semantic_hash": "ecc3ad22835c3d5e7511fb1869aa0e90"
   },
   "README.md": {
-    "mtime": 1785940589.6507747,
-    "ast_hash": "df9cb3229162eadc17aede427821f277",
+    "mtime": 1786377500.1445837,
+    "ast_hash": "cb39fbc922f14152b6f2b2bbdf903268",
     "semantic_hash": ""
   },
   "TECHNICAL_PLAN.md": {
-    "mtime": 1785958833.833614,
-    "ast_hash": "8f9272f9dbd51f58ac02b4f05435b727",
+    "mtime": 1786377496.4097323,
+    "ast_hash": "beee24b64cfcb5818aa8531da28ac48b",
     "semantic_hash": ""
   },
   "docs/app-registration.md": {
@@ -220,8 +220,8 @@
     "semantic_hash": "7a9abd5788b53b2c5ff0fdd974545dcc"
   },
   "docs/phase0-evidence.md": {
-    "mtime": 1786374239.7241542,
-    "ast_hash": "572fe748ef8d5932ca13181dc80675b4",
+    "mtime": 1786380509.7783077,
+    "ast_hash": "0f9069d59ecb1f1cd390d722f85a4089",
     "semantic_hash": ""
   },
   "docs/troubleshooting.md": {
@@ -230,8 +230,8 @@
     "semantic_hash": "374e9875982caa170fd3c664feb1bde4"
   },
   "AGENTS.md": {
-    "mtime": 1785940589.648445,
-    "ast_hash": "621d9efba4eec3720a3b2e48a684a05f",
+    "mtime": 1786377504.0526814,
+    "ast_hash": "32d56072760118d38e014a80d30ac1fc",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
@@ -300,8 +300,8 @@
     "semantic_hash": "198a731b8eee87cf450be1770acbd9a2"
   },
   "src/OutlookWidget.Provider/Program.cs": {
-    "mtime": 1785958833.851642,
-    "ast_hash": "1f51d0d00ff09938401d74043270f728",
+    "mtime": 1786377221.3728342,
+    "ast_hash": "3f580cc96fde13eee54e834df4767979",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Provider/ProviderFactory.cs": {
@@ -330,8 +330,8 @@
     "semantic_hash": "d41b2116a9d9fc3e639eec7633be0e57"
   },
   "tests/OutlookWidget.Core.Tests/ProviderCardTests.cs": {
-    "mtime": 1785958833.854159,
-    "ast_hash": "ee363e90ecc8605fbffea858b0a2a16d",
+    "mtime": 1786377275.4689212,
+    "ast_hash": "b78e46c21a34b2416702a1d46ed75916",
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/TestInfrastructure/RepositorySources.cs": {
@@ -503,11 +503,6 @@
     "mtime": 1785339571.895727,
     "ast_hash": "4e77dd9c5446995054baa695caf64411",
     "semantic_hash": "4e77dd9c5446995054baa695caf64411"
-  },
-  "src/OutlookWidget.App/CompanionWindow.cs": {
-    "mtime": 1786374356.5583901,
-    "ast_hash": "26c6bd924e4a85914eb4200d0ccfeb5b",
-    "semantic_hash": ""
   },
   "src/OutlookWidget.App/InteractiveAuthService.cs": {
     "mtime": 1785858563.4627175,
@@ -695,8 +690,8 @@
     "semantic_hash": "164e8cb2e31e4266693e50d90cbfc58e"
   },
   "src/OutlookWidget.Provider/Cards/InboxCard.cs": {
-    "mtime": 1785958833.8496327,
-    "ast_hash": "0bbc15358cc9e94f6ca497373ced2e99",
+    "mtime": 1786377770.4086514,
+    "ast_hash": "860d2e26513515247ef403cbea12c535",
     "semantic_hash": ""
   },
   "src/OutlookWidget.Core/Diagnostics/FileOperationalLogger.cs": {
@@ -755,13 +750,38 @@
     "semantic_hash": ""
   },
   "tests/OutlookWidget.Core.Tests/CompanionPrivacyToggleTests.cs": {
-    "mtime": 1786374360.62257,
-    "ast_hash": "78ef9e816628bf6e11b0c6f404531894",
+    "mtime": 1786377268.3216815,
+    "ast_hash": "488cd367a31c0046a3150afec5c70314",
     "semantic_hash": ""
   },
   "graphify-out/memory/query_20260810_141217_daily_bug_scan__scan_commits_since_2026_08_06t15_5.md": {
     "mtime": 1786371137.5555024,
     "ast_hash": "7262c21a6c62c97cb81635a2e3664225",
+    "semantic_hash": ""
+  },
+  "src/OutlookWidget.App/App.xaml": {
+    "mtime": 1786376923.1016612,
+    "ast_hash": "a9337a6749b4a55150ee4e3e141154fd",
+    "semantic_hash": ""
+  },
+  "src/OutlookWidget.App/App.xaml.cs": {
+    "mtime": 1786377057.5299642,
+    "ast_hash": "29a514a58e20e7dae7989d03686f700d",
+    "semantic_hash": ""
+  },
+  "src/OutlookWidget.App/MainWindow.xaml": {
+    "mtime": 1786377108.9171305,
+    "ast_hash": "d1c07fde3aac3a65e6fb5ec5415cfd28",
+    "semantic_hash": ""
+  },
+  "src/OutlookWidget.App/MainWindow.xaml.cs": {
+    "mtime": 1786380347.62293,
+    "ast_hash": "0860cf2ef968178c6d2233f87ac2bd44",
+    "semantic_hash": ""
+  },
+  "tests/OutlookWidget.Core.Tests/CompanionWinUiTests.cs": {
+    "mtime": 1786380416.3011892,
+    "ast_hash": "3ab6466af12628da5122b89d93e87ee7",
     "semantic_hash": ""
   }
 }
