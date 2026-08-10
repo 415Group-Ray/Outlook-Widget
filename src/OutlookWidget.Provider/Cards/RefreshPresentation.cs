@@ -26,7 +26,8 @@ internal enum RefreshPresentationStatus
 /// </summary>
 internal sealed record RefreshPresentationState(
     RefreshPresentationStatus Status,
-    bool AuthorizationInvalidatesDetails);
+    bool AuthorizationInvalidatesDetails,
+    long? PeerWaitId = null);
 
 /// <summary>
 /// Bridges refresh outcomes into card presentation without persisting operational state or widening
@@ -35,6 +36,7 @@ internal sealed record RefreshPresentationState(
 internal sealed class RefreshPresentation
 {
     private RefreshPresentationState _current = new(RefreshPresentationStatus.Idle, false);
+    private long _nextPeerWaitId;
 
     public RefreshPresentationState Current => Volatile.Read(ref _current);
 
@@ -82,36 +84,38 @@ internal sealed class RefreshPresentation
         // A Graph result is evidence about both facts. In particular, a retry may show Loading
         // without making cached details safe; only its eventual non-invalidating result clears the
         // sticky authorization decision.
+        // A local Graph result supersedes any peer wait carried through Begin(). The monitor owns
+        // only the peer observation identified by that token and must not later overwrite this
+        // newer local evidence.
         Set(new RefreshPresentationState(presentation, invalidatesDetails));
     }
 
-    public void Complete(RefreshResult result, RefreshPresentationState previousState)
+    public long? Complete(RefreshResult result, RefreshPresentationState previousState)
     {
         switch (result.Outcome)
         {
             case RefreshOutcome.Committed:
                 Set(new RefreshPresentationState(RefreshPresentationStatus.Idle, false));
-                break;
+                return null;
             case RefreshOutcome.Discarded:
             case RefreshOutcome.Cancelled:
                 SetStatus(RefreshPresentationStatus.Idle);
-                break;
+                return null;
             case RefreshOutcome.SkippedDebounce:
                 // Begin temporarily replaces the prior presentation with Loading. A debounce is
                 // not a successful refresh, so restore the preceding error if nothing else changed
                 // presentation state while the skipped request was being classified.
                 RestoreIfLoading(previousState);
-                break;
+                return null;
             case RefreshOutcome.SkippedLeaseHeld:
-                SetStatus(RefreshPresentationStatus.RefreshInProgress);
-                break;
+                return BeginPeerWait();
             case RefreshOutcome.SkippedContention:
             case RefreshOutcome.CommitFailed:
                 SetStatus(RefreshPresentationStatus.StatusUnknown);
-                break;
+                return null;
             case RefreshOutcome.DeadlineExceeded:
                 SetStatus(RefreshPresentationStatus.TimedOut);
-                break;
+                return null;
             case RefreshOutcome.FetchFailed:
                 // A Graph category reported by the fetcher is more useful than the coordinator's
                 // generic outcome. If the fetch ended before Graph, authentication copy already
@@ -121,17 +125,51 @@ internal sealed class RefreshPresentation
                     SetStatus(RefreshPresentationStatus.Idle);
                 }
 
-                break;
+                return null;
         }
+
+        return null;
     }
 
     public void Fail() => SetStatus(RefreshPresentationStatus.ServiceFailure);
 
-    public bool MarkUnknownIfWaiting() =>
-        ChangeWaitingTo(RefreshPresentationStatus.StatusUnknown, clearAuthorizationInvalidation: false);
+    /// <summary>
+    /// Resolves one identified peer wait from lease/generation evidence, regardless of temporary
+    /// display transitions. A stale monitor cannot change a replacement wait or newer local result.
+    /// </summary>
+    public bool ResolvePeerWait(long peerWaitId, bool peerCommitted)
+    {
+        while (true)
+        {
+            RefreshPresentationState current = Current;
 
-    public bool MarkCompleteIfWaiting() =>
-        ChangeWaitingTo(RefreshPresentationStatus.Idle, clearAuthorizationInvalidation: true);
+            if (current.PeerWaitId != peerWaitId)
+            {
+                return false;
+            }
+
+            var resolved = new RefreshPresentationState(
+                peerCommitted
+                    ? RefreshPresentationStatus.Idle
+                    : RefreshPresentationStatus.StatusUnknown,
+                peerCommitted ? false : current.AuthorizationInvalidatesDetails);
+
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _current, resolved, current), current))
+            {
+                return true;
+            }
+        }
+    }
+
+    private long BeginPeerWait()
+    {
+        long peerWaitId = Interlocked.Increment(ref _nextPeerWaitId);
+        Update(current => new RefreshPresentationState(
+            RefreshPresentationStatus.RefreshInProgress,
+            current.AuthorizationInvalidatesDetails,
+            peerWaitId));
+        return peerWaitId;
+    }
 
     private void RestoreIfLoading(RefreshPresentationState previousState)
     {
@@ -140,7 +178,8 @@ internal sealed class RefreshPresentation
             RefreshPresentationState current = Current;
 
             if (current.Status != RefreshPresentationStatus.Loading
-                || current.AuthorizationInvalidatesDetails != previousState.AuthorizationInvalidatesDetails)
+                || current.AuthorizationInvalidatesDetails != previousState.AuthorizationInvalidatesDetails
+                || current.PeerWaitId != previousState.PeerWaitId)
             {
                 return;
             }
@@ -154,32 +193,8 @@ internal sealed class RefreshPresentation
         }
     }
 
-    private bool ChangeWaitingTo(
-        RefreshPresentationStatus status,
-        bool clearAuthorizationInvalidation)
-    {
-        while (true)
-        {
-            RefreshPresentationState current = Current;
-
-            if (current.Status != RefreshPresentationStatus.RefreshInProgress)
-            {
-                return false;
-            }
-
-            var changed = new RefreshPresentationState(
-                status,
-                clearAuthorizationInvalidation ? false : current.AuthorizationInvalidatesDetails);
-
-            if (ReferenceEquals(Interlocked.CompareExchange(ref _current, changed, current), current))
-            {
-                return true;
-            }
-        }
-    }
-
     private void SetStatus(RefreshPresentationStatus status) =>
-        Update(current => current with { Status = status });
+        Update(current => current with { Status = status, PeerWaitId = null });
 
     private void Update(Func<RefreshPresentationState, RefreshPresentationState> change)
     {

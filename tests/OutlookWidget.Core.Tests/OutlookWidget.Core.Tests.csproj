@@ -33,6 +33,8 @@
     -->
     <Compile Include="..\..\src\OutlookWidget.Provider\Cards\RefreshPresentation.cs"
              Link="Provider\RefreshPresentation.cs" />
+    <Compile Include="..\..\src\OutlookWidget.Provider\PeerRefreshMonitor.cs"
+             Link="Provider\PeerRefreshMonitor.cs" />
   </ItemGroup>
 
   <ItemGroup>

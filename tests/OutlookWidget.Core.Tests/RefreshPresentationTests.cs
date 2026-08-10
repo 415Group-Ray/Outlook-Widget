@@ -51,18 +51,20 @@ public sealed class RefreshPresentationTests
     }
 
     [Fact]
-    public void Peer_completion_requires_the_waiting_state_and_clears_authorization_suppression()
+    public void Peer_completion_uses_its_identity_and_clears_authorization_suppression()
     {
         var presentation = new RefreshPresentation();
         presentation.ReportGraphStatus(GraphMailStatus.Unauthorized);
         RefreshPresentationState previous = presentation.Begin();
-        presentation.Complete(Result(RefreshOutcome.SkippedLeaseHeld), previous);
+        long peerWaitId = presentation.Complete(Result(RefreshOutcome.SkippedLeaseHeld), previous)!.Value;
 
         Assert.True(presentation.Current.AuthorizationInvalidatesDetails);
-        Assert.True(presentation.MarkCompleteIfWaiting());
+        Assert.Equal(peerWaitId, presentation.Current.PeerWaitId);
+        Assert.True(presentation.ResolvePeerWait(peerWaitId, peerCommitted: true));
         Assert.Equal(RefreshPresentationStatus.Idle, presentation.Current.Status);
         Assert.False(presentation.Current.AuthorizationInvalidatesDetails);
-        Assert.False(presentation.MarkUnknownIfWaiting());
+        Assert.Null(presentation.Current.PeerWaitId);
+        Assert.False(presentation.ResolvePeerWait(peerWaitId, peerCommitted: false));
     }
 
     [Fact]
@@ -71,11 +73,51 @@ public sealed class RefreshPresentationTests
         var presentation = new RefreshPresentation();
         presentation.ReportGraphStatus(GraphMailStatus.Unauthorized);
         RefreshPresentationState previous = presentation.Begin();
-        presentation.Complete(Result(RefreshOutcome.SkippedLeaseHeld), previous);
+        long peerWaitId = presentation.Complete(Result(RefreshOutcome.SkippedLeaseHeld), previous)!.Value;
 
-        Assert.True(presentation.MarkUnknownIfWaiting());
+        Assert.True(presentation.ResolvePeerWait(peerWaitId, peerCommitted: false));
         Assert.Equal(RefreshPresentationStatus.StatusUnknown, presentation.Current.Status);
         Assert.True(presentation.Current.AuthorizationInvalidatesDetails);
+        Assert.Null(presentation.Current.PeerWaitId);
+    }
+
+    [Fact]
+    public void Peer_monitor_identity_survives_loading_and_can_resolve_before_debounce_restores()
+    {
+        var presentation = new RefreshPresentation();
+        RefreshPresentationState first = presentation.Begin();
+        long peerWaitId = presentation.Complete(Result(RefreshOutcome.SkippedLeaseHeld), first)!.Value;
+
+        RefreshPresentationState beforeDebounce = presentation.Begin();
+
+        Assert.Equal(RefreshPresentationStatus.Loading, presentation.Current.Status);
+        Assert.Equal(peerWaitId, presentation.Current.PeerWaitId);
+        Assert.True(presentation.ResolvePeerWait(peerWaitId, peerCommitted: false));
+
+        presentation.Complete(Result(RefreshOutcome.SkippedDebounce), beforeDebounce);
+
+        Assert.Equal(RefreshPresentationStatus.StatusUnknown, presentation.Current.Status);
+        Assert.Null(presentation.Current.PeerWaitId);
+    }
+
+    [Fact]
+    public void A_stale_peer_monitor_cannot_overwrite_a_replacement_wait()
+    {
+        var presentation = new RefreshPresentation();
+        RefreshPresentationState first = presentation.Begin();
+        long firstPeerWaitId = presentation.Complete(
+            Result(RefreshOutcome.SkippedLeaseHeld),
+            first)!.Value;
+
+        RefreshPresentationState second = presentation.Begin();
+        long secondPeerWaitId = presentation.Complete(
+            Result(RefreshOutcome.SkippedLeaseHeld),
+            second)!.Value;
+
+        Assert.NotEqual(firstPeerWaitId, secondPeerWaitId);
+        Assert.False(presentation.ResolvePeerWait(firstPeerWaitId, peerCommitted: false));
+        Assert.Equal(RefreshPresentationStatus.RefreshInProgress, presentation.Current.Status);
+        Assert.Equal(secondPeerWaitId, presentation.Current.PeerWaitId);
     }
 
     private static RefreshResult Result(RefreshOutcome outcome) =>

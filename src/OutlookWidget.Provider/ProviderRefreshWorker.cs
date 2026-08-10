@@ -12,8 +12,6 @@ namespace OutlookWidget.Provider;
 internal sealed class ProviderRefreshWorker : IDisposable
 {
     private static readonly TimeSpan ShutdownDrain = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan PeerLeasePollInterval = TimeSpan.FromSeconds(1);
-
     private readonly RefreshCoordinator _coordinator;
     private readonly IRefreshFetcher _fetcher;
     private readonly ProtectedCache _cache;
@@ -21,6 +19,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
     private readonly IDeliveryRequester _delivery;
     private readonly IOperationalLogger _logger;
     private readonly RefreshPresentation _presentation;
+    private readonly PeerRefreshMonitor _peerMonitor;
     private readonly CancellationTokenSource _shutdown = new();
     private readonly Lock _gate = new();
     private readonly Queue<RefreshWork> _pending = new();
@@ -51,6 +50,10 @@ internal sealed class ProviderRefreshWorker : IDisposable
         _delivery = delivery;
         _presentation = presentation;
         _logger = logger ?? NullOperationalLogger.Instance;
+        _peerMonitor = new PeerRefreshMonitor(
+            coordinator.IsRefreshInProgress,
+            cache.ReadGeneration,
+            delivery.RequestDelivery);
     }
 
     public void Request(RefreshTrigger trigger)
@@ -154,11 +157,15 @@ internal sealed class ProviderRefreshWorker : IDisposable
                     .RefreshAsync(_fetcher, work.Trigger, _shutdown.Token)
                     .ConfigureAwait(false);
 
-                _presentation.Complete(result, previousState);
+                long? peerWaitId = _presentation.Complete(result, previousState);
 
-                if (result.Outcome == RefreshOutcome.SkippedLeaseHeld)
+                if (peerWaitId is { } id)
                 {
-                    _ = ClearPeerIndicatorAfterLeaseAsync(generationBeforeRefresh);
+                    _ = _peerMonitor.RunAsync(
+                        _presentation,
+                        id,
+                        generationBeforeRefresh,
+                        _shutdown.Token);
                 }
 
                 // Token acquisition can change the card's authentication state even when there is
@@ -186,45 +193,6 @@ internal sealed class ProviderRefreshWorker : IDisposable
                     _delivery.RequestDelivery();
                 }
             }
-        }
-    }
-
-    private async Task ClearPeerIndicatorAfterLeaseAsync(long generationBeforeRefresh)
-    {
-        try
-        {
-            while (_presentation.Current.Status == RefreshPresentationStatus.RefreshInProgress)
-            {
-                // The lease may already be near expiry when this process first observes it. Waiting
-                // a fresh full horizon would leave the card claiming work is active for almost 30
-                // seconds after the peer has gone. A bounded one-second poll keeps disk reads modest
-                // while converging promptly after the authoritative lease stops being live.
-                await Task.Delay(PeerLeasePollInterval, _shutdown.Token).ConfigureAwait(false);
-
-                if (_coordinator.IsRefreshInProgress())
-                {
-                    continue;
-                }
-
-                // The state-change event is only an accelerant. If it was missed, the monotonic
-                // cache generation is still authoritative evidence that the peer committed. Only
-                // an ended lease with no generation advance is genuinely unknown.
-                bool peerCommitted = _cache.ReadGeneration() > generationBeforeRefresh;
-                bool changed = peerCommitted
-                    ? _presentation.MarkCompleteIfWaiting()
-                    : _presentation.MarkUnknownIfWaiting();
-
-                if (changed)
-                {
-                    _delivery.RequestDelivery();
-                }
-
-                return;
-            }
-        }
-        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
-        {
-            // Provider shutdown. There is no remaining card to converge.
         }
     }
 

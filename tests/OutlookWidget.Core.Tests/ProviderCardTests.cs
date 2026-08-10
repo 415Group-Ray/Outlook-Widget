@@ -519,24 +519,38 @@ public sealed class ProviderCardTests
         string worker = File.ReadAllText(Path.Combine(
             RepositorySources.ProviderSourceDirectory,
             "ProviderRefreshWorker.cs"));
+        string monitor = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "PeerRefreshMonitor.cs"));
 
         Assert.Contains(
-            "PeerLeasePollInterval = TimeSpan.FromSeconds(1)",
-            worker,
+            "PollInterval = TimeSpan.FromSeconds(1)",
+            monitor,
             StringComparison.Ordinal);
         Assert.Contains(
-            "Task.Delay(PeerLeasePollInterval, _shutdown.Token)",
-            worker,
+            "_delay(PollInterval, cancellationToken)",
+            monitor,
             StringComparison.Ordinal);
         Assert.DoesNotContain(
             "Task.Delay(CoordinationBounds.LeaseHorizon, _shutdown.Token)",
-            worker,
+            monitor,
             StringComparison.Ordinal);
         Assert.Contains(
-            "_cache.ReadGeneration() > generationBeforeRefresh",
-            worker,
+            "_readGeneration() > generationBeforeRefresh",
+            monitor,
             StringComparison.Ordinal);
-        Assert.Contains("MarkCompleteIfWaiting()", worker, StringComparison.Ordinal);
+        Assert.Contains(
+            "while (presentation.Current.PeerWaitId == peerWaitId)",
+            monitor,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "ResolvePeerWait(peerWaitId, peerCommitted)",
+            monitor,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "while (presentation.Current.Status == RefreshPresentationStatus.RefreshInProgress)",
+            monitor,
+            StringComparison.Ordinal);
     }
 
     [Fact]
