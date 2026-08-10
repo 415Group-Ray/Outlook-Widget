@@ -415,6 +415,23 @@ public sealed class ProviderCardTests
     }
 
     [Fact]
+    public void Signed_out_copy_is_not_replaced_by_transient_refresh_presentation()
+    {
+        // SignedOut is selected from authoritative disclosure state before presentation copy is
+        // applied. During suppress-first logout/account switching, a still-running refresh may
+        // remain Loading or fail; neither is allowed to hide the completed signed-out transition.
+        string source = CardSource();
+        int description = source.IndexOf("Describe(situation, snapshot)", StringComparison.Ordinal);
+        int signedOutGuard = source.IndexOf(
+            "if (situation != CardSituation.SignedOut)",
+            description,
+            StringComparison.Ordinal);
+        int overlay = source.IndexOf("ApplyRefreshStatus(", description, StringComparison.Ordinal);
+
+        Assert.True(description >= 0 && signedOutGuard > description && overlay > signedOutGuard);
+    }
+
+    [Fact]
     public void Loading_and_every_Graph_failure_category_have_explicit_card_copy()
     {
         string card = CardSource();

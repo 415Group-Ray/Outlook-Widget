@@ -287,12 +287,19 @@ internal static class InboxCard
         CardSituation situation = Situate(state, snapshot, payloadUnreadable, detailsAreStale);
 
         (string headline, string detail) = Describe(situation, snapshot);
-        (headline, detail) = ApplyRefreshStatus(
-            refreshStatus,
-            snapshot,
-            headline,
-            detail,
-            instance.Size == WidgetSize.Small);
+
+        // SignedOut is authoritative disclosure state, including the suppress-first interval while
+        // logout or account switching is still in flight. A transient loading/error overlay must
+        // never conceal that completed privacy transition for the remainder of a refresh deadline.
+        if (situation != CardSituation.SignedOut)
+        {
+            (headline, detail) = ApplyRefreshStatus(
+                refreshStatus,
+                snapshot,
+                headline,
+                detail,
+                instance.Size == WidgetSize.Small);
+        }
 
         // An authentication state the companion can actually address — not merely any non-success.
         //

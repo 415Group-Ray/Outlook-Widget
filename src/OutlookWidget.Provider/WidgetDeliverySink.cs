@@ -35,13 +35,13 @@ namespace OutlookWidget.Provider;
 /// stale until something else happened to request delivery.
 /// </para>
 /// <para>
-/// <b>Disclosure is re-read before every host call, not once per pass.</b> A reduction mid-loop
-/// abandons the remainder rather than sending it. Those calls have not reached the host yet, so
+/// <b>Restrictive presentation state is re-read before every host call, not once per pass.</b>
+/// Disclosure reduction abandons the remainder, while authorization invalidation rebuilds later
+/// instances without cached message details. Those calls have not reached the host yet, so
 /// withholding them is still possible — invariant 9 gives up retraction, not the chance to not
 /// send. This currently has no live effect, because the Widgets Board was measured to allow only
 /// one pinned instance per definition, so there is never a second call to withhold. It is
-/// implemented anyway: the constraint is the host's and may change, and the cost is one directory
-/// enumeration per instance.
+/// implemented anyway: the constraint is the host's and may change.
 /// </para>
 /// </remarks>
 internal sealed class WidgetDeliverySink : IWidgetDeliverySink
@@ -87,7 +87,6 @@ internal sealed class WidgetDeliverySink : IWidgetDeliverySink
         }
 
         WidgetManager manager = WidgetManager.GetDefault();
-        RefreshPresentationState refreshPresentation = _readRefreshPresentation();
         int delivered = 0;
 
         foreach (WidgetInstance instance in instances)
@@ -116,6 +115,12 @@ internal sealed class WidgetDeliverySink : IWidgetDeliverySink
                     recordCount: delivered);
                 return;
             }
+
+            // Authorization failure is another disclosure reduction. Like the tombstone above,
+            // it can arrive while a preceding synchronous host call is blocked, so a pass-wide
+            // snapshot would let later instances receive cached sender and subject rows. Re-read
+            // here and render each not-yet-issued call from the latest atomic presentation state.
+            RefreshPresentationState refreshPresentation = _readRefreshPresentation();
 
             var options = new WidgetUpdateRequestOptions(instance.Id)
             {

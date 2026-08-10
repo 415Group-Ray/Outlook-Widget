@@ -276,6 +276,28 @@ public sealed class CoordinationStaticAnalysisTests
     }
 
     [Fact]
+    public void The_delivery_sink_re_reads_authorization_suppression_for_each_host_call()
+    {
+        // RefreshPresentation is atomic, but a snapshot taken once before the instance loop becomes
+        // stale if the first synchronous host call blocks while Graph reports 401 or 403. Later
+        // calls have not reached the host and must be rendered from the newer restrictive state.
+        string sink = StripCommentsAndStrings(File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, DeliverySinkFileName)));
+
+        int loop = sink.IndexOf("foreach (WidgetInstance instance in instances)", StringComparison.Ordinal);
+        int reRead = sink.IndexOf("_readRefreshPresentation()", loop, StringComparison.Ordinal);
+        int data = sink.IndexOf("InboxCard.Data(", loop, StringComparison.Ordinal);
+        int hostCall = sink.IndexOf("UpdateWidget(", loop, StringComparison.Ordinal);
+
+        Assert.True(loop >= 0, $"{DeliverySinkFileName} no longer has the per-instance delivery loop.");
+        Assert.True(reRead > loop, "Authorization suppression must be read inside the instance loop.");
+        Assert.True(
+            reRead < data && data < hostCall,
+            "Each instance must be rendered from authorization state read after entering its loop "
+                + "iteration and before that instance is handed to UpdateWidget.");
+    }
+
+    [Fact]
     public void The_provider_locates_state_only_through_the_packaged_state_guard()
     {
         // CoordinationPaths.Resolve accepts a null family name and answers with the ordinary
