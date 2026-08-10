@@ -8,6 +8,9 @@ using OutlookWidget.Packaging;
 
 namespace OutlookWidget.App;
 
+/// <summary>The action displayed by the privacy button and the value that action commits.</summary>
+internal readonly record struct PrivacyToggleAction(bool DesiredHideValue, string Caption);
+
 /// <summary>
 /// A minimal packaged companion, sufficient to prove Phase 0 gate 1, the companion-activation half of
 /// the packaging work, and the interactive half of authentication.
@@ -58,9 +61,9 @@ internal static class Program
             () => SwitchAccountAsync(state, configuration),
             () => SignOutAsync(state, configuration),
             () => Task.FromResult(ClearInterruptedOperations(state)),
-            () => Task.FromResult(TogglePrivacySetting(state)),
+            desiredHide => Task.FromResult(TogglePrivacySetting(state, desiredHide)),
             () => Task.FromResult(ShowDiagnostics(state)),
-            () => PrivacyToggleCaption(state));
+            () => NextPrivacyToggleAction(state));
     }
 
     /// <summary>
@@ -74,8 +77,6 @@ internal static class Program
     /// details" over a click that would reveal them. A label that lies about its effect is worse
     /// than no label, and the only reliable fix is for one place to decide both.
     /// </remarks>
-    private readonly record struct PrivacyToggleAction(bool DesiredHideValue, string Caption);
-
     /// <summary>
     /// Decides that action from the stored setting.
     /// </summary>
@@ -117,20 +118,15 @@ internal static class Program
             : new PrivacyToggleAction(DesiredHideValue: true, Hide);
     }
 
-    /// <summary>The caption the privacy toggle should carry right now.</summary>
-    private static string PrivacyToggleCaption(PackagedStateResult state) =>
-        NextPrivacyToggleAction(state).Caption;
-
     /// <summary>
     /// Applies "hide message details" through the coordinator that owns the ordering.
     /// </summary>
     /// <remarks>
-    /// The value comes from <see cref="NextPrivacyToggleAction"/> — the same call the caption came
-    /// from — rather than from the button, so a caption that has gone stale because the provider or
-    /// another path changed the setting cannot ask for a change that was already made, and the
-    /// label can never describe a different action from the one performed.
+    /// <paramref name="desired"/> is the action paired with the caption currently displayed by the
+    /// window. It is deliberately not re-read here: shared state can change after the button is
+    /// labelled, and recomputing would let a button that still says "Hide" perform "Show".
     /// </remarks>
-    private static string TogglePrivacySetting(PackagedStateResult state)
+    private static string TogglePrivacySetting(PackagedStateResult state, bool desired)
     {
         if (!state.IsResolved)
         {
@@ -147,8 +143,6 @@ internal static class Program
             settings,
             new DisclosureTombstoneStore(paths, logger),
             logger);
-
-        bool desired = NextPrivacyToggleAction(state).DesiredHideValue;
 
         SettingsChangeResult result = coordinator.Apply(new WidgetSettings
         {

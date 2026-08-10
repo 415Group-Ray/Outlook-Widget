@@ -97,13 +97,17 @@ internal static partial class CompanionWindow
     /// said. It also runs through <c>BeginOperation</c> like every other mutation here, which is what
     /// keeps two disclosure changes from overlapping in this process.
     /// </remarks>
-    private static Func<Task<string>>? _togglePrivacy;
+    private static Func<bool, Task<string>>? _togglePrivacy;
 
     /// <summary>Opens the diagnostics log and reports whether it could be shown.</summary>
     private static Func<Task<string>>? _showDiagnostics;
 
-    /// <summary>The caption the privacy toggle should currently carry, read from the store.</summary>
-    private static Func<string>? _privacyToggleCaption;
+    /// <summary>The next caption/action pair for the privacy toggle, read from the store.</summary>
+    private static Func<PrivacyToggleAction>? _nextPrivacyToggleAction;
+
+    /// <summary>The action paired with the caption currently displayed by the privacy button.</summary>
+    private static PrivacyToggleAction _privacyToggleAction =
+        new(DesiredHideValue: true, "Hide message details");
 
     /// <summary>
     /// The completed sign-in report, handed from the worker to the message loop.
@@ -143,9 +147,9 @@ internal static partial class CompanionWindow
         Func<Task<string>> switchAccount,
         Func<Task<string>> signOut,
         Func<Task<string>> clearInterruptedOperations,
-        Func<Task<string>> togglePrivacy,
+        Func<bool, Task<string>> togglePrivacy,
         Func<Task<string>> showDiagnostics,
-        Func<string> privacyToggleCaption)
+        Func<PrivacyToggleAction> nextPrivacyToggleAction)
     {
         ArgumentNullException.ThrowIfNull(report);
         ArgumentNullException.ThrowIfNull(signIn);
@@ -154,7 +158,7 @@ internal static partial class CompanionWindow
         ArgumentNullException.ThrowIfNull(clearInterruptedOperations);
         ArgumentNullException.ThrowIfNull(togglePrivacy);
         ArgumentNullException.ThrowIfNull(showDiagnostics);
-        ArgumentNullException.ThrowIfNull(privacyToggleCaption);
+        ArgumentNullException.ThrowIfNull(nextPrivacyToggleAction);
 
         _signIn = signIn;
         _switchAccount = switchAccount;
@@ -162,7 +166,7 @@ internal static partial class CompanionWindow
         _clearInterruptedOperations = clearInterruptedOperations;
         _togglePrivacy = togglePrivacy;
         _showDiagnostics = showDiagnostics;
-        _privacyToggleCaption = privacyToggleCaption;
+        _nextPrivacyToggleAction = nextPrivacyToggleAction;
 
         IntPtr instance = GetModuleHandleW(null);
 
@@ -371,10 +375,11 @@ internal static partial class CompanionWindow
         // caption meant reopening the companion with the setting already on displayed "Hide message
         // details" over a click that would have revealed them — a label describing the opposite of
         // its effect, which is worse than no label at all.
-        string privacyCaption = _privacyToggleCaption?.Invoke() ?? "Hide message details";
+        _privacyToggleAction = _nextPrivacyToggleAction?.Invoke()
+            ?? new PrivacyToggleAction(DesiredHideValue: true, "Hide message details");
 
         fixed (char* buttonClass = "BUTTON")
-        fixed (char* caption = privacyCaption)
+        fixed (char* caption = _privacyToggleAction.Caption)
         {
             // The caption states the action rather than the state, and is re-read from the store
             // after every operation — not from a local flag, because the setting is shared with
@@ -454,8 +459,9 @@ internal static partial class CompanionWindow
                 return IntPtr.Zero;
 
             case WM_COMMAND when (wParam.ToInt64() & 0xFFFF) == PrivacyToggleButtonId:
+                bool desiredHide = _privacyToggleAction.DesiredHideValue;
                 BeginOperation(
-                    _togglePrivacy!,
+                    () => _togglePrivacy!(desiredHide),
                     _privacyToggleButton,
                     "Applying…",
                     "Privacy setting");
@@ -544,10 +550,11 @@ internal static partial class CompanionWindow
         SetButtonText(_clearInterruptedButton, "Clear interrupted operations");
         SetButtonText(_showDiagnosticsButton, "Show diagnostics");
 
-        // Asked rather than remembered. The setting is shared with the provider and can be changed
-        // by a path this window did not take — and a caption restored from a local flag would then
-        // offer to do what has already been done.
-        SetButtonText(_privacyToggleButton, _privacyToggleCaption?.Invoke() ?? "Hide message details");
+        // Refresh the pair together. Until this relabel happens, a click must preserve the action
+        // described by the caption already on screen even if shared state changed underneath it.
+        _privacyToggleAction = _nextPrivacyToggleAction?.Invoke()
+            ?? new PrivacyToggleAction(DesiredHideValue: true, "Hide message details");
+        SetButtonText(_privacyToggleButton, _privacyToggleAction.Caption);
 
         Volatile.Write(ref _operationRunning, 0);
     }

@@ -50,7 +50,7 @@ public sealed class CompanionPrivacyToggleTests
     }
 
     [Fact]
-    public void The_caption_and_the_action_come_from_one_decision()
+    public void The_displayed_caption_and_click_preserve_one_action()
     {
         // A caption and an effect computed separately can disagree, and did: the button was created
         // with a fixed caption and only relabelled after an operation finished, so reopening the
@@ -58,11 +58,18 @@ public sealed class CompanionPrivacyToggleTests
         // would reveal them.
         string source = ProgramSource();
 
-        Assert.Contains("NextPrivacyToggleAction(state).Caption", source, StringComparison.Ordinal);
+        Assert.Contains("() => NextPrivacyToggleAction(state)", source, StringComparison.Ordinal);
         Assert.Contains(
-            "NextPrivacyToggleAction(state).DesiredHideValue",
+            "TogglePrivacySetting(state, desiredHide)",
             source,
             StringComparison.Ordinal);
+
+        string window = WindowSource();
+        Assert.Contains(
+            "bool desiredHide = _privacyToggleAction.DesiredHideValue;",
+            window,
+            StringComparison.Ordinal);
+        Assert.Contains("() => _togglePrivacy!(desiredHide)", window, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -72,9 +79,9 @@ public sealed class CompanionPrivacyToggleTests
         // leaves the initial label wrong for a whole session.
         string source = WindowSource();
 
-        Assert.Contains("_privacyToggleCaption?.Invoke()", source, StringComparison.Ordinal);
+        Assert.Contains("_nextPrivacyToggleAction?.Invoke()", source, StringComparison.Ordinal);
 
-        int callbackUse = source.IndexOf("string privacyCaption =", StringComparison.Ordinal);
+        int callbackUse = source.IndexOf("_privacyToggleAction =", StringComparison.Ordinal);
         int buttonCreated = source.IndexOf("_privacyToggleButton = CreateWindowExW", StringComparison.Ordinal);
 
         Assert.True(callbackUse > 0, "The initial caption should be read from the callback.");
