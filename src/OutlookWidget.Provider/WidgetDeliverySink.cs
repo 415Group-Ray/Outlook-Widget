@@ -48,6 +48,7 @@ internal sealed class WidgetDeliverySink : IWidgetDeliverySink
 {
     private readonly WidgetInstanceRegistry _registry;
     private readonly Func<DisclosureMode> _readDisclosureMode;
+    private readonly Func<RefreshPresentationStatus> _readRefreshStatus;
     private readonly IOperationalLogger _logger;
 
     /// <param name="registry">The enabled widget instances to deliver to.</param>
@@ -59,13 +60,16 @@ internal sealed class WidgetDeliverySink : IWidgetDeliverySink
     public WidgetDeliverySink(
         WidgetInstanceRegistry registry,
         Func<DisclosureMode> readDisclosureMode,
+        Func<RefreshPresentationStatus> readRefreshStatus,
         IOperationalLogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(readDisclosureMode);
+        ArgumentNullException.ThrowIfNull(readRefreshStatus);
 
         _registry = registry;
         _readDisclosureMode = readDisclosureMode;
+        _readRefreshStatus = readRefreshStatus;
         _logger = logger ?? NullOperationalLogger.Instance;
     }
 
@@ -83,6 +87,7 @@ internal sealed class WidgetDeliverySink : IWidgetDeliverySink
         }
 
         WidgetManager manager = WidgetManager.GetDefault();
+        RefreshPresentationStatus refreshStatus = _readRefreshStatus();
         int delivered = 0;
 
         foreach (WidgetInstance instance in instances)
@@ -115,7 +120,7 @@ internal sealed class WidgetDeliverySink : IWidgetDeliverySink
             var options = new WidgetUpdateRequestOptions(instance.Id)
             {
                 Template = InboxCard.Template,
-                Data = InboxCard.Data(instance, state),
+                Data = InboxCard.Data(instance, state, refreshStatus),
 
                 // The generation only. Section 3 permits minimal non-mail CustomState, and this is
                 // the smallest thing that is actually useful: it lets a recovered instance tell

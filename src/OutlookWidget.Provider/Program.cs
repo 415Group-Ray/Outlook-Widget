@@ -143,7 +143,12 @@ internal static partial class Program
         // The sole UpdateWidget call site, reached only through the serialized worker below. It is
         // given the tombstone read rather than the store, so it can re-check disclosure before each
         // host call without acquiring the ability to write or clear one.
-        var sink = new WidgetDeliverySink(registry, disclosure.GetEffectiveMode, logger);
+        var refreshPresentation = new RefreshPresentation();
+        var sink = new WidgetDeliverySink(
+            registry,
+            disclosure.GetEffectiveMode,
+            () => refreshPresentation.Current,
+            logger);
 
         using var delivery = new DeliveryWorker(cache, disclosure, sink, logger);
 
@@ -174,7 +179,18 @@ internal static partial class Program
                         ? new MailboxRefreshAccess(token.AccessToken!, homeAccountId)
                         : null;
                 },
-                graph.ReadAsync,
+                async (accessToken, includeFocused, cancellationToken) =>
+                {
+                    GraphMailResult result = await graph.ReadAsync(
+                            accessToken,
+                            includeFocused,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+
+                    // A category only: never the response body, URL, account, or mailbox content.
+                    refreshPresentation.ReportGraphStatus(result.Status);
+                    return result;
+                },
                 options.TenantId,
                 includeFocusedCount: true);
 
@@ -184,6 +200,7 @@ internal static partial class Program
                 cache,
                 selectedAccounts,
                 delivery,
+                refreshPresentation,
                 logger);
         }
 
@@ -212,6 +229,7 @@ internal static partial class Program
             paths,
             () =>
             {
+                refreshPresentation.Clear();
                 authProbe.RequestProbe();
                 delivery.RequestDelivery();
                 // Account-aware staleness makes a new interactive selection refresh immediately

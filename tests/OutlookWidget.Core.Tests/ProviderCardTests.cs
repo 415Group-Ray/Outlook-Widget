@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using OutlookWidget.Core.Graph;
 using OutlookWidget.Core.Tests.TestInfrastructure;
 
 namespace OutlookWidget.Core.Tests;
@@ -411,6 +412,71 @@ public sealed class ProviderCardTests
         // for the Graph property name. This one is about the model property on MessagePreview, which
         // is legitimately named in the provider when the message-open slice lands — but never here.
         Assert.DoesNotContain(".WebLink", CardSource(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Loading_and_every_Graph_failure_category_have_explicit_card_copy()
+    {
+        string card = CardSource();
+        string presentation = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "Cards",
+            "RefreshPresentation.cs"));
+        string composition = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "Program.cs"));
+
+        string[] expected =
+        [
+            "Loading",
+            "RefreshInProgress",
+            "StatusUnknown",
+            "Unauthorized",
+            "Forbidden",
+            "MailboxNotSupported",
+            "ItemNotFound",
+            "Throttled",
+            "TimedOut",
+            "Offline",
+            "InvalidResponse",
+            "ServiceFailure",
+        ];
+
+        foreach (string status in expected)
+        {
+            Assert.Contains($"RefreshPresentationStatus.{status}", card, StringComparison.Ordinal);
+        }
+
+        foreach (GraphMailStatus status in Enum.GetValues<GraphMailStatus>())
+        {
+            Assert.Contains($"GraphMailStatus.{status}", presentation, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("Showing the last cached state.", card, StringComparison.Ordinal);
+        Assert.DoesNotContain("GraphMailResult", card, StringComparison.Ordinal);
+        Assert.Contains(
+            "refreshPresentation.ReportGraphStatus(result.Status)",
+            composition,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Authorization_invalidating_states_withhold_message_rows()
+    {
+        string source = CardSource();
+        int decision = source.IndexOf("bool authorizationInvalidatesDetails", StringComparison.Ordinal);
+        int rows = source.IndexOf("MessageRow[] messages", decision, StringComparison.Ordinal);
+        int serialization = source.IndexOf("return JsonSerializer.Serialize", rows, StringComparison.Ordinal);
+
+        Assert.True(decision > 0 && rows > decision && serialization > rows);
+
+        string rowDecision = source[decision..serialization];
+        Assert.Contains("RefreshPresentationStatus.Unauthorized", rowDecision, StringComparison.Ordinal);
+        Assert.Contains("RefreshPresentationStatus.Forbidden", rowDecision, StringComparison.Ordinal);
+        Assert.Contains("RefreshPresentationStatus.MailboxNotSupported", rowDecision, StringComparison.Ordinal);
+        Assert.Contains("TokenAcquisitionStatus.InteractionRequired", rowDecision, StringComparison.Ordinal);
+        Assert.Contains("&& !authorizationInvalidatesDetails", rowDecision, StringComparison.Ordinal);
+        Assert.Contains("|| refreshNeedsAttention", source, StringComparison.Ordinal);
     }
 
     [Fact]

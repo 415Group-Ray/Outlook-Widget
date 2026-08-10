@@ -246,7 +246,10 @@ internal static class InboxCard
     /// </remarks>
     public static TokenAcquisitionStatus? SilentAuthStatus { get; set; }
 
-    public static string Data(WidgetInstance instance, DeliveryState state)
+    public static string Data(
+        WidgetInstance instance,
+        DeliveryState state,
+        RefreshPresentationStatus refreshStatus)
     {
         // Deserialized once, here, for every mode that is given a payload at all — which is every
         // mode except signed-out, where the worker withholds it before this code runs.
@@ -283,6 +286,7 @@ internal static class InboxCard
         CardSituation situation = Situate(state, snapshot, payloadUnreadable, detailsAreStale);
 
         (string headline, string detail) = Describe(situation, snapshot);
+        (headline, detail) = ApplyRefreshStatus(refreshStatus, snapshot, headline, detail);
 
         // An authentication state the companion can actually address — not merely any non-success.
         //
@@ -304,6 +308,11 @@ internal static class InboxCard
             or TokenAcquisitionStatus.BrokerUnavailable
             or TokenAcquisitionStatus.NoConfiguration;
 
+        bool refreshNeedsAttention = refreshStatus is
+            RefreshPresentationStatus.Unauthorized
+            or RefreshPresentationStatus.Forbidden
+            or RefreshPresentationStatus.MailboxNotSupported;
+
         // The companion is offered whenever the card cannot show real content, and which situations
         // those are is stated here rather than derived from a mode comparison.
         //
@@ -311,7 +320,8 @@ internal static class InboxCard
         // The expected steady state once mail exists is a healthy mailbox with an expired token: the
         // detail line says "Sign in required: open the companion" while the situation is perfectly
         // ordinary, so the card asked for an action it did not offer.
-        bool needsCompanion = HasNoMailboxToShow(situation) || authNeedsAttention;
+        bool needsCompanion =
+            HasNoMailboxToShow(situation) || authNeedsAttention || refreshNeedsAttention;
 
         // Mail actions are withheld only on the signed-out card, where offering Refresh and Open
         // Outlook would invite an action whose only possible outcome is failure. A counts-only card
@@ -336,8 +346,19 @@ internal static class InboxCard
         // wherever a snapshot exists, which is what distinguishes hiding details from hiding the
         // mailbox.
         int rows = RowsFor(instance.Size);
+        bool authorizationInvalidatesDetails =
+            refreshStatus is RefreshPresentationStatus.Unauthorized
+                or RefreshPresentationStatus.Forbidden
+                or RefreshPresentationStatus.MailboxNotSupported
+            || SilentAuthStatus is TokenAcquisitionStatus.InteractionRequired
+                or TokenAcquisitionStatus.Cancelled
+                or TokenAcquisitionStatus.ApprovalRequired;
+
         MessageRow[] messages =
-            situation == CardSituation.Mailbox && snapshot is not null && rows > 0
+            situation == CardSituation.Mailbox
+                && !authorizationInvalidatesDetails
+                && snapshot is not null
+                && rows > 0
                 ? [.. snapshot.Messages.Take(rows).Select(ToRow)]
                 : [];
 
@@ -637,6 +658,50 @@ internal static class InboxCard
                 ComposeSubtitle(snapshot!, DetailSuppression.None) + DescribeAuthBlocker()),
     };
 #pragma warning restore CS8524
+
+    private static (string Headline, string Detail) ApplyRefreshStatus(
+        RefreshPresentationStatus status,
+        MailboxSnapshot? snapshot,
+        string headline,
+        string detail)
+    {
+        if (status == RefreshPresentationStatus.Idle)
+        {
+            return (headline, detail);
+        }
+
+        string cached = snapshot is null ? string.Empty : " Showing the last cached state.";
+
+        return status switch
+        {
+            RefreshPresentationStatus.Loading => snapshot is null
+                ? ("Loading inbox", "Fetching the latest mailbox state.")
+                : (headline, "Refreshing. " + detail),
+            RefreshPresentationStatus.RefreshInProgress =>
+                (headline, "Refresh already in progress." + cached),
+            RefreshPresentationStatus.StatusUnknown =>
+                (headline, "Refresh status unknown — try again." + cached),
+            RefreshPresentationStatus.Unauthorized =>
+                ("Sign in required", "The mailbox session could not be renewed. Open the companion."),
+            RefreshPresentationStatus.Forbidden =>
+                ("Mailbox access needs approval", "The mailbox refused this app's delegated access. Open the companion for guidance."),
+            RefreshPresentationStatus.MailboxNotSupported =>
+                ("Mailbox not supported", "This account has no supported Exchange Online mailbox."),
+            RefreshPresentationStatus.ItemNotFound =>
+                (headline, "The inbox changed while it was refreshing. Try again." + cached),
+            RefreshPresentationStatus.Throttled =>
+                (headline, "Refresh delayed by the mail service. Try again later." + cached),
+            RefreshPresentationStatus.TimedOut =>
+                (headline, "Refresh timed out." + cached),
+            RefreshPresentationStatus.Offline =>
+                (headline, "You appear to be offline." + cached),
+            RefreshPresentationStatus.InvalidResponse =>
+                (headline, "The latest mailbox response could not be validated." + cached),
+            RefreshPresentationStatus.ServiceFailure =>
+                (headline, "The mail service could not refresh the inbox." + cached),
+            _ => (headline, detail),
+        };
+    }
 
     /// <summary>
     /// The unread count as a headline.

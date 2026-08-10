@@ -1794,3 +1794,32 @@ spent the `0.6` line through `0.6.32.0`, while squash-merging it would reduce ma
 32. The manifest minor was therefore advanced from `0.6` to `0.7`. No feature-branch `0.7` package is
 installed; retaining `0.6.32.0` on the machine ensures any first post-merge `0.7` build is a monotonic
 upgrade regardless of its lower squash-merge commit height.
+
+## Measured: first post-merge 0.7 package preserves the pin and provider recovery
+
+Verified 2026-08-10 on the reference machine from merge commit `a246b8220ecd3642c42fe0ebfeb3ff442f27bc47`.
+The ignored per-commit counter still contained the pre-squash branch build `0.7.33.0`; because the
+squash reduced commit height, `Build-Package.ps1` correctly refused to derive `0.7.30.0` until that
+regenerable local counter was deleted. The retry produced signed, timestamped, signature-verified
+package `0.7.30.0` with no warnings or errors.
+
+`Install-DevelopmentPackage.ps1 -SkipCertificateTrust -ForceApplicationShutdown` upgraded the pinned
+`0.6.32.0` package without uninstalling it. The companion opened responsively, a second activation
+redirected to the same process and window, and cold COM activation started the installed provider.
+Privacy-safe diagnostics then recorded silent token acquisition and successful delivery to `n=1`,
+confirming that the existing pin and cached state recovered across the upgrade.
+
+The Widgets Board itself remained hidden when invoked through both its keyboard shortcut and registered
+URI from the automation session, so this run did **not** visually prove the restored fifth large row.
+Interactive WAM was also not invoked. Those two installed-package evidence gaps remain.
+
+## Implemented, not yet installed-package measured: loading and classified error cards
+
+The next Phase 2 slice now renders transient refresh state over the authoritative committed cache.
+Loading and ordinary service/offline failures retain the prior validated snapshot; Graph authorization
+failures and unsupported-mailbox results withhold message rows and direct the user to the companion.
+The provider reports only bounded status categories, never service text or mailbox metadata. A live
+peer lease renders refresh-in-progress, and a lease that ends without a commit signal converges to the
+documented unknown status. Focused tests cover Graph-status reporting, explicit copy for every category,
+and authorization-driven row suppression. No package containing this slice has been installed, so these
+results are implementation and automated-test evidence only.

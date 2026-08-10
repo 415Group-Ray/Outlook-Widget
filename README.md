@@ -97,9 +97,10 @@ Installed packages `0.6.31.0` and `0.6.32.0` opened a responsive WinUI window, a
 redirected to the existing process and window. The shell preserves Sign in, Switch account, Sign out,
 and interrupted-operation recovery; exposes the privacy setting and bounded diagnostics log; and tests
 New Outlook. Interactive WAM was not invoked in that measurement. Privacy changes signal the provider
-to render current state without an unnecessary Graph request. Still to come in Phase 2: the WinUI WAM
-check, the remaining loading and error states, the five-row Widgets-host fit, and opening an individual
-message. The app icon that ships today is interim. See the evidence report for exactly what has been
+to render current state without an unnecessary Graph request. Loading and classified error states are
+implemented with automated coverage but still need an installed Widgets-host check. Still to come in
+Phase 2: the WinUI WAM check, the five-row Widgets-host fit, and opening an individual message. The app
+icon that ships today is interim. See the evidence report for exactly what has been
 proven, and [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
 
 ### Known platform limitation: one widget instance only

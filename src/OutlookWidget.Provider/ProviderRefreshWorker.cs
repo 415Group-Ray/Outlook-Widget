@@ -4,6 +4,7 @@ using OutlookWidget.Core.Delivery;
 using OutlookWidget.Core.Diagnostics;
 using OutlookWidget.Core.Models;
 using OutlookWidget.Core.Refresh;
+using OutlookWidget.Provider.Cards;
 
 namespace OutlookWidget.Provider;
 
@@ -18,6 +19,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
     private readonly SelectedAccountStore _selectedAccounts;
     private readonly IDeliveryRequester _delivery;
     private readonly IOperationalLogger _logger;
+    private readonly RefreshPresentation _presentation;
     private readonly CancellationTokenSource _shutdown = new();
     private readonly Lock _gate = new();
     private readonly Queue<RefreshWork> _pending = new();
@@ -31,6 +33,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
         ProtectedCache cache,
         SelectedAccountStore selectedAccounts,
         IDeliveryRequester delivery,
+        RefreshPresentation presentation,
         IOperationalLogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(coordinator);
@@ -38,12 +41,14 @@ internal sealed class ProviderRefreshWorker : IDisposable
         ArgumentNullException.ThrowIfNull(cache);
         ArgumentNullException.ThrowIfNull(selectedAccounts);
         ArgumentNullException.ThrowIfNull(delivery);
+        ArgumentNullException.ThrowIfNull(presentation);
 
         _coordinator = coordinator;
         _fetcher = fetcher;
         _cache = cache;
         _selectedAccounts = selectedAccounts;
         _delivery = delivery;
+        _presentation = presentation;
         _logger = logger ?? NullOperationalLogger.Instance;
     }
 
@@ -140,9 +145,19 @@ internal sealed class ProviderRefreshWorker : IDisposable
                     continue;
                 }
 
+                _presentation.Begin();
+                _delivery.RequestDelivery();
+
                 RefreshResult result = await _coordinator
                     .RefreshAsync(_fetcher, work.Trigger, _shutdown.Token)
                     .ConfigureAwait(false);
+
+                _presentation.Complete(result);
+
+                if (result.Outcome == RefreshOutcome.SkippedLeaseHeld)
+                {
+                    _ = ClearPeerIndicatorAfterLeaseAsync();
+                }
 
                 // Token acquisition can change the card's authentication state even when there is
                 // no snapshot to commit. RefreshCoordinator requests delivery only for a successful
@@ -157,6 +172,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
             }
             catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
             {
+                _presentation.Fail();
                 // RefreshCoordinator and the production fetcher convert expected failures to values.
                 // A final containment boundary keeps an unexpected defect off the COM callback path.
                 _logger.Record(OperationalEventId.GraphRequestFailed, OperationalOutcome.Failed);
@@ -168,6 +184,27 @@ internal sealed class ProviderRefreshWorker : IDisposable
                     _delivery.RequestDelivery();
                 }
             }
+        }
+    }
+
+    private async Task ClearPeerIndicatorAfterLeaseAsync()
+    {
+        try
+        {
+            while (_presentation.Current == RefreshPresentationStatus.RefreshInProgress)
+            {
+                await Task.Delay(CoordinationBounds.LeaseHorizon, _shutdown.Token).ConfigureAwait(false);
+
+                if (!_coordinator.IsRefreshInProgress() && _presentation.MarkUnknownIfWaiting())
+                {
+                    _delivery.RequestDelivery();
+                    return;
+                }
+            }
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            // Provider shutdown. There is no remaining card to converge.
         }
     }
 

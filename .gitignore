@@ -49,6 +49,7 @@ packages/
 !nuget.config
 
 # Local configuration that is machine-specific rather than shared
+.claude/
 appsettings.Local.json
 *.local.props
 
