@@ -84,6 +84,7 @@ public readonly record struct SettingsChangeResult(
 /// </remarks>
 public sealed class SettingsChangeCoordinator
 {
+    private readonly CoordinationPaths _paths;
     private readonly WidgetSettingsStore _settings;
     private readonly DisclosureTombstoneStore _tombstones;
     private readonly IOperationalLogger _logger;
@@ -95,6 +96,7 @@ public sealed class SettingsChangeCoordinator
         DisclosureTombstoneStore tombstones,
         IOperationalLogger? logger = null)
         : this(
+            paths,
             settings,
             tombstones,
             logger,
@@ -104,15 +106,18 @@ public sealed class SettingsChangeCoordinator
     }
 
     internal SettingsChangeCoordinator(
+        CoordinationPaths paths,
         WidgetSettingsStore settings,
         DisclosureTombstoneStore tombstones,
         IOperationalLogger? logger,
         Func<bool> signalStateChanged)
     {
+        ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(tombstones);
         ArgumentNullException.ThrowIfNull(signalStateChanged);
 
+        _paths = paths;
         _settings = settings;
         _tombstones = tombstones;
         _logger = logger ?? NullOperationalLogger.Instance;
@@ -124,6 +129,24 @@ public sealed class SettingsChangeCoordinator
     {
         ArgumentNullException.ThrowIfNull(desired);
 
+        // A reduction has to become fail-closed before it waits on the mutex. A peer wedged in a
+        // commit is exactly the case where publishing the marker only after acquisition would leave
+        // the old details visible for the whole bounded wait.
+        return desired.HideMessageDetails
+            ? Reduce(desired)
+            : Reveal(desired);
+    }
+
+    private enum LockedWriteOutcome
+    {
+        Unchanged,
+        Written,
+        WriteFailed,
+    }
+
+    /// <summary>Reads and, when needed, writes while the caller holds the mutation mutex.</summary>
+    private LockedWriteOutcome WriteWhileLocked(WidgetSettings desired)
+    {
         SettingsReadResult current = _settings.Read();
 
         // **The status decides whether a comparison is possible at all, not the substituted value.**
@@ -140,20 +163,19 @@ public sealed class SettingsChangeCoordinator
         if (storedValueIsKnown
             && current.Settings.HideMessageDetails == desired.HideMessageDetails)
         {
-            // "Nothing to write" is not the same as "nothing is hidden". A previous hide attempt
-            // whose write failed left its counts-only tombstone behind with the stored setting
-            // still false, so a later request to show details finds nothing to change and would
-            // otherwise report success while the card stays suppressed until explicit recovery
-            // removes the marker. The answer is about what the user will see, not about what this
-            // operation did.
-            return new SettingsChangeResult(
-                SettingsChangeOutcome.Unchanged,
-                DetailsRemainHidden: SuppressionIsInForce());
+            return LockedWriteOutcome.Unchanged;
         }
 
-        return desired.HideMessageDetails
-            ? Reduce(desired)
-            : Reveal(desired);
+        try
+        {
+            _settings.Write(desired);
+            return LockedWriteOutcome.Written;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _logger.Record(OperationalEventId.PrivacySettingChangeFailed, OperationalOutcome.Failed);
+            return LockedWriteOutcome.WriteFailed;
+        }
     }
 
     /// <summary>Turning details off: suppress first, then write.</summary>
@@ -163,31 +185,44 @@ public sealed class SettingsChangeCoordinator
 
         try
         {
-            try
+            LockedWriteOutcome writeOutcome;
+
             {
-                _settings.Write(desired);
+                using var mutex = new MutationMutex(_paths.MutationMutexName, _logger);
+                using MutationLock heldLock = mutex.Acquire();
+
+                if (!heldLock.IsHeld)
+                {
+                    suppression.CompleteWithoutClearing();
+                    _logger.Record(
+                        OperationalEventId.PrivacySettingChangeFailed,
+                        OperationalOutcome.Failed);
+                    return new SettingsChangeResult(
+                        SettingsChangeOutcome.WriteFailed,
+                        DetailsRemainHidden: true);
+                }
+
+                writeOutcome = WriteWhileLocked(desired);
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+
+            if (writeOutcome == LockedWriteOutcome.WriteFailed)
             {
                 // The tombstone stays. The user asked for details to be hidden and they are hidden,
-                // by the fail-closed path rather than the committed one — so this reports a failure
-                // whose visible effect is nonetheless what was asked for.
+                // by the fail-closed path rather than the committed one.
                 suppression.CompleteWithoutClearing();
-                _logger.Record(OperationalEventId.PrivacySettingChangeFailed, OperationalOutcome.Failed);
-                return new SettingsChangeResult(SettingsChangeOutcome.WriteFailed, DetailsRemainHidden: true);
+                return new SettingsChangeResult(
+                    SettingsChangeOutcome.WriteFailed,
+                    DetailsRemainHidden: true);
             }
 
-            // Signalled before the tombstone is cleared, so the provider converges on the committed
-            // setting rather than on a window where neither is in force.
-            bool notified = _signalStateChanged();
+            // Signalling and delivery never happen under the mutation mutex. For a real write, the
+            // signal precedes tombstone removal so the provider cannot observe a window where neither
+            // the committed setting nor the operation marker is in force.
+            bool? notified = writeOutcome == LockedWriteOutcome.Written
+                ? _signalStateChanged()
+                : null;
 
-            suppression.CommitAndClear();
-
-            if (!suppression.IsCleared)
-            {
-                // One bounded retry, matching sign-out: a sharing violation here is often transient.
-                suppression.CommitAndClear();
-            }
+            ClearWithOneRetry(suppression);
 
             if (!suppression.IsCleared)
             {
@@ -201,6 +236,13 @@ public sealed class SettingsChangeCoordinator
                     SettingsChangeOutcome.SuppressionClearFailed,
                     DetailsRemainHidden: true,
                     ProviderNotified: notified);
+            }
+
+            if (writeOutcome == LockedWriteOutcome.Unchanged)
+            {
+                return new SettingsChangeResult(
+                    SettingsChangeOutcome.Unchanged,
+                    DetailsRemainHidden: SuppressionIsInForce());
             }
 
             _logger.Record(OperationalEventId.PrivacySettingChanged, OperationalOutcome.Success);
@@ -223,19 +265,53 @@ public sealed class SettingsChangeCoordinator
         }
     }
 
+    private static void ClearWithOneRetry(DisclosureSuppression suppression)
+    {
+        suppression.CommitAndClear();
+
+        if (!suppression.IsCleared)
+        {
+            // One bounded retry, matching sign-out: a sharing violation here is often transient.
+            suppression.CommitAndClear();
+        }
+    }
+
     /// <summary>Turning details back on: no tombstone, because nothing is being hidden.</summary>
     private SettingsChangeResult Reveal(WidgetSettings desired)
     {
-        try
+        LockedWriteOutcome writeOutcome;
+
         {
-            _settings.Write(desired);
+            using var mutex = new MutationMutex(_paths.MutationMutexName, _logger);
+            using MutationLock heldLock = mutex.Acquire();
+
+            if (!heldLock.IsHeld)
+            {
+                _logger.Record(OperationalEventId.PrivacySettingChangeFailed, OperationalOutcome.Failed);
+                return new SettingsChangeResult(
+                    SettingsChangeOutcome.WriteFailed,
+                    DetailsRemainHidden: DetailsAreHidden());
+            }
+
+            writeOutcome = WriteWhileLocked(desired);
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+
+        if (writeOutcome == LockedWriteOutcome.WriteFailed)
         {
             // Nothing was suppressed, so nothing is stuck. The previous setting stands and the
             // widget keeps hiding details until the user tries again.
-            _logger.Record(OperationalEventId.PrivacySettingChangeFailed, OperationalOutcome.Failed);
-            return new SettingsChangeResult(SettingsChangeOutcome.WriteFailed, DetailsRemainHidden: true);
+            return new SettingsChangeResult(
+                SettingsChangeOutcome.WriteFailed,
+                DetailsRemainHidden: true);
+        }
+
+        if (writeOutcome == LockedWriteOutcome.Unchanged)
+        {
+            // "Nothing to write" is not the same as "nothing is hidden". A stranded tombstone
+            // from an earlier failed operation still controls what the widget shows.
+            return new SettingsChangeResult(
+                SettingsChangeOutcome.Unchanged,
+                DetailsRemainHidden: SuppressionIsInForce());
         }
 
         bool notified = _signalStateChanged();
@@ -261,4 +337,7 @@ public sealed class SettingsChangeCoordinator
     /// </remarks>
     private bool SuppressionIsInForce() =>
         _tombstones.GetEffectiveMode() != DisclosureMode.Full;
+
+    private bool DetailsAreHidden() =>
+        SuppressionIsInForce() || _settings.Read().Settings.HideMessageDetails;
 }
