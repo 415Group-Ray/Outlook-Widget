@@ -447,7 +447,7 @@ public sealed class CoordinationStaticAnalysisTests
         string composition = File.ReadAllText(
             Path.Combine(RepositorySources.AppSourceDirectory, "Program.cs"));
         string window = File.ReadAllText(
-            Path.Combine(RepositorySources.AppSourceDirectory, "CompanionWindow.cs"));
+            Path.Combine(RepositorySources.AppSourceDirectory, "MainWindow.xaml"));
 
         Assert.Contains("SelectAccountAsync", service, StringComparison.Ordinal);
         Assert.Contains("WithPrompt(Prompt.SelectAccount)", service, StringComparison.Ordinal);

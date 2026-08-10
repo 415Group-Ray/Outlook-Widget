@@ -363,9 +363,8 @@ public sealed class ProviderCardTests
             StringComparison.Ordinal);
         Assert.True(classifierEnd > classifier, "Expected HasNoMailboxToShow to follow Situate.");
 
-        // Comparisons specifically. The diagnostic block prints the mode as a status word, which is
-        // a readout rather than a decision and is exactly the kind of use that should stay
-        // permitted — the rule is that nothing downstream may branch on it.
+        // Comparisons specifically. The rule is that nothing downstream may branch on the mode;
+        // every later decision consumes the already-classified CardSituation.
         string afterClassifier = source[classifierEnd..];
 
         Assert.False(

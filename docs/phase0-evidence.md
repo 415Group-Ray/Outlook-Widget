@@ -1707,3 +1707,31 @@ Get-Process -Name OutlookWidget.Provider
 
 Stop the process afterwards. Per the observation above, it will not exit on its own with no
 widgets pinned.
+
+## Implemented, not yet installed-package measured: WinUI companion conversion
+
+Recorded 2026-08-10. The companion has been converted from its Phase 0 raw Win32 window to a
+packaged WinUI 3 window. The new shell preserves interactive sign-in, account switching, sign-out,
+interrupted-operation recovery, metadata-free diagnostics, and the privacy setting; it adds a New
+Outlook probe and redirects secondary launches to one primary app instance. Interactive WAM calls
+still receive the real companion window handle, and the provider remains unable to link the
+interactive authentication service.
+
+The widget's three-line diagnostic footer was removed because the bounded local log and companion
+button now provide that operational surface. With those lines gone, source restores the approved
+fifth message row at large size. This is **not** evidence that the fifth row fits: the Widgets host
+does not report overflow, so that conclusion still requires visual inspection of an installed build.
+
+Automated validation for this implementation:
+
+- `dotnet build OutlookWidget.slnx --no-restore --nologo`: passed, 0 warnings and 0 errors.
+- `dotnet test OutlookWidget.slnx --no-build --nologo`: passed, 426 of 426 tests.
+- Release framework-dependent publishes for both `OutlookWidget.App` and
+  `OutlookWidget.Provider`: passed.
+- `scripts/Build-Package.ps1 -SkipSigning`: stopped before publishing at the deliberate package
+  version guard because derived `0.5.28.0` does not exceed the locally recorded `0.5.30.0`.
+  No counter was deleted and no version identity was changed to evade that protection.
+
+An installed-package check still owes evidence for WinUI rendering, single-instance activation
+redirection, WAM interaction with the WinUI parent handle, all companion controls, and the five-row
+large-card fit. None is claimed here.

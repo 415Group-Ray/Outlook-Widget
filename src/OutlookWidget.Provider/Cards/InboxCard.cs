@@ -93,12 +93,10 @@ internal static class InboxCard
     /// </remarks>
     private static int RowsFor(WidgetSize size) => size switch
     {
-        // Four rather than the cached five, measured on 0.4.24.0: five rows plus the three
-        // diagnostic lines plus the action row overflowed the large frame and the host rendered the
-        // buttons clipped at the bottom edge. The host neither scrolls a widget nor reports that
-        // content overflowed, so the only defence is to not exceed the frame. When the diagnostic
-        // block moves to the log file this can be revisited against a measurement, not a guess.
-        WidgetSize.Large => 4,
+        // Restore the approved fifth row now that the three-line Phase 0 diagnostic block has moved
+        // to the companion's bounded log. Whether it fits still needs an installed-host visual check:
+        // the host neither scrolls nor reports overflow, so automated template tests cannot prove it.
+        WidgetSize.Large => 5,
         WidgetSize.Medium => 3,
         _ => 0,
     };
@@ -199,36 +197,6 @@ internal static class InboxCard
               ]
             },
             {
-              "type": "TextBlock",
-              "text": "${diagnosticInstance}",
-              "wrap": true,
-              "isSubtle": true,
-              "size": "Small",
-              "fontType": "Monospace",
-              "spacing": "Medium",
-              "$when": "${$host.widgetSize == \"large\"}"
-            },
-            {
-              "type": "TextBlock",
-              "text": "${diagnosticState}",
-              "wrap": true,
-              "isSubtle": true,
-              "size": "Small",
-              "fontType": "Monospace",
-              "spacing": "None",
-              "$when": "${$host.widgetSize == \"large\"}"
-            },
-            {
-              "type": "TextBlock",
-              "text": "${diagnosticWidgetId}",
-              "wrap": true,
-              "isSubtle": true,
-              "size": "Small",
-              "fontType": "Monospace",
-              "spacing": "None",
-              "$when": "${$host.widgetSize == \"large\"}"
-            },
-            {
               "type": "ActionSet",
               "$when": "${showMailActions}",
               "actions": [
@@ -258,19 +226,6 @@ internal static class InboxCard
           ]
         }
         """;
-
-    /// <summary>
-    /// Whether this build found usable Entra registration identifiers, read once at startup.
-    /// </summary>
-    /// <remarks>
-    /// Shown in the large-size diagnostic as a status word only — never the tenant or client ID.
-    /// Neither is a secret, but a widget card is a surface anyone walking past a screen can read,
-    /// and a status is all that is needed to tell "the package shipped without configuration" apart
-    /// from an authentication failure. It is set by the composition root rather than read here, so
-    /// the card does no I/O on the delivery path.
-    /// </remarks>
-    public static AuthenticationConfigurationStatus ConfigurationStatus { get; set; } =
-        AuthenticationConfigurationStatus.Absent;
 
     /// <summary>
     /// The result of this process's silent token acquisition, or <see langword="null"/> before the
@@ -386,9 +341,6 @@ internal static class InboxCard
                 ? [.. snapshot.Messages.Take(rows).Select(ToRow)]
                 : [];
 
-        (string diagnosticInstance, string diagnosticState, string diagnosticWidgetId) =
-            Diagnostic(instance, state, snapshot);
-
         // Serialized rather than interpolated. Every string below is provider-authored except the
         // sender and subject, which are attacker-influenced content from a mailbox anyone can send
         // to — so a hand-built JSON literal here would be an injection point rather than merely a
@@ -397,10 +349,6 @@ internal static class InboxCard
         {
             Headline = headline,
             Detail = detail,
-            DiagnosticInstance = diagnosticInstance,
-            DiagnosticState = diagnosticState,
-            DiagnosticWidgetId = diagnosticWidgetId,
-
             Messages = messages,
             ShowMessages = messages.Length > 0,
 
@@ -865,53 +813,6 @@ internal static class InboxCard
         };
 
     /// <summary>
-    /// The large-size diagnostic block: what this pass read, and what the host already holds.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Retained from the Phase 0 card rather than removed with it. There is no log file — production
-    /// logging is metadata-free and in-memory — so these three lines are the only way to observe the
-    /// provider's committed generation, what the host was last given, and the silent-token state on a
-    /// running machine. Both installed-package gate readings in the evidence report were taken from
-    /// here.
-    /// </para>
-    /// <para>
-    /// Large only, so the sizes a user actually pins stay clean. Nothing here names a sender, a
-    /// subject, an account, or a tenant: the mailbox appears as a message count and nothing more.
-    /// </para>
-    /// </remarks>
-    private static (string Instance, string State, string WidgetId) Diagnostic(
-        WidgetInstance instance,
-        DeliveryState state,
-        MailboxSnapshot? snapshot)
-    {
-        string payload = state.Payload is null
-            ? "none"
-            : $"{state.Payload.Length} bytes";
-
-        // The recovered generation is shown alongside the current one, because the pair is what
-        // makes CustomState recovery observable at all. After a reboot the provider rebuilds this
-        // from GetWidgetInfos(), so "delivered" reflects what the host was holding before the
-        // restart while "generation" is what is committed now. "none" means nothing has been
-        // delivered to this instance yet, or the host returned a value that would not parse.
-        string delivered = instance.DeliveredGeneration is long g
-            ? g.ToString(CultureInfo.InvariantCulture)
-            : "none";
-
-        string messages = snapshot is null
-            ? "none"
-            : snapshot.Messages.Count.ToString(CultureInfo.InvariantCulture);
-
-        return (
-            $"{instance.DefinitionId} · {instance.Size} · "
-                + (instance.IsActive ? "active" : "inactive"),
-            $"generation {state.Generation} · delivered {delivered} · mode {state.Mode} · "
-                + $"read {state.ReadStatus} · payload {payload} · cached {messages}",
-            $"config {ConfigurationStatus} · silent auth "
-                + $"{(SilentAuthStatus?.ToString() ?? "pending")} · widget {instance.Id}");
-    }
-
-    /// <summary>
     /// The data contract, so the property names the template binds to are declared once.
     /// </summary>
     private sealed class InboxCardData
@@ -923,12 +824,6 @@ internal static class InboxCard
         public IReadOnlyList<MessageRow> Messages { get; init; } = [];
 
         public bool ShowMessages { get; init; }
-
-        public string DiagnosticInstance { get; init; } = string.Empty;
-
-        public string DiagnosticState { get; init; } = string.Empty;
-
-        public string DiagnosticWidgetId { get; init; } = string.Empty;
 
         public bool ShowMailActions { get; init; }
 

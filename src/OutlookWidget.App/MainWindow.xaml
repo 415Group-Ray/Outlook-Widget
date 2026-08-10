@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="OutlookWidget.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Outlook Inbox Widget">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="820" Padding="36,30,36,36" Spacing="24">
+                <StackPanel Spacing="6">
+                    <TextBlock
+                        FontSize="32"
+                        FontWeight="SemiBold"
+                        Text="Outlook Inbox Widget" />
+                    <TextBlock
+                        FontSize="15"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Manage sign-in, privacy, and local diagnostics for your Windows widget."
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <InfoBar
+                    x:Name="OperationInfoBar"
+                    IsClosable="False"
+                    IsOpen="False"
+                    Severity="Informational" />
+
+                <Border
+                    Padding="20"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Account" />
+                        <TextBlock
+                            Margin="0,0,0,16"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="Interactive sign-in stays in this companion. The widget provider can only acquire silently."
+                            TextWrapping="Wrap" />
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button
+                                x:Name="SignInButton"
+                                Grid.Column="0"
+                                AutomationProperties.Name="Sign in to Microsoft 365"
+                                Click="SignInButton_Click"
+                                Content="Sign in"
+                                Style="{ThemeResource AccentButtonStyle}" />
+                            <Button
+                                x:Name="SwitchAccountButton"
+                                Grid.Column="1"
+                                AutomationProperties.Name="Switch Microsoft 365 account"
+                                Click="SwitchAccountButton_Click"
+                                Content="Switch account" />
+                            <Button
+                                x:Name="SignOutButton"
+                                Grid.Column="2"
+                                AutomationProperties.Name="Sign out of the widget"
+                                Click="SignOutButton_Click"
+                                Content="Sign out" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border
+                    Padding="20"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Privacy and recovery" />
+                        <TextBlock
+                            Margin="0,0,0,16"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="Hide sender and subject details at every widget size, or recover a disclosure operation that was interrupted."
+                            TextWrapping="Wrap" />
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button
+                                x:Name="PrivacyToggleButton"
+                                Grid.Column="0"
+                                AutomationProperties.Name="Change message detail privacy"
+                                Click="PrivacyToggleButton_Click" />
+                            <Button
+                                x:Name="ClearInterruptedButton"
+                                Grid.Column="1"
+                                AutomationProperties.Name="Clear interrupted privacy operations"
+                                Click="ClearInterruptedButton_Click"
+                                Content="Clear interrupted operations" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border
+                    Padding="20"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Diagnostics" />
+                        <TextBlock
+                            Margin="0,0,0,16"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="The local log contains operational categories and counts only—never mailbox text, account identifiers, or tokens."
+                            TextWrapping="Wrap" />
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button
+                                x:Name="ShowDiagnosticsButton"
+                                Grid.Column="0"
+                                AutomationProperties.Name="Open local diagnostics log"
+                                Click="ShowDiagnosticsButton_Click"
+                                Content="Show diagnostics" />
+                            <Button
+                                x:Name="TestOutlookButton"
+                                Grid.Column="1"
+                                AutomationProperties.Name="Test opening New Outlook"
+                                Click="TestOutlookButton_Click"
+                                Content="Test New Outlook" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Spacing="10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Current status" />
+                        <ProgressRing
+                            x:Name="OperationProgress"
+                            Grid.Column="1"
+                            Width="22"
+                            Height="22"
+                            AutomationProperties.Name="Operation in progress"
+                            IsActive="False" />
+                    </Grid>
+                    <TextBox
+                        x:Name="StatusTextBox"
+                        MinHeight="180"
+                        AcceptsReturn="True"
+                        AutomationProperties.Name="Companion status report"
+                        IsReadOnly="True"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>
