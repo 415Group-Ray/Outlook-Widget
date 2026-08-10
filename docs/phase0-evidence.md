@@ -1737,3 +1737,60 @@ Automated validation for this implementation:
 An installed-package check still owes evidence for WinUI rendering, single-instance activation
 redirection, WAM interaction with the WinUI parent handle, all companion controls, and the five-row
 large-card fit. None is claimed here.
+
+## Package line advanced to 0.6 after the WinUI squash merge
+
+Recorded 2026-08-10. PR #19 squash-merged the WinUI companion work into `main` at commit height 29.
+The last locally built package remained `0.5.30.0`, so the merged tree derived `0.5.29.0` and the
+package script correctly refused to build a non-monotonic upgrade. The manifest minor was deliberately
+advanced from `0.5` to `0.6`; Build and Revision remain package-time derived values and were not edited.
+
+This records the version decision only. A successful build or installation, preservation of the pin,
+WinUI rendering, activation redirection, WAM interaction, and the five-row large-card fit require the
+separate checks below and are not implied by changing the manifest.
+
+The unsigned package build then passed as `0.6.29.0`: both executables published, authentication
+configuration was staged and loaded, all 10 manifest path references and the three provider CLSID
+copies agreed, PRI generation completed, and MakeAppx packed 157 files. The prerequisite probe reported
+14 pass, 0 fail, 1 blocked, 2 warnings, and 1 information result; the only block was that the current
+process was not elevated to exercise certificate trust. Widgets Platform Runtime, Widgets Board, Windows
+App Runtime 2.3.1, New Outlook, the `olk.exe` alias, .NET 10, and the Windows SDK packaging tools all
+passed on this machine.
+
+The version decision was then committed before signed installation work began. The first signed
+package exposed two independent WinUI deployment defects that the ordinary solution build could not
+detect: `dotnet publish` omitted `App.xbf`, `MainWindow.xbf`, and `OutlookWidget.App.pri`, and the
+application resource dictionary did not merge WinUI's `XamlControlsResources`. The first package
+installed and failed in `Microsoft.UI.Xaml.dll`; after the compiled files were included, a temporary
+startup-only diagnostic identified the remaining `XamlParseException` as the missing
+`TextFillColorSecondaryBrush`. The diagnostic code and its temporary file were removed after use.
+
+Verified 2026-08-10 on the reference machine with the committed signed package `0.6.31.0`, then
+rechecked from the later PR head as `0.6.32.0`:
+
+- `Build-Package.ps1` packed all three compiled-XAML resources beside the companion executable,
+  validated them before packing, signed the MSIX with certificate thumbprint
+  `F39705644AC44B95EA8E9245A9F7642C732F1B46`, and verified the timestamped signature with no errors or
+  warnings.
+- `Install-DevelopmentPackage.ps1 -SkipCertificateTrust -ForceApplicationShutdown` upgraded the
+  existing package without uninstalling it. Opening the Widgets Board started the provider from the
+  `0.6.32.0` install, and the privacy-safe diagnostics recorded successful deliveries to `n=1`, so
+  the existing widget pin survived the upgrade and recovered.
+- The companion opened as a responsive WinUI window titled **Outlook Inbox Widget**. The Account,
+  Privacy and recovery, and Diagnostics surfaces rendered with their expected controls, and Current
+  status reported **The companion is ready.** No new application-error event was recorded.
+- A second packaged activation redirected to the existing process: the PID remained unchanged and
+  exactly one companion process and window remained.
+
+The regression coverage now requires both the WinUI resource dictionary and the PRI/XBF publish
+target. The packaging script separately refuses an app publish that lacks any of the three runtime
+files, so this failure is caught before MakeAppx can produce another installable-but-crashing MSIX.
+
+This run did not invoke interactive WAM or visually inspect the Widgets Board card, so WAM interaction
+with the WinUI parent handle and the five-row large-card fit remain installed-package evidence gaps.
+
+Review of that installed result found one more version consequence before merge: the branch had now
+spent the `0.6` line through `0.6.32.0`, while squash-merging it would reduce main's derived Build below
+32. The manifest minor was therefore advanced from `0.6` to `0.7`. No feature-branch `0.7` package is
+installed; retaining `0.6.32.0` on the machine ensures any first post-merge `0.7` build is a monotonic
+upgrade regardless of its lower squash-merge commit height.

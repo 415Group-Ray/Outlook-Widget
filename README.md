@@ -92,13 +92,15 @@ refresh, so old subjects are never presented as current — the counts survive t
 do not. The bounded diagnostics log has replaced the card's diagnostic footer, and source now restores
 the approved fifth row at large size; that latest fit still needs an installed Widgets-host check.
 
-**The WinUI 3 companion is implemented but not yet installed-package measured.** It preserves Sign in,
-Switch account, Sign out, and interrupted-operation recovery; exposes the privacy setting and bounded
-diagnostics log; tests New Outlook; and redirects secondary launches to its single primary instance.
-Privacy changes signal the provider to render current state without an unnecessary Graph request. Still
-to come in Phase 2: installed-device verification of this shell, the remaining loading and error states,
-and opening an individual message. The app icon that ships today is interim. See the evidence report for exactly what has been proven, and
-[TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
+**The WinUI 3 companion is installed-package measured for rendering and single-instance activation.**
+Installed packages `0.6.31.0` and `0.6.32.0` opened a responsive WinUI window, and a secondary launch
+redirected to the existing process and window. The shell preserves Sign in, Switch account, Sign out,
+and interrupted-operation recovery; exposes the privacy setting and bounded diagnostics log; and tests
+New Outlook. Interactive WAM was not invoked in that measurement. Privacy changes signal the provider
+to render current state without an unnecessary Graph request. Still to come in Phase 2: the WinUI WAM
+check, the remaining loading and error states, the five-row Widgets-host fit, and opening an individual
+message. The app icon that ships today is interim. See the evidence report for exactly what has been
+proven, and [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
 
 ### Known platform limitation: one widget instance only
 
@@ -185,8 +187,8 @@ pwsh -File scripts/Test-PackagePrerequisites.ps1
 ```text
 src/OutlookWidget.Core       Surface-agnostic coordination, caching, refresh, delivery, launching
 src/OutlookWidget.Packaging  MSIX package-identity interop, shared by the two executables
-src/OutlookWidget.App        Packaged companion; Phase 0 probe plus the only interactive sign-in
-src/OutlookWidget.Provider   Packaged COM Widgets provider; lifecycle and delivery, no mail yet
+src/OutlookWidget.App        Packaged WinUI companion; account, privacy, recovery, and diagnostics
+src/OutlookWidget.Provider   Packaged COM Widgets provider; silent refresh, lifecycle, and delivery
 src/OutlookWidget.Package    MSIX identity, assets, COM server and widget registration
 tests/                       Automated tests, including the concurrency suite
 docs/                        Evidence report, app registration, troubleshooting

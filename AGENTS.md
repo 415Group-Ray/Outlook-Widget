@@ -108,8 +108,9 @@ state and deliver without a new Graph request.
 
 The companion is now a WinUI 3 window with Sign in, Switch account, Sign out, privacy, diagnostics,
 New Outlook testing, and Clear interrupted operations controls. It is single-instance and redirects
-secondary activations to the primary window. This shell has automated coverage and compiles, but has not
-yet been installed-package measured; do not inherit the old Win32 surface's device evidence.
+secondary activations to the primary window. Responsive XAML rendering and secondary-activation
+redirection are measured on installed package 0.6.31.0 and rechecked on 0.6.32.0. Interactive WAM was
+not invoked in those runs, so do not inherit the old Win32 surface's broker evidence.
 Every failed sign-out or account-switch path after suppression is published, whether it returns or
 throws, must complete its in-process suppression handle without deleting the marker, so the explicit
 recovery control can remove that orphan
@@ -166,10 +167,11 @@ identify the mismatch and update every affected source as part of the approved c
 - `src/OutlookWidget.Packaging` — MSIX package-identity interop only, shared by the two
   executables so the core stays free of any knowledge that MSIX exists. Do not grow it into a
   general utility assembly.
-- `src/OutlookWidget.App` — packaged companion application; a Phase 0 probe with a minimal Win32
-  window, and the home of `InteractiveAuthService` — **the single `AcquireTokenInteractive` call site
-  in the product.** It is here rather than in the core so the provider cannot link the interactive API
-  at all; see the deviation note above.
+- `src/OutlookWidget.App` — packaged WinUI companion for sign-in, account switching, privacy,
+  recovery, diagnostics, and the New Outlook launch probe; it is also the home of
+  `InteractiveAuthService` — **the single `AcquireTokenInteractive` call site in the product.** It is
+  here rather than in the core so the provider cannot link the interactive API at all; see the
+  deviation note above.
 - `src/OutlookWidget.Provider` — the packaged COM Windows Widgets provider: lifecycle, the six
   callbacks, the instance registry, the single `UpdateWidget` call site, and `SilentAuthProbe`, which
   acquires silently with a zero parent handle and re-probes on the state-changed signal. The provider

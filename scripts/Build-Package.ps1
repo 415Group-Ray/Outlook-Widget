@@ -521,7 +521,8 @@ function Publish-IntoLayout {
     #>
     param(
         [Parameter(Mandatory)][string]$ProjectName,
-        [Parameter(Mandatory)][string]$ExecutableName
+        [Parameter(Mandatory)][string]$ExecutableName,
+        [string[]]$RequiredFiles = @()
     )
 
     Write-Output "Publishing $ProjectName..."
@@ -563,9 +564,19 @@ function Publish-IntoLayout {
     if (-not (Test-Path -LiteralPath $publishedExe)) {
         throw "Published output is missing the executable the manifest references: $publishedExe"
     }
+
+    foreach ($requiredFile in $RequiredFiles) {
+        $requiredPath = Join-Path $targetDirectory $requiredFile
+        if (-not (Test-Path -LiteralPath $requiredPath)) {
+            throw "Published output for $ProjectName is missing required runtime file: $requiredPath"
+        }
+    }
 }
 
-Publish-IntoLayout -ProjectName 'OutlookWidget.App' -ExecutableName 'OutlookWidget.App.exe'
+Publish-IntoLayout `
+    -ProjectName 'OutlookWidget.App' `
+    -ExecutableName 'OutlookWidget.App.exe' `
+    -RequiredFiles @('App.xbf', 'MainWindow.xbf', 'OutlookWidget.App.pri')
 Publish-IntoLayout -ProjectName 'OutlookWidget.Provider' -ExecutableName 'OutlookWidget.Provider.exe'
 
 # ---------------------------------------------------------------------------
