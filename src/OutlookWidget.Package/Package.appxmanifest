@@ -72,6 +72,12 @@
     monotonic upgrade and an honest feature boundary. The prior installed package is retained; it is
     never uninstalled merely to reclaim version headroom or avoid this deliberate decision.
 
+    Minor was raised 0.6 -> 0.7 later on 2026-08-10, before this branch could be squash-merged. Device
+    verification installed feature-branch packages through 0.6.32.0, while a squash merge would reduce
+    the resulting main-line commit height below 32 and make 0.6 non-upgradeable again. The 0.7 branch
+    build is deliberately not installed: its purpose is to preserve upgrade headroom for the first
+    post-merge build instead of consuming the new line before the squash.
+
     The reason it is derived: any commit changes every assembly in the package, because the .NET SDK
     embeds the git commit SHA in each assembly's informational version. So a documentation-only commit
     produces a different payload, and a manual bump became a per-commit obligation whose omission always
@@ -81,7 +87,7 @@
   <Identity
     Name="415Group.OutlookInboxWidget"
     Publisher="CN=&quot;415 Group, Inc.&quot;"
-    Version="0.6.0.0"
+    Version="0.7.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>

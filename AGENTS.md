@@ -108,8 +108,9 @@ state and deliver without a new Graph request.
 
 The companion is now a WinUI 3 window with Sign in, Switch account, Sign out, privacy, diagnostics,
 New Outlook testing, and Clear interrupted operations controls. It is single-instance and redirects
-secondary activations to the primary window. This shell has automated coverage and compiles, but has not
-yet been installed-package measured; do not inherit the old Win32 surface's device evidence.
+secondary activations to the primary window. Responsive XAML rendering and secondary-activation
+redirection are measured on installed package 0.6.31.0 and rechecked on 0.6.32.0. Interactive WAM was
+not invoked in those runs, so do not inherit the old Win32 surface's broker evidence.
 Every failed sign-out or account-switch path after suppression is published, whether it returns or
 throws, must complete its in-process suppression handle without deleting the marker, so the explicit
 recovery control can remove that orphan
