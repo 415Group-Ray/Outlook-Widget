@@ -583,6 +583,40 @@ public sealed class CoordinationStaticAnalysisTests
     }
 
     [Fact]
+    public void Authorization_suppression_makes_a_fresh_snapshot_stale_so_sign_in_can_recover()
+    {
+        // The sign-in recovery path dead-ended without this. A manual refresh reports Unauthorized,
+        // which sets a sticky AuthorizationInvalidatesDetails; the user signs in; the companion
+        // signals; the listener asks for a refresh only if stale. With a young snapshot and an
+        // unchanged account the staleness test said no, so nothing reached Graph, nothing called
+        // ReportGraphStatus, and the suppression never lifted — the card kept asking for a sign-in
+        // that had already happened, with no Refresh action at the small size to break out of it.
+        //
+        // Only a Graph result may clear the suppression, so while it is set the cache's age cannot
+        // be the thing that decides whether to go and get one.
+        string worker = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "ProviderRefreshWorker.cs"));
+
+        int check = worker.IndexOf(
+            "_presentation.Current.AuthorizationInvalidatesDetails",
+            StringComparison.Ordinal);
+
+        Assert.True(
+            check > 0,
+            "IsStale must treat active authorization suppression as stale, or a completed sign-in "
+                + "cannot schedule the Graph attempt that clears it.");
+
+        int staleMethod = worker.IndexOf("private bool IsStale()", StringComparison.Ordinal);
+        int timestampRule = worker.IndexOf("CoordinationBounds.ActivationStaleness", StringComparison.Ordinal);
+
+        Assert.True(staleMethod > 0 && timestampRule > staleMethod);
+        Assert.True(
+            check > staleMethod && check < timestampRule,
+            "The suppression check belongs inside IsStale and ahead of the timestamp rule, which it "
+                + "deliberately outranks.");
+    }
+
+    [Fact]
     public void Failed_provider_refreshes_request_delivery_for_changed_authentication_state()
     {
         string worker = File.ReadAllText(

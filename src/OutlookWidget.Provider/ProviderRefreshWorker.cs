@@ -92,6 +92,28 @@ internal sealed class ProviderRefreshWorker : IDisposable
 
     private bool IsStale()
     {
+        // **Authorization suppression outranks the timestamp, and this is the recovery path.**
+        // AuthorizationInvalidatesDetails is sticky by design: only a Graph result clears it, because
+        // a token in hand is not evidence that Graph will accept it. But that makes the freshness of
+        // the cache irrelevant while it is set — the snapshot can be seconds old and still be
+        // rendered without its details behind "Sign in required".
+        //
+        // Without this, the ordinary recovery sequence dead-ends. A manual refresh reports
+        // Unauthorized; the user signs in; the companion signals; the listener asks for a refresh
+        // only if stale; the snapshot is young and the account unchanged, so nothing goes to Graph,
+        // nothing calls ReportGraphStatus, and the suppression never lifts. The card keeps asking
+        // for a sign-in that has already happened — and at the small size there is no Refresh action
+        // to break the loop by hand.
+        //
+        // This cannot spin: a suppressed refresh that fails again does not commit, so it raises no
+        // state-changed signal and schedules nothing. Retries happen only when something else
+        // already asks — an activation, the active timer, or another signal — and the coordinator's
+        // debounce and lease bound those.
+        if (_presentation.Current.AuthorizationInvalidatesDetails)
+        {
+            return true;
+        }
+
         CacheReadResult read = _cache.Read();
         MailboxSnapshot? snapshot = read.IsSuccess && read.Payload is { } payload
             ? MailboxSnapshot.TryDeserialize(payload)
