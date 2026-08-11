@@ -79,6 +79,28 @@ public sealed class PeerRefreshMonitorTests
         Assert.Equal(1, deliveries);
     }
 
+    [Fact]
+    public async Task An_unknown_initial_generation_cannot_clear_authorization_suppression()
+    {
+        var presentation = new RefreshPresentation();
+        presentation.ReportGraphStatus(OutlookWidget.Core.Graph.GraphMailStatus.Unauthorized);
+        long peerWaitId = BeginPeerWait(presentation);
+        int deliveries = 0;
+
+        var monitor = new PeerRefreshMonitor(
+            isRefreshInProgress: () => false,
+            readGeneration: () => 12,
+            requestDelivery: () => deliveries++,
+            delay: (_, _) => Task.CompletedTask);
+
+        await monitor.RunAsync(presentation, peerWaitId, null, CancellationToken.None);
+
+        Assert.Equal(RefreshPresentationStatus.StatusUnknown, presentation.Current.Status);
+        Assert.True(presentation.Current.AuthorizationInvalidatesDetails);
+        Assert.Null(presentation.Current.PeerWaitId);
+        Assert.Equal(1, deliveries);
+    }
+
     private static long BeginPeerWait(RefreshPresentation presentation)
     {
         RefreshPresentationState previous = presentation.Begin();

@@ -536,9 +536,15 @@ public sealed class ProviderCardTests
             monitor,
             StringComparison.Ordinal);
         Assert.Contains(
-            "_readGeneration() > generationBeforeRefresh",
+            "generationBeforeRefresh is { } before",
             monitor,
             StringComparison.Ordinal);
+        Assert.Contains(
+            "generationAfterRefresh is { } after",
+            monitor,
+            StringComparison.Ordinal);
+        Assert.Contains("ReadKnownGeneration", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("_cache.ReadGeneration()", worker, StringComparison.Ordinal);
         Assert.Contains(
             "while (presentation.Current.PeerWaitId == peerWaitId)",
             monitor,

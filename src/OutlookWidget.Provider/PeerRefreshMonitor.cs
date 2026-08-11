@@ -11,13 +11,13 @@ internal sealed class PeerRefreshMonitor
     internal static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
 
     private readonly Func<bool> _isRefreshInProgress;
-    private readonly Func<long> _readGeneration;
+    private readonly Func<long?> _readGeneration;
     private readonly Action _requestDelivery;
     private readonly Func<TimeSpan, CancellationToken, Task> _delay;
 
     public PeerRefreshMonitor(
         Func<bool> isRefreshInProgress,
-        Func<long> readGeneration,
+        Func<long?> readGeneration,
         Action requestDelivery,
         Func<TimeSpan, CancellationToken, Task>? delay = null)
     {
@@ -34,7 +34,7 @@ internal sealed class PeerRefreshMonitor
     public async Task RunAsync(
         RefreshPresentation presentation,
         long peerWaitId,
-        long generationBeforeRefresh,
+        long? generationBeforeRefresh,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(presentation);
@@ -63,9 +63,13 @@ internal sealed class PeerRefreshMonitor
                 }
 
                 // The state-change event is only an accelerant. If it was missed, the monotonic
-                // cache generation is still authoritative evidence that the peer committed. Only
-                // an ended lease with no generation advance is genuinely unknown.
-                bool peerCommitted = _readGeneration() > generationBeforeRefresh;
+                // cache generation is still authoritative evidence that the peer committed. Both
+                // observations must be known: treating an unreadable generation as zero can turn
+                // the same unchanged cache into a false advance once it becomes readable again.
+                long? generationAfterRefresh = _readGeneration();
+                bool peerCommitted = generationBeforeRefresh is { } before
+                    && generationAfterRefresh is { } after
+                    && after > before;
 
                 if (presentation.ResolvePeerWait(peerWaitId, peerCommitted))
                 {

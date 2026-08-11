@@ -52,7 +52,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
         _logger = logger ?? NullOperationalLogger.Instance;
         _peerMonitor = new PeerRefreshMonitor(
             coordinator.IsRefreshInProgress,
-            cache.ReadGeneration,
+            ReadKnownGeneration,
             delivery.RequestDelivery);
     }
 
@@ -149,7 +149,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
                     continue;
                 }
 
-                long generationBeforeRefresh = _cache.ReadGeneration();
+                long? generationBeforeRefresh = ReadKnownGeneration();
                 RefreshPresentationState previousState = _presentation.Begin();
                 _delivery.RequestDelivery();
 
@@ -194,6 +194,15 @@ internal sealed class ProviderRefreshWorker : IDisposable
                 }
             }
         }
+    }
+
+    private long? ReadKnownGeneration()
+    {
+        // ReadGeneration intentionally collapses an inaccessible file to zero for compare-only
+        // callers. Peer completion instead needs to distinguish a real zero from an unknown value,
+        // because a false advance can clear authorization suppression.
+        CacheReadResult read = _cache.Read();
+        return read.Status == CacheReadStatus.Unreadable ? null : read.Generation;
     }
 
     public void Dispose()
