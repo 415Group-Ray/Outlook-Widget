@@ -717,9 +717,27 @@ internal static partial class Program
         bool published = result.IsAcquired
                          || result.Status == TokenAcquisitionStatus.ApprovalRequired;
 
-        bool providerNotified = result.IsAcquired
-            ? SignInCompletedSignal.Raise(paths)
-            : published && StateChangeSignal.Raise(paths);
+        bool providerNotified;
+
+        if (result.IsAcquired)
+        {
+            // **Recorded before it is signalled, and the order is the point.** The event is an
+            // accelerant; the record is the fact. Writing first means a provider woken by the event
+            // already sees the token, and a provider that never receives the event still finds it on
+            // its next activation or timer tick. Reversing this would open a window in which the
+            // event arrives before the evidence it refers to.
+            SignInCompletedRecord.Write(paths);
+
+            // Fall back to the ordinary state-change event when the sign-in event cannot be raised.
+            // Before this, a failed raise on the success path left the provider with no signal at
+            // all — not even the delivery pass the general event would have produced — because the
+            // success branch had stopped raising it.
+            providerNotified = SignInCompletedSignal.Raise(paths) || StateChangeSignal.Raise(paths);
+        }
+        else
+        {
+            providerNotified = published && StateChangeSignal.Raise(paths);
+        }
 
         return Describe(result, paths, failureDetail, providerNotified);
     }

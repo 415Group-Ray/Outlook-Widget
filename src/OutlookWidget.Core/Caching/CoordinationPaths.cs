@@ -220,6 +220,32 @@ public sealed class CoordinationPaths
     public string SignInCompletedEventName => $"OutlookWidget-SignInCompleted-{_scope}";
 
     /// <summary>
+    /// The durable counterpart to <see cref="SignInCompletedEventName"/>: one opaque token, rewritten
+    /// each time the companion completes a sign-in.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The event alone could not carry this fact.</b> Named events are best-effort accelerants
+    /// over authoritative disk state, and a raise that cannot open its handle loses the only
+    /// evidence a sign-in happened — leaving a fresh snapshot, sticky authorization suppression, and
+    /// a small card with no Refresh action to escape it. Writing the token first means any later
+    /// opportunity, an activation or the active timer, can still discover what the event failed to
+    /// announce.
+    /// </para>
+    /// <para>
+    /// A token rather than a timestamp, because the only question asked of it is "is this different
+    /// from the one I last acted on". That needs no ordering and so cannot be confused by a clock
+    /// step. Not DPAPI-protected: it is an opaque value that says nothing about a mailbox or an
+    /// account, matching the authorization record.
+    /// </para>
+    /// </remarks>
+    public string SignInCompletedRecordFilePath => Path.Combine(RootDirectory, $"signin-{_scope}.json");
+
+    /// <summary>Temporary file used to replace the sign-in record atomically.</summary>
+    public string SignInCompletedRecordTempFilePath =>
+        Path.Combine(RootDirectory, $"signin-{_scope}.tmp");
+
+    /// <summary>
     /// Signalled when a disclosure-reducing operation begins, before it attempts its
     /// commit. Independent of the mutation mutex, because a wedged peer is exactly when
     /// failing closed matters most.

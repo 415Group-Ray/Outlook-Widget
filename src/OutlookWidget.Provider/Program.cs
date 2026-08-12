@@ -201,7 +201,11 @@ internal static partial class Program
                 selectedAccounts,
                 delivery,
                 refreshPresentation,
-                logger);
+                logger,
+                // The durable half of sign-in recovery. The event below is the fast path; this is
+                // what lets an activation or the active timer discover a sign-in whose event could
+                // not be raised.
+                () => SignInCompletedRecord.Read(paths));
         }
 
         using var refreshLifetime = refresh;

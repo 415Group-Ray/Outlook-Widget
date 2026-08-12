@@ -20,7 +20,18 @@ internal sealed class ProviderRefreshWorker : IDisposable
     private readonly IOperationalLogger _logger;
     private readonly RefreshPresentation _presentation;
     private readonly PeerRefreshMonitor _peerMonitor;
+    private readonly Func<Guid?> _readSignInToken;
     private readonly CancellationTokenSource _shutdown = new();
+
+    /// <summary>
+    /// The sign-in token this worker has already spent a recovery attempt on, or
+    /// <see langword="null"/> before it has spent any.
+    /// </summary>
+    /// <remarks>
+    /// Guarded by <see cref="_gate"/> rather than made atomic: it is only read and written from the
+    /// staleness check, which runs on the single drain loop.
+    /// </remarks>
+    private Guid? _recoveredSignInToken;
     private readonly Lock _gate = new();
     private readonly Queue<RefreshWork> _pending = new();
     private Task? _drain;
@@ -34,7 +45,8 @@ internal sealed class ProviderRefreshWorker : IDisposable
         SelectedAccountStore selectedAccounts,
         IDeliveryRequester delivery,
         RefreshPresentation presentation,
-        IOperationalLogger? logger = null)
+        IOperationalLogger? logger = null,
+        Func<Guid?>? readSignInToken = null)
     {
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(fetcher);
@@ -43,6 +55,9 @@ internal sealed class ProviderRefreshWorker : IDisposable
         ArgumentNullException.ThrowIfNull(delivery);
         ArgumentNullException.ThrowIfNull(presentation);
 
+        // Optional so existing construction sites keep compiling; a worker without it simply has no
+        // durable fallback and relies on the sign-in event alone.
+        _readSignInToken = readSignInToken ?? (static () => null);
         _coordinator = coordinator;
         _fetcher = fetcher;
         _cache = cache;
@@ -92,6 +107,11 @@ internal sealed class ProviderRefreshWorker : IDisposable
 
     private bool IsStale()
     {
+        if (HasUnrecoveredSignIn())
+        {
+            return true;
+        }
+
         CacheReadResult read = _cache.Read();
         MailboxSnapshot? snapshot = read.IsSuccess && read.Payload is { } payload
             ? MailboxSnapshot.TryDeserialize(payload)
@@ -123,6 +143,55 @@ internal sealed class ProviderRefreshWorker : IDisposable
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Whether a completed sign-in has been recorded that this worker has not yet acted on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The durable half of sign-in recovery.</b> The sign-in event is the fast path and remains
+    /// the normal one: it forces a refresh immediately through <c>Request</c>, bypassing staleness
+    /// entirely. But a named event is an accelerant, and a raise that cannot open its handle loses
+    /// the fact. Then the ordinary staleness rule looks at a seconds-old snapshot for an unchanged
+    /// account, declines to refresh, and the card stays on "Sign in required" — with no Refresh
+    /// action at the small size — until a provider recycle or a five-minute timer tick.
+    /// </para>
+    /// <para>
+    /// The companion writes the token before it raises the event, so this read can only be behind,
+    /// never ahead. Any later opportunity discovers what the raise failed to announce.
+    /// </para>
+    /// <para>
+    /// <b>Deliberately not conditioned on authorization suppression.</b> That was an earlier fix,
+    /// and it needed the worker to consult presentation state, which put a display concern into the
+    /// staleness rule and forced every unrelated signal through it. A recorded sign-in is a fact
+    /// about the account rather than about the card, and refreshing once after one is correct
+    /// whatever the card happens to be showing.
+    /// </para>
+    /// <para>
+    /// <b>One attempt per token, which is what bounds it.</b> The token changes only when the
+    /// companion completes another sign-in, so a retry that fails again does not schedule anything
+    /// further, and a burst of unrelated signals cannot become a burst of Graph requests. An absent
+    /// or unreadable record answers "no evidence" and spends nothing.
+    /// </para>
+    /// </remarks>
+    private bool HasUnrecoveredSignIn()
+    {
+        if (_readSignInToken() is not { } token)
+        {
+            return false;
+        }
+
+        lock (_gate)
+        {
+            if (_recoveredSignInToken == token)
+            {
+                return false;
+            }
+
+            _recoveredSignInToken = token;
+            return true;
+        }
     }
 
     private async Task DrainAsync()

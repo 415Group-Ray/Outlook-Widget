@@ -613,6 +613,51 @@ public sealed class CoordinationStaticAnalysisTests
     }
 
     [Fact]
+    public void A_completed_sign_in_survives_an_event_that_could_not_be_raised()
+    {
+        // The event above is the fast path and stays that way. It is also best-effort: a raise that
+        // cannot open its handle loses the only evidence a sign-in happened, and the ordinary
+        // staleness rule then declines to refresh a seconds-old snapshot for an unchanged account —
+        // leaving "Sign in required" on a card whose small size offers no Refresh action.
+        //
+        // So the fact is written down as well as announced. This asserts the pairing rather than
+        // either half, because either half alone is a defect: the event without the record loses
+        // recovery, and the record without the event delays it to the next activation or timer tick.
+        string companion = File.ReadAllText(
+            Path.Combine(RepositorySources.AppSourceDirectory, "Program.cs"));
+
+        int written = companion.IndexOf("SignInCompletedRecord.Write(paths)", StringComparison.Ordinal);
+        int raised = companion.IndexOf("SignInCompletedSignal.Raise(paths)", StringComparison.Ordinal);
+
+        Assert.True(written > 0, "A completed sign-in must be recorded, not only signalled.");
+        Assert.True(
+            written < raised,
+            "The record must be written before the event is raised, so a provider woken by the "
+                + "event cannot look for evidence that has not been written yet.");
+
+        // The success path must still fall back to the general event. Before this it raised only the
+        // sign-in event, so a failed raise left the provider with no signal at all — not even the
+        // delivery pass the general event would have produced.
+        Assert.Contains(
+            "SignInCompletedSignal.Raise(paths) || StateChangeSignal.Raise(paths)",
+            companion,
+            StringComparison.Ordinal);
+
+        // And the provider must consult the record from its staleness path, which is what an
+        // activation or the active timer reaches. Reading it only from the event handler would
+        // rebuild the same single point of failure.
+        string worker = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "ProviderRefreshWorker.cs"));
+
+        Assert.Contains("HasUnrecoveredSignIn()", worker, StringComparison.Ordinal);
+
+        int staleMethod = worker.IndexOf("private bool IsStale()", StringComparison.Ordinal);
+        int recoveryCheck = worker.IndexOf("HasUnrecoveredSignIn()", StringComparison.Ordinal);
+
+        Assert.True(staleMethod > 0 && recoveryCheck > staleMethod);
+    }
+
+    [Fact]
     public void Peer_monitoring_uses_the_generation_recorded_when_the_lease_was_created()
     {
         string worker = File.ReadAllText(
