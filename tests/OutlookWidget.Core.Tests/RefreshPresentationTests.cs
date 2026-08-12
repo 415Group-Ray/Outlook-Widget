@@ -24,14 +24,57 @@ public sealed class RefreshPresentationTests
 
     [Theory]
     [InlineData(GraphMailStatus.Success)]
-    [InlineData(GraphMailStatus.NetworkFailure)]
     [InlineData(GraphMailStatus.Throttled)]
-    public void A_non_invalidating_Graph_result_lifts_prior_authorization_suppression(
-        GraphMailStatus status)
+    [InlineData(GraphMailStatus.ItemNotFound)]
+    public void An_answered_request_lifts_prior_authorization_suppression(GraphMailStatus status)
     {
+        // Affirmative evidence only: the request reached the mailbox and was answered. A 429 or a
+        // 404 is a reply from a service that accepted the credential, so both prove authorization
+        // recovered just as a 200 does.
         var presentation = new RefreshPresentation();
         presentation.ReportGraphStatus(GraphMailStatus.Unauthorized);
         presentation.Begin();
+
+        presentation.ReportGraphStatus(status);
+
+        Assert.False(presentation.Current.AuthorizationInvalidatesDetails);
+    }
+
+    [Theory]
+    [InlineData(GraphMailStatus.NetworkFailure)]
+    [InlineData(GraphMailStatus.TimedOut)]
+    [InlineData(GraphMailStatus.Cancelled)]
+    [InlineData(GraphMailStatus.InvalidResponse)]
+    [InlineData(GraphMailStatus.ServiceFailure)]
+    public void An_inconclusive_result_preserves_prior_authorization_suppression(
+        GraphMailStatus status)
+    {
+        // NetworkFailure was previously asserted to LIFT suppression, and that assertion encoded a
+        // disclosure bug: a 401 followed by a dropped connection cleared the sticky decision, so the
+        // next delivery serialized cached senders and subjects on the strength of a request that
+        // never reached Graph. None of these statuses says anything about authorization — the
+        // attempt did not complete — and the absence of evidence is not evidence.
+        var presentation = new RefreshPresentation();
+        presentation.ReportGraphStatus(GraphMailStatus.Unauthorized);
+        presentation.Begin();
+
+        presentation.ReportGraphStatus(status);
+
+        Assert.True(presentation.Current.AuthorizationInvalidatesDetails);
+    }
+
+    [Theory]
+    [InlineData(GraphMailStatus.NetworkFailure)]
+    [InlineData(GraphMailStatus.TimedOut)]
+    [InlineData(GraphMailStatus.ServiceFailure)]
+    public void An_inconclusive_result_does_not_invent_suppression_that_was_never_there(
+        GraphMailStatus status)
+    {
+        // The other direction of the same rule. Preserving the prior decision must not mean
+        // defaulting to suppression: a healthy widget that loses its connection keeps showing the
+        // mail it already had.
+        var presentation = new RefreshPresentation();
+        presentation.ReportGraphStatus(GraphMailStatus.Success);
 
         presentation.ReportGraphStatus(status);
 

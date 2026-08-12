@@ -76,10 +76,35 @@ internal sealed class RefreshPresentation
             _ => RefreshPresentationStatus.ServiceFailure,
         };
 
-        bool invalidatesDetails = presentation is
-            RefreshPresentationStatus.Unauthorized
-            or RefreshPresentationStatus.Forbidden
-            or RefreshPresentationStatus.MailboxNotSupported;
+        // **Three outcomes, not two, and conflating the last two was a disclosure bug.**
+        //
+        // Invalidating: the mailbox refused this token. Sender and subject must be withheld.
+        //
+        // Affirmative recovery: the request reached the mailbox and was answered, which is positive
+        // evidence that authorization works again. Throttling and a missing item both qualify — a
+        // 429 or a 404 is a reply from a service that accepted the credential.
+        //
+        // Inconclusive: nothing was learned about authorization. A network failure, a timeout, a
+        // cancellation, an unparseable body, or a 5xx says only that the attempt did not complete.
+        //
+        // Deriving the flag from "is the new status one of the invalidating three" silently treated
+        // every inconclusive outcome as recovery: a 401 followed by a dropped connection cleared the
+        // suppression and the next delivery serialized cached senders and subjects, on the strength
+        // of a request that never reached Graph. Suppression is sticky precisely so that only
+        // evidence lifts it, and the absence of evidence is not evidence.
+        bool invalidatesDetails = presentation switch
+        {
+            RefreshPresentationStatus.Unauthorized => true,
+            RefreshPresentationStatus.Forbidden => true,
+            RefreshPresentationStatus.MailboxNotSupported => true,
+
+            RefreshPresentationStatus.Idle => false,
+            RefreshPresentationStatus.ItemNotFound => false,
+            RefreshPresentationStatus.Throttled => false,
+
+            // Everything else carries no authorization evidence, so the prior decision stands.
+            _ => Current.AuthorizationInvalidatesDetails,
+        };
 
         // A Graph result is evidence about both facts. In particular, a retry may show Loading
         // without making cached details safe; only its eventual non-invalidating result clears the
