@@ -237,7 +237,13 @@ internal sealed class RefreshPresentation
                 // superseded.
                 if (peerCommitted && current.AuthorizationInvalidatesDetails)
                 {
-                    PersistSuppression(false);
+                    // Unguarded on purpose. PersistSuppression compares against Current, which this
+                    // compare-exchange has already updated to false, so the guard would see no
+                    // change and skip the write — leaving the durable record saying withheld while
+                    // memory said otherwise, and a recycle restoring suppression despite the peer's
+                    // successful authorized refresh. The pre-exchange state, captured above, is the
+                    // one that decides.
+                    WriteSuppression(false);
                 }
 
                 return true;
@@ -309,15 +315,23 @@ internal sealed class RefreshPresentation
     /// every refresh.
     /// </para>
     /// </remarks>
+    /// <remarks>
+    /// Callers that have already changed <see cref="Current"/> must use
+    /// <see cref="WriteSuppression"/> instead: this compares against it, so a caller writing after
+    /// its own update sees no change and silently skips the write.
+    /// </remarks>
     private void PersistSuppression(bool detailsWithheld)
     {
-        if (_suppression is null || Current.AuthorizationInvalidatesDetails == detailsWithheld)
+        if (Current.AuthorizationInvalidatesDetails == detailsWithheld)
         {
             return;
         }
 
-        _suppression.Write(detailsWithheld);
+        WriteSuppression(detailsWithheld);
     }
+
+    /// <summary>Records the decision without consulting the in-memory state.</summary>
+    private void WriteSuppression(bool detailsWithheld) => _suppression?.Write(detailsWithheld);
 
     private void Set(RefreshPresentationState state) => Volatile.Write(ref _current, state);
 }

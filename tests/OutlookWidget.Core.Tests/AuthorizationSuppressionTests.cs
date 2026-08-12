@@ -139,6 +139,53 @@ public sealed class AuthorizationSuppressionTests : IDisposable
     }
 
     [Fact]
+    public void A_peer_commit_clears_the_record_for_the_next_process()
+    {
+        // The peer path updates the in-memory state with a compare-exchange and then persists. A
+        // guard comparing against the already-updated value saw no change and skipped the write, so
+        // the durable record stayed "withheld" while memory said otherwise — and a recycle restored
+        // suppression despite the peer's successful authorized refresh.
+        var presentation = new RefreshPresentation(Store());
+        presentation.ReportGraphStatus(GraphMailStatus.Unauthorized);
+
+        long peerWaitId = presentation.Complete(
+            new RefreshResult(
+                RefreshOutcome.SkippedLeaseHeld,
+                DeliveryRequestOutcome.NotRequested,
+                0,
+                TimeSpan.Zero,
+                PeerLeaseStartingGeneration: 4),
+            presentation.Current)!.Value;
+
+        Assert.True(presentation.ResolvePeerWait(peerWaitId, peerCommitted: true));
+
+        Assert.False(presentation.Current.AuthorizationInvalidatesDetails);
+        Assert.False(Store().Read().DetailsWithheld);
+        Assert.False(new RefreshPresentation(Store()).Current.AuthorizationInvalidatesDetails);
+    }
+
+    [Fact]
+    public void An_unresolved_peer_leaves_the_record_withheld()
+    {
+        // The other direction: a peer that did not commit is no evidence, so the record stands.
+        var presentation = new RefreshPresentation(Store());
+        presentation.ReportGraphStatus(GraphMailStatus.Unauthorized);
+
+        long peerWaitId = presentation.Complete(
+            new RefreshResult(
+                RefreshOutcome.SkippedLeaseHeld,
+                DeliveryRequestOutcome.NotRequested,
+                0,
+                TimeSpan.Zero,
+                PeerLeaseStartingGeneration: 4),
+            presentation.Current)!.Value;
+
+        Assert.True(presentation.ResolvePeerWait(peerWaitId, peerCommitted: false));
+
+        Assert.True(Store().Read().DetailsWithheld);
+    }
+
+    [Fact]
     public void A_presentation_without_a_store_still_works()
     {
         // Every existing transition test constructs one this way. Without a store there is simply no
