@@ -22,20 +22,15 @@ public sealed class RefreshPresentationTests
         Assert.True(presentation.Current.AuthorizationInvalidatesDetails);
     }
 
-    [Theory]
-    [InlineData(GraphMailStatus.Success)]
-    [InlineData(GraphMailStatus.Throttled)]
-    [InlineData(GraphMailStatus.ItemNotFound)]
-    public void An_answered_request_lifts_prior_authorization_suppression(GraphMailStatus status)
+    [Fact]
+    public void Only_a_successful_read_lifts_prior_authorization_suppression()
     {
-        // Affirmative evidence only: the request reached the mailbox and was answered. A 429 or a
-        // 404 is a reply from a service that accepted the credential, so both prove authorization
-        // recovered just as a 200 does.
+        // The single result that establishes this token may read this mailbox.
         var presentation = new RefreshPresentation();
         presentation.ReportGraphStatus(GraphMailStatus.Unauthorized);
         presentation.Begin();
 
-        presentation.ReportGraphStatus(status);
+        presentation.ReportGraphStatus(GraphMailStatus.Success);
 
         Assert.False(presentation.Current.AuthorizationInvalidatesDetails);
     }
@@ -46,6 +41,14 @@ public sealed class RefreshPresentationTests
     [InlineData(GraphMailStatus.Cancelled)]
     [InlineData(GraphMailStatus.InvalidResponse)]
     [InlineData(GraphMailStatus.ServiceFailure)]
+
+    // Throttling and a missing item were briefly treated as recovery, on the reasoning that a 429 or
+    // a 404 is a reply from a service that accepted the credential. A throttle can be applied at the
+    // gateway before authorization is evaluated, and GraphMailClient already ranks Throttled below
+    // Unauthorized as the less conclusive answer. Neither is worth the risk when being conservative
+    // costs only a counts-only card until the next successful read.
+    [InlineData(GraphMailStatus.Throttled)]
+    [InlineData(GraphMailStatus.ItemNotFound)]
     public void An_inconclusive_result_preserves_prior_authorization_suppression(
         GraphMailStatus status)
     {
