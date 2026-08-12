@@ -267,14 +267,21 @@ internal sealed class ProviderRefreshWorker : IDisposable
 
                 if (peerWaitId is { } id)
                 {
-                    // The token deliberately survived this pass, because SkippedLeaseHeld means no
-                    // fetch was attempted here. If the peer then commits, its refresh is the
-                    // recovery, and without acknowledging it the next activation or signal would
-                    // force another Graph transaction over the cache the peer just committed.
-                    _ = AcknowledgeAfterPeerCommitAsync(
+                    // The token deliberately survives this pass, because SkippedLeaseHeld means no
+                    // fetch was attempted here.
+                    //
+                    // It is deliberately NOT discharged when the monitor sees the generation
+                    // advance. That was tried and the premise was wrong: the lease holds no mutex,
+                    // so any other commit — a different-account sign-in clearing the prior snapshot,
+                    // most obviously — moves the counter while a peer refresh is live and possibly
+                    // failing. Acknowledging on that discards a pending recovery on the strength of
+                    // a write nobody attributed to the peer. An unacknowledged token costs one extra
+                    // Graph transaction; a wrongly acknowledged one costs the recovery itself.
+                    _ = _peerMonitor.RunAsync(
+                        _presentation,
                         id,
                         result.PeerLeaseStartingGeneration,
-                        signInToken);
+                        _shutdown.Token);
                 }
 
                 // Token acquisition can change the card's authentication state even when there is
@@ -302,36 +309,6 @@ internal sealed class ProviderRefreshWorker : IDisposable
                     _delivery.RequestDelivery();
                 }
             }
-        }
-    }
-
-    /// <summary>
-    /// Watches one peer wait and acknowledges the pending sign-in if that peer commits.
-    /// </summary>
-    /// <remarks>
-    /// Never throws: it is a detached continuation of a fire-and-forget monitor, so an escaping
-    /// exception would be unobserved. The monitor already contains its own cancellation handling;
-    /// this guards the acknowledgement, whose failure costs one redundant refresh.
-    /// </remarks>
-    private async Task AcknowledgeAfterPeerCommitAsync(
-        long peerWaitId,
-        long? peerLeaseStartingGeneration,
-        Guid? signInToken)
-    {
-        try
-        {
-            bool peerCommitted = await _peerMonitor
-                .RunAsync(_presentation, peerWaitId, peerLeaseStartingGeneration, _shutdown.Token)
-                .ConfigureAwait(false);
-
-            if (peerCommitted && signInToken is { } token)
-            {
-                _consumeSignInToken(token);
-            }
-        }
-        catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
-        {
-            _logger.Record(OperationalEventId.RefreshTimerCallbackFailed, OperationalOutcome.Failed);
         }
     }
 

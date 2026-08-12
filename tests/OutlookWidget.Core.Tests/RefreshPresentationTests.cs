@@ -129,8 +129,15 @@ public sealed class RefreshPresentationTests
     }
 
     [Fact]
-    public void Peer_completion_uses_its_identity_and_clears_authorization_suppression()
+    public void An_advanced_generation_resolves_the_wait_without_clearing_suppression()
     {
+        // This once asserted that the advance cleared the authorization decision, on the reasoning
+        // that a peer's commit could only have come from an authorized read. The premise is false:
+        // the lease holds no mutex, so any other commit — a different-account sign-in clearing the
+        // prior snapshot, most obviously — moves the counter while a peer refresh is live and
+        // possibly failing. Nothing observed here identifies who wrote it.
+        //
+        // The advance may therefore decide the card's status and nothing more.
         var presentation = new RefreshPresentation();
         presentation.ReportGraphStatus(GraphMailStatus.Unauthorized);
         RefreshPresentationState previous = presentation.Begin();
@@ -138,11 +145,11 @@ public sealed class RefreshPresentationTests
 
         Assert.True(presentation.Current.AuthorizationInvalidatesDetails);
         Assert.Equal(peerWaitId, presentation.Current.PeerWaitId);
-        Assert.True(presentation.ResolvePeerWait(peerWaitId, peerCommitted: true));
+        Assert.True(presentation.ResolvePeerWait(peerWaitId, stateAdvanced: true));
         Assert.Equal(RefreshPresentationStatus.Idle, presentation.Current.Status);
-        Assert.False(presentation.Current.AuthorizationInvalidatesDetails);
+        Assert.True(presentation.Current.AuthorizationInvalidatesDetails);
         Assert.Null(presentation.Current.PeerWaitId);
-        Assert.False(presentation.ResolvePeerWait(peerWaitId, peerCommitted: false));
+        Assert.False(presentation.ResolvePeerWait(peerWaitId, stateAdvanced: false));
     }
 
     [Fact]
@@ -153,7 +160,7 @@ public sealed class RefreshPresentationTests
         RefreshPresentationState previous = presentation.Begin();
         long peerWaitId = presentation.Complete(Result(RefreshOutcome.SkippedLeaseHeld), previous)!.Value;
 
-        Assert.True(presentation.ResolvePeerWait(peerWaitId, peerCommitted: false));
+        Assert.True(presentation.ResolvePeerWait(peerWaitId, stateAdvanced: false));
         Assert.Equal(RefreshPresentationStatus.StatusUnknown, presentation.Current.Status);
         Assert.True(presentation.Current.AuthorizationInvalidatesDetails);
         Assert.Null(presentation.Current.PeerWaitId);
@@ -170,7 +177,7 @@ public sealed class RefreshPresentationTests
 
         Assert.Equal(RefreshPresentationStatus.Loading, presentation.Current.Status);
         Assert.Equal(peerWaitId, presentation.Current.PeerWaitId);
-        Assert.True(presentation.ResolvePeerWait(peerWaitId, peerCommitted: false));
+        Assert.True(presentation.ResolvePeerWait(peerWaitId, stateAdvanced: false));
 
         presentation.Complete(Result(RefreshOutcome.SkippedDebounce), beforeDebounce);
 
@@ -193,7 +200,7 @@ public sealed class RefreshPresentationTests
             second)!.Value;
 
         Assert.NotEqual(firstPeerWaitId, secondPeerWaitId);
-        Assert.False(presentation.ResolvePeerWait(firstPeerWaitId, peerCommitted: false));
+        Assert.False(presentation.ResolvePeerWait(firstPeerWaitId, stateAdvanced: false));
         Assert.Equal(RefreshPresentationStatus.RefreshInProgress, presentation.Current.Status);
         Assert.Equal(secondPeerWaitId, presentation.Current.PeerWaitId);
     }

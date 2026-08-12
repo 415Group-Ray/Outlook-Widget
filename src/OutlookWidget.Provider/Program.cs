@@ -146,7 +146,13 @@ internal static partial class Program
         // Given the durable authorization record, so a recycle or package upgrade inherits a refusal
         // instead of starting from "not suppressed" and rendering what it withheld.
         var refreshPresentation = new RefreshPresentation(
-            new AuthorizationSuppressionStore(paths, logger));
+            new AuthorizationSuppressionStore(paths, logger),
+            // When a refusal cannot be recorded durably, express it through the mechanism that
+            // exists for exactly that: a suppression marker needing no mutex, read before every host
+            // call, and removable only by the companion's explicit recovery action. The orphan is
+            // the point — a widget whose refusal could not be written down shows counts only until
+            // someone clears it deliberately, rather than showing mail after the next restart.
+            () => tombstones.Suppress(DisclosureMode.CountsOnly).CompleteWithoutClearing());
         var sink = new WidgetDeliverySink(
             registry,
             disclosure.GetEffectiveMode,

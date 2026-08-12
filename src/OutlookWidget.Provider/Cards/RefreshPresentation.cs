@@ -36,6 +36,7 @@ internal sealed record RefreshPresentationState(
 internal sealed class RefreshPresentation
 {
     private readonly AuthorizationSuppressionStore? _suppression;
+    private readonly Action? _escalateUnrecordedSuppression;
     private RefreshPresentationState _current;
     private long _nextPeerWaitId;
 
@@ -44,9 +45,16 @@ internal sealed class RefreshPresentation
     /// filesystem; production always supplies it, and without it a restart discloses what a refusal
     /// withheld.
     /// </param>
-    public RefreshPresentation(AuthorizationSuppressionStore? suppression = null)
+    /// <param name="escalateUnrecordedSuppression">
+    /// Invoked when a refusal could not be recorded durably, so the decision can be expressed
+    /// through a mechanism that does not depend on that file. See <see cref="WriteSuppression"/>.
+    /// </param>
+    public RefreshPresentation(
+        AuthorizationSuppressionStore? suppression = null,
+        Action? escalateUnrecordedSuppression = null)
     {
         _suppression = suppression;
+        _escalateUnrecordedSuppression = escalateUnrecordedSuppression;
 
         // **Restored, not assumed.** A restart is the moment the provider knows least: the
         // recovered-instance delivery runs before any new Graph result, so starting from "not
@@ -212,7 +220,27 @@ internal sealed class RefreshPresentation
     /// Resolves one identified peer wait from lease/generation evidence, regardless of temporary
     /// display transitions. A stale monitor cannot change a replacement wait or newer local result.
     /// </summary>
-    public bool ResolvePeerWait(long peerWaitId, bool peerCommitted)
+    /// <param name="stateAdvanced">
+    /// Whether the committed generation moved while the peer's lease was live.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// <b>An advanced generation is not proof that the peer wrote it, and this used to assume it
+    /// was.</b> The lease deliberately holds no mutex, so any other commit — most obviously a
+    /// different-account sign-in clearing the prior snapshot — advances the counter while a peer
+    /// refresh is live and possibly failing. Treating that as a successful peer read cleared durable
+    /// authorization suppression and discharged a pending sign-in, on the strength of a write nobody
+    /// had attributed to anyone.
+    /// </para>
+    /// <para>
+    /// So the advance now decides only what it can support: whether the card returns to Idle or says
+    /// the outcome is unknown. <b>It no longer clears the authorization decision</b>, which stays
+    /// until this process gets a successful read of its own. The cost is one extra refresh after a
+    /// peer genuinely recovers; the alternative was rendering withheld mail because some unrelated
+    /// commit moved a number.
+    /// </para>
+    /// </remarks>
+    public bool ResolvePeerWait(long peerWaitId, bool stateAdvanced)
     {
         while (true)
         {
@@ -224,28 +252,16 @@ internal sealed class RefreshPresentation
             }
 
             var resolved = new RefreshPresentationState(
-                peerCommitted
+                stateAdvanced
                     ? RefreshPresentationStatus.Idle
                     : RefreshPresentationStatus.StatusUnknown,
-                peerCommitted ? false : current.AuthorizationInvalidatesDetails);
+
+                // Carried through untouched. See the remarks: nothing observed here identifies who
+                // advanced the generation, so nothing observed here is authorization evidence.
+                current.AuthorizationInvalidatesDetails);
 
             if (ReferenceEquals(Interlocked.CompareExchange(ref _current, resolved, current), current))
             {
-                // A peer's commit is the same evidence as our own: it could only have been produced
-                // by a successful authorized read. Persisted after the exchange wins, so a losing
-                // race cannot clear the durable record on the strength of an observation that was
-                // superseded.
-                if (peerCommitted && current.AuthorizationInvalidatesDetails)
-                {
-                    // Unguarded on purpose. PersistSuppression compares against Current, which this
-                    // compare-exchange has already updated to false, so the guard would see no
-                    // change and skip the write — leaving the durable record saying withheld while
-                    // memory said otherwise, and a recycle restoring suppression despite the peer's
-                    // successful authorized refresh. The pre-exchange state, captured above, is the
-                    // one that decides.
-                    WriteSuppression(false);
-                }
-
                 return true;
             }
         }
@@ -330,8 +346,45 @@ internal sealed class RefreshPresentation
         WriteSuppression(detailsWithheld);
     }
 
-    /// <summary>Records the decision without consulting the in-memory state.</summary>
-    private void WriteSuppression(bool detailsWithheld) => _suppression?.Write(detailsWithheld);
+    /// <summary>
+    /// Records the decision without consulting the in-memory state, escalating if it cannot.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>A failed write in the withholding direction is a disclosure risk, not a logging matter.</b>
+    /// This process still withholds, because the in-memory flag is set either way — but the record is
+    /// what the *next* process reads, and an absent or stale one tells it nothing was ever refused.
+    /// A recycle would then render the senders and subjects the refusal withheld, which is precisely
+    /// the defect the durable record was introduced to fix. Discarding the store's return value left
+    /// that hole open while the store was reporting it.
+    /// </para>
+    /// <para>
+    /// The escalation is the disclosure tombstone, which exists for exactly this shape of problem:
+    /// section 4 introduces it because the ordinary commit path cannot be the only route to a
+    /// fail-closed state. It needs no mutex, it is read before every host call, and an orphan is a
+    /// supported outcome that the companion's explicit recovery action removes. So a widget whose
+    /// suppression could not be recorded shows counts only until someone clears it deliberately,
+    /// rather than showing mail after the next restart.
+    /// </para>
+    /// <para>
+    /// Clearing is not escalated. A failure there leaves the record saying withheld, which is the
+    /// safe direction already.
+    /// </para>
+    /// </remarks>
+    private void WriteSuppression(bool detailsWithheld)
+    {
+        if (_suppression is null)
+        {
+            return;
+        }
+
+        if (_suppression.Write(detailsWithheld) || !detailsWithheld)
+        {
+            return;
+        }
+
+        _escalateUnrecordedSuppression?.Invoke();
+    }
 
     private void Set(RefreshPresentationState state) => Volatile.Write(ref _current, state);
 }
