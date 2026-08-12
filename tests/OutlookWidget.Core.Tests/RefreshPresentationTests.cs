@@ -85,6 +85,38 @@ public sealed class RefreshPresentationTests
     }
 
     [Fact]
+    public void A_deadline_during_authentication_is_shown_as_a_timeout()
+    {
+        // This path ends before Graph, so no Graph status is ever reported: the probe returns
+        // Cancelled, the fetcher returns null, and the coordinator's FetchFailed handler resets a
+        // still-Loading card to Idle. The user waited out a twenty-second deadline and the card said
+        // everything was fine.
+        var presentation = new RefreshPresentation();
+        presentation.Begin();
+
+        presentation.ReportAuthenticationTimedOut();
+
+        presentation.Complete(
+            new RefreshResult(RefreshOutcome.FetchFailed, DeliveryRequestOutcome.NotRequested, 0, TimeSpan.Zero),
+            new RefreshPresentationState(RefreshPresentationStatus.Idle, false));
+
+        Assert.Equal(RefreshPresentationStatus.TimedOut, presentation.Current.Status);
+    }
+
+    [Fact]
+    public void An_authentication_deadline_says_nothing_about_authorization()
+    {
+        // A deadline is not evidence either way, so the sticky decision carries through untouched.
+        var presentation = new RefreshPresentation();
+        presentation.ReportGraphStatus(GraphMailStatus.Unauthorized);
+        presentation.Begin();
+
+        presentation.ReportAuthenticationTimedOut();
+
+        Assert.True(presentation.Current.AuthorizationInvalidatesDetails);
+    }
+
+    [Fact]
     public void A_debounced_retry_restores_both_prior_presentation_facts()
     {
         var presentation = new RefreshPresentation();

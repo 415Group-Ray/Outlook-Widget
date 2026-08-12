@@ -95,6 +95,45 @@ public sealed class SignInCompletedRecordTests : IDisposable
     }
 
     [Fact]
+    public void Consuming_the_record_is_the_acknowledgement_and_it_survives_a_restart()
+    {
+        // The acknowledgement used to be an in-memory field, so every recycle, reboot, and package
+        // upgrade started with no memory of it and treated a historical sign-in as outstanding —
+        // forcing a Graph transaction over a perfectly fresh cache each time. Absence of the record
+        // is the acknowledgement now, and absence survives a process boundary for free.
+        SignInCompletedRecord.Write(Paths);
+        Guid token = SignInCompletedRecord.Read(Paths)!.Value;
+
+        SignInCompletedRecord.Consume(Paths, token);
+
+        Assert.Null(SignInCompletedRecord.Read(Paths));
+    }
+
+    [Fact]
+    public void Consuming_a_superseded_token_leaves_the_newer_sign_in_outstanding()
+    {
+        // A sign-in completed while the provider's refresh was in flight. Deleting unconditionally
+        // would discard that sign-in's recovery along with the one just handled.
+        SignInCompletedRecord.Write(Paths);
+        Guid inFlight = SignInCompletedRecord.Read(Paths)!.Value;
+
+        SignInCompletedRecord.Write(Paths);
+        Guid newer = SignInCompletedRecord.Read(Paths)!.Value;
+
+        SignInCompletedRecord.Consume(Paths, inFlight);
+
+        Assert.Equal(newer, SignInCompletedRecord.Read(Paths));
+    }
+
+    [Fact]
+    public void Consuming_an_absent_record_is_harmless()
+    {
+        SignInCompletedRecord.Consume(Paths, Guid.NewGuid());
+
+        Assert.Null(SignInCompletedRecord.Read(Paths));
+    }
+
+    [Fact]
     public void The_record_lives_beside_the_other_coordination_state()
     {
         // Inside the package store, so uninstall removes it with everything else.

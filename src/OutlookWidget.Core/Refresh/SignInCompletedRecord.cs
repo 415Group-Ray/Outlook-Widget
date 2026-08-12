@@ -93,6 +93,48 @@ public static class SignInCompletedRecord
     }
 
     /// <summary>
+    /// Removes the record, but only if it still holds <paramref name="token"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Consumption is how the acknowledgement becomes durable.</b> The provider used to remember
+    /// which token it had acted on in memory, so every recycle, reboot, and package upgrade started
+    /// with no memory of it and forced a Graph transaction against a historical sign-in over a
+    /// perfectly fresh cache. Deleting the record instead means its absence *is* the
+    /// acknowledgement, and absence survives a process boundary for free.
+    /// </para>
+    /// <para>
+    /// <b>Conditional on the token, because the companion may have written a newer one.</b> A sign-in
+    /// completed while the provider's refresh was in flight writes a new token; deleting
+    /// unconditionally would discard that sign-in's recovery along with the one just handled. A
+    /// mismatch therefore leaves the record alone for the next opportunity.
+    /// </para>
+    /// <para>
+    /// Never throws, for the reason <see cref="Write"/> does not: a failure here leaves the record in
+    /// place, which costs one redundant refresh rather than a lost one.
+    /// </para>
+    /// </remarks>
+    public static void Consume(CoordinationPaths paths, Guid token, IOperationalLogger? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+
+        try
+        {
+            if (Read(paths) != token)
+            {
+                return;
+            }
+
+            File.Delete(paths.SignInCompletedRecordFilePath);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            (logger ?? NullOperationalLogger.Instance)
+                .Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Failed);
+        }
+    }
+
+    /// <summary>
     /// Reads the current token, or <see langword="null"/> when there is none to be sure of.
     /// </summary>
     /// <remarks>

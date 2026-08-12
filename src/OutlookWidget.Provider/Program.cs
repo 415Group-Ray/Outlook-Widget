@@ -178,6 +178,14 @@ internal static partial class Program
                     TokenAcquisitionResult token =
                         await authProbe.AcquireTokenAsync(cancellationToken).ConfigureAwait(false);
 
+                    // A deadline that expires here ends the refresh before Graph is reached, so no
+                    // Graph status is ever reported and the coordinator's FetchFailed would reset a
+                    // still-Loading card to Idle. Say what happened instead.
+                    if (token.Status == TokenAcquisitionStatus.Cancelled)
+                    {
+                        refreshPresentation.ReportAuthenticationTimedOut();
+                    }
+
                     return token.IsAcquired && token.HomeAccountId is { Length: > 0 } homeAccountId
                         ? new MailboxRefreshAccess(token.AccessToken!, homeAccountId)
                         : null;
@@ -207,8 +215,10 @@ internal static partial class Program
                 logger,
                 // The durable half of sign-in recovery. The event below is the fast path; this is
                 // what lets an activation or the active timer discover a sign-in whose event could
-                // not be raised.
-                () => SignInCompletedRecord.Read(paths));
+                // not be raised. Consuming the record is the acknowledgement, so it survives the
+                // recycle that in-memory bookkeeping did not.
+                () => SignInCompletedRecord.Read(paths),
+                token => SignInCompletedRecord.Consume(paths, token, logger));
         }
 
         using var refreshLifetime = refresh;

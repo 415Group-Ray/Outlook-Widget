@@ -21,17 +21,8 @@ internal sealed class ProviderRefreshWorker : IDisposable
     private readonly RefreshPresentation _presentation;
     private readonly PeerRefreshMonitor _peerMonitor;
     private readonly Func<Guid?> _readSignInToken;
+    private readonly Action<Guid> _consumeSignInToken;
     private readonly CancellationTokenSource _shutdown = new();
-
-    /// <summary>
-    /// The sign-in token this worker has already spent a recovery attempt on, or
-    /// <see langword="null"/> before it has spent any.
-    /// </summary>
-    /// <remarks>
-    /// Guarded by <see cref="_gate"/> rather than made atomic: it is only read and written from the
-    /// staleness check, which runs on the single drain loop.
-    /// </remarks>
-    private Guid? _recoveredSignInToken;
     private readonly Lock _gate = new();
     private readonly Queue<RefreshWork> _pending = new();
     private Task? _drain;
@@ -46,7 +37,8 @@ internal sealed class ProviderRefreshWorker : IDisposable
         IDeliveryRequester delivery,
         RefreshPresentation presentation,
         IOperationalLogger? logger = null,
-        Func<Guid?>? readSignInToken = null)
+        Func<Guid?>? readSignInToken = null,
+        Action<Guid>? consumeSignInToken = null)
     {
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(fetcher);
@@ -58,6 +50,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
         // Optional so existing construction sites keep compiling; a worker without it simply has no
         // durable fallback and relies on the sign-in event alone.
         _readSignInToken = readSignInToken ?? (static () => null);
+        _consumeSignInToken = consumeSignInToken ?? (static _ => { });
         _coordinator = coordinator;
         _fetcher = fetcher;
         _cache = cache;
@@ -176,24 +169,22 @@ internal sealed class ProviderRefreshWorker : IDisposable
     /// </para>
     /// </remarks>
     /// <remarks>
-    /// <b>Reports; it does not retire.</b> Retiring here marked the token spent before anything was
-    /// known about whether a fetch happened, which lost recovery whenever a peer held the lease: the
-    /// pass returned <c>SkippedLeaseHeld</c>, and if that peer then expired without committing, every
-    /// later fresh-snapshot check skipped the attempt that was still owed. The token is retired in
-    /// <see cref="DrainAsync"/> instead, once an attempt has actually been made.
+    /// <para>
+    /// <b>The record's presence is the question, and its absence is the acknowledgement.</b> This
+    /// worker holds no memory of which sign-ins it has handled, because memory does not survive the
+    /// recycle, reboot, or package upgrade that a provider routinely undergoes — and a worker
+    /// starting with no memory treated a historical token as outstanding and forced a Graph
+    /// transaction over a perfectly fresh cache, every single time.
+    /// </para>
+    /// <para>
+    /// <b>Reports; it does not consume.</b> Consuming here would mark the sign-in handled before
+    /// anything was known about whether a fetch happened, which loses recovery whenever a peer holds
+    /// the lease: the pass returns <c>SkippedLeaseHeld</c>, and if that peer then expires without
+    /// committing, the attempt that was still owed is never made. Consumption happens in
+    /// <see cref="DrainAsync"/>, once an attempt has actually been made.
+    /// </para>
     /// </remarks>
-    private bool HasUnrecoveredSignIn()
-    {
-        if (_readSignInToken() is not { } token)
-        {
-            return false;
-        }
-
-        lock (_gate)
-        {
-            return _recoveredSignInToken != token;
-        }
-    }
+    private bool HasUnrecoveredSignIn() => _readSignInToken() is not null;
 
     /// <summary>
     /// Marks a recorded sign-in as acted on, once this worker has genuinely attempted a refresh.
@@ -207,8 +198,9 @@ internal sealed class ProviderRefreshWorker : IDisposable
     /// second fetch over a snapshot committed moments earlier.
     /// </para>
     /// <para>
-    /// The token is the one captured before the pass began, so a sign-in completed while this
-    /// refresh was in flight writes a newer token that does not match and is still recovered.
+    /// The token is the one captured before the pass began, and consumption is conditional on the
+    /// record still holding it, so a sign-in completed while this refresh was in flight is not
+    /// discarded along with the one just handled.
     /// </para>
     /// <para>
     /// Outcomes that never reached a fetch leave it outstanding. A lease held by a peer, a
@@ -218,7 +210,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
     /// </remarks>
     private void RetireSignInToken(Guid? token, RefreshOutcome outcome)
     {
-        if (token is null)
+        if (token is not { } captured)
         {
             return;
         }
@@ -228,14 +220,9 @@ internal sealed class ProviderRefreshWorker : IDisposable
             or RefreshOutcome.SkippedDebounce
             or RefreshOutcome.Cancelled);
 
-        if (!attempted)
+        if (attempted)
         {
-            return;
-        }
-
-        lock (_gate)
-        {
-            _recoveredSignInToken = token;
+            _consumeSignInToken(captured);
         }
     }
 

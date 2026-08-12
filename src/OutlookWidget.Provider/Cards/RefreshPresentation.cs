@@ -139,6 +139,29 @@ internal sealed class RefreshPresentation
         Set(new RefreshPresentationState(presentation, invalidatesDetails));
     }
 
+    /// <summary>
+    /// Records that the refresh deadline expired while acquiring a token, before Graph was reached.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>This path cannot be covered by the Graph status mapping, because it ends before Graph.</b>
+    /// When the twenty-second linked deadline expires during silent acquisition, the probe catches
+    /// the cancellation and returns <c>Cancelled</c>, the fetcher returns null, and the coordinator
+    /// reports <c>FetchFailed</c> — whose handler resets a still-Loading card to Idle. The user
+    /// waited out a deadline and the card said everything was fine.
+    /// </para>
+    /// <para>
+    /// Classified as a timeout rather than a cancellation for the same reason the Graph mapping
+    /// does: a shutdown also cancels, but a shutting-down provider requests no delivery, so nothing
+    /// renders. What survives to be seen is the deadline the user actually waited out.
+    /// </para>
+    /// <para>
+    /// It deliberately says nothing about authorization. A deadline is not evidence either way, so
+    /// the sticky decision is carried through untouched.
+    /// </para>
+    /// </remarks>
+    public void ReportAuthenticationTimedOut() => SetStatus(RefreshPresentationStatus.TimedOut);
+
     public long? Complete(RefreshResult result, RefreshPresentationState previousState)
     {
         switch (result.Outcome)
