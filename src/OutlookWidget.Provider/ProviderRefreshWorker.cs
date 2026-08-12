@@ -175,6 +175,13 @@ internal sealed class ProviderRefreshWorker : IDisposable
     /// or unreadable record answers "no evidence" and spends nothing.
     /// </para>
     /// </remarks>
+    /// <remarks>
+    /// <b>Reports; it does not retire.</b> Retiring here marked the token spent before anything was
+    /// known about whether a fetch happened, which lost recovery whenever a peer held the lease: the
+    /// pass returned <c>SkippedLeaseHeld</c>, and if that peer then expired without committing, every
+    /// later fresh-snapshot check skipped the attempt that was still owed. The token is retired in
+    /// <see cref="DrainAsync"/> instead, once an attempt has actually been made.
+    /// </remarks>
     private bool HasUnrecoveredSignIn()
     {
         if (_readSignInToken() is not { } token)
@@ -184,13 +191,51 @@ internal sealed class ProviderRefreshWorker : IDisposable
 
         lock (_gate)
         {
-            if (_recoveredSignInToken == token)
-            {
-                return false;
-            }
+            return _recoveredSignInToken != token;
+        }
+    }
 
+    /// <summary>
+    /// Marks a recorded sign-in as acted on, once this worker has genuinely attempted a refresh.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Called for every completed pass, not only for the ones staleness scheduled, which is what
+    /// stops one sign-in producing two Graph transactions. The event-driven fast path forces a
+    /// refresh through <c>Request</c>; that pass commits and raises the ordinary state-change event;
+    /// its <c>RequestIfStale</c> would otherwise see the same token still outstanding and force a
+    /// second fetch over a snapshot committed moments earlier.
+    /// </para>
+    /// <para>
+    /// The token is the one captured before the pass began, so a sign-in completed while this
+    /// refresh was in flight writes a newer token that does not match and is still recovered.
+    /// </para>
+    /// <para>
+    /// Outcomes that never reached a fetch leave it outstanding. A lease held by a peer, a
+    /// contended mutex, a debounce, or a cancelled shutdown are all "no attempt was made", and the
+    /// recovery is still owed — the peer may expire without committing anything.
+    /// </para>
+    /// </remarks>
+    private void RetireSignInToken(Guid? token, RefreshOutcome outcome)
+    {
+        if (token is null)
+        {
+            return;
+        }
+
+        bool attempted = outcome is not (RefreshOutcome.SkippedLeaseHeld
+            or RefreshOutcome.SkippedContention
+            or RefreshOutcome.SkippedDebounce
+            or RefreshOutcome.Cancelled);
+
+        if (!attempted)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
             _recoveredSignInToken = token;
-            return true;
         }
     }
 
@@ -218,12 +263,18 @@ internal sealed class ProviderRefreshWorker : IDisposable
                     continue;
                 }
 
+                // Captured before the pass so a sign-in completed while it runs writes a newer token
+                // that this pass does not retire.
+                Guid? signInToken = _readSignInToken();
+
                 RefreshPresentationState previousState = _presentation.Begin();
                 _delivery.RequestDelivery();
 
                 RefreshResult result = await _coordinator
                     .RefreshAsync(_fetcher, work.Trigger, _shutdown.Token)
                     .ConfigureAwait(false);
+
+                RetireSignInToken(signInToken, result.Outcome);
 
                 long? peerWaitId = _presentation.Complete(result, previousState);
 

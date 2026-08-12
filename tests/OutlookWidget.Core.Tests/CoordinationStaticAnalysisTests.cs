@@ -655,6 +655,29 @@ public sealed class CoordinationStaticAnalysisTests
         int recoveryCheck = worker.IndexOf("HasUnrecoveredSignIn()", StringComparison.Ordinal);
 
         Assert.True(staleMethod > 0 && recoveryCheck > staleMethod);
+
+        // The token is retired after a pass rather than when it is noticed, and both halves of that
+        // matter. Retiring on notice marked it spent before anything was known about whether a fetch
+        // happened, so a pass that only found a peer holding the lease consumed the recovery — and
+        // if that peer expired without committing, the attempt was never made. Retiring only from
+        // the staleness path would leave the event-driven fast path's token outstanding, so the
+        // state-change event its own commit raises would force a second Graph transaction over a
+        // snapshot committed moments earlier.
+        Assert.Contains("RetireSignInToken(signInToken, result.Outcome)", worker, StringComparison.Ordinal);
+        Assert.Contains("RefreshOutcome.SkippedLeaseHeld", worker, StringComparison.Ordinal);
+
+        // Scoped to the notice method's own body: retiring anywhere is fine except there.
+        int noticeStart = worker.IndexOf(
+            "private bool HasUnrecoveredSignIn()",
+            StringComparison.Ordinal);
+        int noticeEnd = worker.IndexOf("private void RetireSignInToken", StringComparison.Ordinal);
+
+        Assert.True(noticeStart > 0 && noticeEnd > noticeStart);
+
+        Assert.DoesNotContain(
+            "_recoveredSignInToken =",
+            worker[noticeStart..noticeEnd],
+            StringComparison.Ordinal);
     }
 
     [Fact]
