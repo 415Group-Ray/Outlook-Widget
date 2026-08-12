@@ -95,42 +95,53 @@ public sealed class SignInCompletedRecordTests : IDisposable
     }
 
     [Fact]
-    public void Consuming_the_record_is_the_acknowledgement_and_it_survives_a_restart()
+    public void Acknowledging_settles_the_sign_in_and_survives_a_restart()
     {
         // The acknowledgement used to be an in-memory field, so every recycle, reboot, and package
         // upgrade started with no memory of it and treated a historical sign-in as outstanding —
-        // forcing a Graph transaction over a perfectly fresh cache each time. Absence of the record
-        // is the acknowledgement now, and absence survives a process boundary for free.
+        // forcing a Graph transaction over a perfectly fresh cache each time.
         SignInCompletedRecord.Write(Paths);
-        Guid token = SignInCompletedRecord.Read(Paths)!.Value;
+        Guid token = SignInCompletedRecord.ReadOutstanding(Paths)!.Value;
 
-        SignInCompletedRecord.Consume(Paths, token);
+        SignInCompletedRecord.Acknowledge(Paths, token);
 
-        Assert.Null(SignInCompletedRecord.Read(Paths));
+        Assert.Null(SignInCompletedRecord.ReadOutstanding(Paths));
     }
 
     [Fact]
-    public void Consuming_a_superseded_token_leaves_the_newer_sign_in_outstanding()
+    public void A_sign_in_completed_after_the_acknowledgement_is_still_outstanding()
     {
-        // A sign-in completed while the provider's refresh was in flight. Deleting unconditionally
-        // would discard that sign-in's recovery along with the one just handled.
+        // The race that deleting the companion's file could not survive: a sign-in completing
+        // between the provider's read and its delete had its record discarded without ever being
+        // acted on. With two single-writer files there is no such window — the acknowledgement
+        // names a token, and a newer one simply does not match it.
         SignInCompletedRecord.Write(Paths);
-        Guid inFlight = SignInCompletedRecord.Read(Paths)!.Value;
+        Guid inFlight = SignInCompletedRecord.ReadOutstanding(Paths)!.Value;
 
         SignInCompletedRecord.Write(Paths);
         Guid newer = SignInCompletedRecord.Read(Paths)!.Value;
 
-        SignInCompletedRecord.Consume(Paths, inFlight);
+        SignInCompletedRecord.Acknowledge(Paths, inFlight);
 
-        Assert.Equal(newer, SignInCompletedRecord.Read(Paths));
+        Assert.Equal(newer, SignInCompletedRecord.ReadOutstanding(Paths));
     }
 
     [Fact]
-    public void Consuming_an_absent_record_is_harmless()
+    public void Acknowledging_without_a_sign_in_leaves_nothing_outstanding()
     {
-        SignInCompletedRecord.Consume(Paths, Guid.NewGuid());
+        SignInCompletedRecord.Acknowledge(Paths, Guid.NewGuid());
 
-        Assert.Null(SignInCompletedRecord.Read(Paths));
+        Assert.Null(SignInCompletedRecord.ReadOutstanding(Paths));
+    }
+
+    [Fact]
+    public void An_unreadable_acknowledgement_leaves_the_sign_in_outstanding()
+    {
+        // Failing safe in the direction that costs a redundant refresh rather than a lost recovery.
+        SignInCompletedRecord.Write(Paths);
+        File.WriteAllText(Paths.SignInAcknowledgedRecordFilePath, "{ broken");
+
+        Assert.NotNull(SignInCompletedRecord.ReadOutstanding(Paths));
     }
 
     [Fact]

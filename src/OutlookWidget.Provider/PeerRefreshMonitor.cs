@@ -31,7 +31,12 @@ internal sealed class PeerRefreshMonitor
         _delay = delay ?? Task.Delay;
     }
 
-    public async Task RunAsync(
+    /// <returns>
+    /// <see langword="true"/> when this monitor observed the peer commit. The caller needs that
+    /// answer as well as the card transition: a sign-in whose own pass only found the lease held is
+    /// still awaiting acknowledgement, and the peer's commit is what discharges it.
+    /// </returns>
+    public async Task<bool> RunAsync(
         RefreshPresentation presentation,
         long peerWaitId,
         long? generationBeforeRefresh,
@@ -54,7 +59,7 @@ internal sealed class PeerRefreshMonitor
                 // result or replacement peer wait has superseded this monitor.
                 if (presentation.Current.PeerWaitId != peerWaitId)
                 {
-                    return;
+                    return false;
                 }
 
                 if (_isRefreshInProgress())
@@ -74,14 +79,19 @@ internal sealed class PeerRefreshMonitor
                 if (presentation.ResolvePeerWait(peerWaitId, peerCommitted))
                 {
                     _requestDelivery();
+                    return peerCommitted;
                 }
 
-                return;
+                // A newer local result or replacement wait superseded this observation, so it is
+                // not this monitor's to report.
+                return false;
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // Provider shutdown. There is no remaining card to converge.
         }
+
+        return false;
     }
 }

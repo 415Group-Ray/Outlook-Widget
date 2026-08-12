@@ -359,10 +359,21 @@ internal static class InboxCard
         // wherever a snapshot exists, which is what distinguishes hiding details from hiding the
         // mailbox.
         int rows = RowsFor(instance.Size);
+
+        // **Only statuses that are authorization evidence may withhold rows.**
+        //
+        // Cancelled was in this set and is not evidence of anything: it means the acquisition was
+        // cancelled, which now happens whenever the refresh deadline expires during silent
+        // authentication. Once that deadline began reporting itself properly, a twenty-second
+        // timeout started emptying the card of mail it already had — and section 8's error table
+        // says an ordinary timeout keeps cached content, precisely because a failure to reach the
+        // service says nothing about whether the service would have refused us.
+        //
+        // InteractionRequired and ApprovalRequired stay: each is the mailbox or the tenant telling
+        // us this token cannot read it until someone acts.
         bool authorizationInvalidatesDetails =
             refreshPresentation.AuthorizationInvalidatesDetails
             || SilentAuthStatus is TokenAcquisitionStatus.InteractionRequired
-                or TokenAcquisitionStatus.Cancelled
                 or TokenAcquisitionStatus.ApprovalRequired;
 
         MessageRow[] messages =

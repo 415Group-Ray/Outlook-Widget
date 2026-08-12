@@ -326,6 +326,38 @@ public sealed class ProviderCardTests
     }
 
     [Fact]
+    public void Only_authorization_evidence_withholds_the_message_rows()
+    {
+        // A cancelled token acquisition was in this set, and it is not evidence of anything: it now
+        // happens whenever the refresh deadline expires during silent authentication, so a
+        // twenty-second timeout emptied the card of mail it already had. Section 8's error table
+        // says an ordinary timeout keeps cached content, because failing to reach the service says
+        // nothing about whether the service would have refused us.
+        string source = CardSource();
+
+        int gate = source.IndexOf("bool authorizationInvalidatesDetails =", StringComparison.Ordinal);
+        int rows = source.IndexOf("MessageRow[] messages =", StringComparison.Ordinal);
+
+        Assert.True(gate > 0 && rows > gate);
+
+        Assert.DoesNotContain(
+            "TokenAcquisitionStatus.Cancelled",
+            source[gate..rows],
+            StringComparison.Ordinal);
+
+        // The two that are evidence stay: each is the mailbox or the tenant saying this token
+        // cannot read it until someone acts.
+        Assert.Contains(
+            "TokenAcquisitionStatus.InteractionRequired",
+            source[gate..rows],
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "TokenAcquisitionStatus.ApprovalRequired",
+            source[gate..rows],
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Only_the_signed_out_card_withholds_the_mail_actions()
     {
         // Refresh and Open Outlook are withheld because their only possible outcome is failure,

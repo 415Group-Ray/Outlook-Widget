@@ -217,8 +217,8 @@ internal static partial class Program
                 // what lets an activation or the active timer discover a sign-in whose event could
                 // not be raised. Consuming the record is the acknowledgement, so it survives the
                 // recycle that in-memory bookkeeping did not.
-                () => SignInCompletedRecord.Read(paths),
-                token => SignInCompletedRecord.Consume(paths, token, logger));
+                () => SignInCompletedRecord.ReadOutstanding(paths),
+                token => SignInCompletedRecord.Acknowledge(paths, token, logger));
         }
 
         using var refreshLifetime = refresh;

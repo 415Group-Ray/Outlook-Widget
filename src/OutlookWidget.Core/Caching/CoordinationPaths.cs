@@ -246,6 +246,26 @@ public sealed class CoordinationPaths
         Path.Combine(RootDirectory, $"signin-{_scope}.tmp");
 
     /// <summary>
+    /// The last sign-in token the provider has acted on. Written only by the provider.
+    /// </summary>
+    /// <remarks>
+    /// <b>A second file so that each has exactly one writer.</b> Acknowledgement was first expressed
+    /// by deleting the companion's record, which needed a read and a delete that were not one
+    /// operation: a sign-in completing between them replaced the file, and the delete then discarded
+    /// a token that had never been acted on. Locking the pair would work, and would put a shared
+    /// mutex on a path whose whole purpose is to survive when other coordination fails. Two
+    /// single-writer files have no such window — the companion only ever writes the token, the
+    /// provider only ever writes the acknowledgement, and "is recovery owed" is a comparison of two
+    /// independently consistent values.
+    /// </remarks>
+    public string SignInAcknowledgedRecordFilePath =>
+        Path.Combine(RootDirectory, $"signin-ack-{_scope}.json");
+
+    /// <summary>Temporary file used to replace the acknowledgement atomically.</summary>
+    public string SignInAcknowledgedRecordTempFilePath =>
+        Path.Combine(RootDirectory, $"signin-ack-{_scope}.tmp");
+
+    /// <summary>
     /// Whether the mailbox last refused this app's token, and message details must therefore be
     /// withheld until an authorized read succeeds.
     /// </summary>

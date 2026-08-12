@@ -267,11 +267,14 @@ internal sealed class ProviderRefreshWorker : IDisposable
 
                 if (peerWaitId is { } id)
                 {
-                    _ = _peerMonitor.RunAsync(
-                        _presentation,
+                    // The token deliberately survived this pass, because SkippedLeaseHeld means no
+                    // fetch was attempted here. If the peer then commits, its refresh is the
+                    // recovery, and without acknowledging it the next activation or signal would
+                    // force another Graph transaction over the cache the peer just committed.
+                    _ = AcknowledgeAfterPeerCommitAsync(
                         id,
                         result.PeerLeaseStartingGeneration,
-                        _shutdown.Token);
+                        signInToken);
                 }
 
                 // Token acquisition can change the card's authentication state even when there is
@@ -299,6 +302,36 @@ internal sealed class ProviderRefreshWorker : IDisposable
                     _delivery.RequestDelivery();
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Watches one peer wait and acknowledges the pending sign-in if that peer commits.
+    /// </summary>
+    /// <remarks>
+    /// Never throws: it is a detached continuation of a fire-and-forget monitor, so an escaping
+    /// exception would be unobserved. The monitor already contains its own cancellation handling;
+    /// this guards the acknowledgement, whose failure costs one redundant refresh.
+    /// </remarks>
+    private async Task AcknowledgeAfterPeerCommitAsync(
+        long peerWaitId,
+        long? peerLeaseStartingGeneration,
+        Guid? signInToken)
+    {
+        try
+        {
+            bool peerCommitted = await _peerMonitor
+                .RunAsync(_presentation, peerWaitId, peerLeaseStartingGeneration, _shutdown.Token)
+                .ConfigureAwait(false);
+
+            if (peerCommitted && signInToken is { } token)
+            {
+                _consumeSignInToken(token);
+            }
+        }
+        catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
+        {
+            _logger.Record(OperationalEventId.RefreshTimerCallbackFailed, OperationalOutcome.Failed);
         }
     }
 

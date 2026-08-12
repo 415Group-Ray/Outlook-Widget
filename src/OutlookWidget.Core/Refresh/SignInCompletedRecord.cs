@@ -93,45 +93,79 @@ public static class SignInCompletedRecord
     }
 
     /// <summary>
-    /// Removes the record, but only if it still holds <paramref name="token"/>.
+    /// Records that the provider has acted on <paramref name="token"/>.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>Consumption is how the acknowledgement becomes durable.</b> The provider used to remember
-    /// which token it had acted on in memory, so every recycle, reboot, and package upgrade started
+    /// <b>Acknowledgement is durable because in-memory bookkeeping is not.</b> The provider used to
+    /// remember which token it had handled, so every recycle, reboot, and package upgrade started
     /// with no memory of it and forced a Graph transaction against a historical sign-in over a
-    /// perfectly fresh cache. Deleting the record instead means its absence *is* the
-    /// acknowledgement, and absence survives a process boundary for free.
+    /// perfectly fresh cache.
     /// </para>
     /// <para>
-    /// <b>Conditional on the token, because the companion may have written a newer one.</b> A sign-in
-    /// completed while the provider's refresh was in flight writes a new token; deleting
-    /// unconditionally would discard that sign-in's recovery along with the one just handled. A
-    /// mismatch therefore leaves the record alone for the next opportunity.
+    /// <b>Its own file, written only by the provider.</b> Acknowledging by deleting the companion's
+    /// record needed a read and a delete that were not one operation: a sign-in completing between
+    /// them replaced the file, and the delete discarded a token that had never been acted on. Two
+    /// single-writer files remove the window instead of locking around it, which matters on a path
+    /// whose whole purpose is to work when other coordination has failed.
     /// </para>
     /// <para>
-    /// Never throws, for the reason <see cref="Write"/> does not: a failure here leaves the record in
-    /// place, which costs one redundant refresh rather than a lost one.
+    /// Never throws, for the reason <see cref="Write"/> does not: a failure leaves the
+    /// acknowledgement behind, which costs one redundant refresh rather than a lost recovery.
     /// </para>
     /// </remarks>
-    public static void Consume(CoordinationPaths paths, Guid token, IOperationalLogger? logger = null)
+    public static void Acknowledge(CoordinationPaths paths, Guid token, IOperationalLogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(paths);
 
         try
         {
-            if (Read(paths) != token)
-            {
-                return;
-            }
+            Directory.CreateDirectory(paths.RootDirectory);
 
-            File.Delete(paths.SignInCompletedRecordFilePath);
+            byte[] payload = JsonSerializer.SerializeToUtf8Bytes(new Record { Token = token });
+
+            File.WriteAllBytes(paths.SignInAcknowledgedRecordTempFilePath, payload);
+
+            if (File.Exists(paths.SignInAcknowledgedRecordFilePath))
+            {
+                File.Replace(
+                    paths.SignInAcknowledgedRecordTempFilePath,
+                    paths.SignInAcknowledgedRecordFilePath,
+                    destinationBackupFileName: null);
+            }
+            else
+            {
+                File.Move(
+                    paths.SignInAcknowledgedRecordTempFilePath,
+                    paths.SignInAcknowledgedRecordFilePath);
+            }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             (logger ?? NullOperationalLogger.Instance)
                 .Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Failed);
         }
+    }
+
+    /// <summary>
+    /// The completed sign-in still awaiting a recovery attempt, or <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// Recovery is owed when the companion's token differs from the provider's acknowledgement.
+    /// Because each file has a single writer, neither read can observe a torn pairing: the worst
+    /// case is reading an older acknowledgement against a newer token, which owes a refresh that
+    /// has just been made — one redundant attempt rather than a lost one.
+    /// </remarks>
+    public static Guid? ReadOutstanding(CoordinationPaths paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+
+        if (Read(paths) is not { } token)
+        {
+            return null;
+        }
+
+        return ReadToken(paths.SignInAcknowledgedRecordFilePath) == token ? null : token;
     }
 
     /// <summary>
@@ -148,10 +182,15 @@ public static class SignInCompletedRecord
     {
         ArgumentNullException.ThrowIfNull(paths);
 
+        return ReadToken(paths.SignInCompletedRecordFilePath);
+    }
+
+    private static Guid? ReadToken(string path)
+    {
         try
         {
             using var stream = new FileStream(
-                paths.SignInCompletedRecordFilePath,
+                path,
                 FileMode.Open,
                 FileAccess.Read,
                 FileShare.ReadWrite | FileShare.Delete);
