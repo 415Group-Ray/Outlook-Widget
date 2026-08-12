@@ -176,8 +176,8 @@ has not returned — not that it failed.
 
 ### The companion signed in successfully, but the widget still says sign-in required
 
-**This should now resolve itself within moments.** The companion raises the state-changed event after a
-successful sign-in and the provider re-acquires in response, so a pinned widget converges without being
+**This should now resolve itself within moments.** The companion raises the successful-sign-in event after a
+successful sign-in and the provider re-acquires and refreshes in response, so a pinned widget converges without being
 unpinned. The companion's window says which happened: *"A running provider was notified and will
 re-acquire"* when a provider was listening, or that none was — normal when the companion was opened from
 Start rather than from the widget, since a provider probes on its own start anyway.

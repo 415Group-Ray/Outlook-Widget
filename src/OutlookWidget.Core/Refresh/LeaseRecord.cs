@@ -50,6 +50,14 @@ public sealed record LeaseRecord
     public required string BootStamp { get; init; }
 
     /// <summary>
+    /// The cache generation observed while the owner held the mutation mutex and created this lease.
+    /// A peer uses it to recognize a commit even when the commit signal arrives before lease release.
+    /// Null preserves fail-closed behavior for legacy leases and unreadable cache state.
+    /// </summary>
+    [JsonPropertyName("startingGeneration")]
+    public long? StartingGeneration { get; init; }
+
+    /// <summary>
     /// Whether this record is still live for a reader using <paramref name="clock"/>.
     /// A record from another boot session is expired by definition, whatever its tick
     /// value says.

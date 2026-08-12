@@ -137,7 +137,7 @@ internal static partial class Program
         using var mutation = new MutationMutex(paths.MutationMutexName, logger);
         using var graph = new GraphMailClient(logger);
 
-        var leases = new RefreshLeaseStore(paths, mutation, logger: logger);
+        var leases = new RefreshLeaseStore(paths, mutation, cache, logger: logger);
         var commits = new StateCommitCoordinator(paths, mutation, logger);
 
         // The sole UpdateWidget call site, reached only through the serialized worker below. It is
@@ -238,7 +238,16 @@ internal static partial class Program
                 // without turning every ordinary cache-commit signal into an infinite refresh loop.
                 refresh?.RequestIfStale(RefreshTrigger.SignIn);
             },
-            logger);
+            logger,
+            onSignInCompleted: () =>
+            {
+                authProbe.RequestProbe();
+                delivery.RequestDelivery();
+                // This distinct event is raised only after a successful companion sign-in. It is
+                // therefore safe to force the Graph attempt that can clear sticky authorization
+                // suppression; privacy and suppress-first signals remain stale-only accelerants.
+                refresh?.Request(RefreshTrigger.SignIn);
+            });
 
         using var lastWidgetDeleted = new ManualResetEventSlim(initialState: false);
 

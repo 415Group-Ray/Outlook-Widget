@@ -583,7 +583,7 @@ public sealed class CoordinationStaticAnalysisTests
     }
 
     [Fact]
-    public void Authorization_suppression_makes_a_fresh_snapshot_stale_so_sign_in_can_recover()
+    public void Only_a_completed_sign_in_forces_authorization_recovery_through_Graph()
     {
         // The sign-in recovery path dead-ended without this. A manual refresh reports Unauthorized,
         // which sets a sticky AuthorizationInvalidatesDetails; the user signs in; the companion
@@ -592,28 +592,34 @@ public sealed class CoordinationStaticAnalysisTests
         // ReportGraphStatus, and the suppression never lifted — the card kept asking for a sign-in
         // that had already happened, with no Refresh action at the small size to break out of it.
         //
-        // Only a Graph result may clear the suppression, so while it is set the cache's age cannot
-        // be the thing that decides whether to go and get one.
+        // Only a Graph result may clear the suppression, but making the cache globally stale also
+        // turns privacy and suppress-first signals into old-account refreshes. A distinct successful
+        // sign-in event is the evidence that may force this attempt.
+        string worker = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "ProviderRefreshWorker.cs"));
+        Assert.DoesNotContain(
+            "_presentation.Current.AuthorizationInvalidatesDetails",
+            worker,
+            StringComparison.Ordinal);
+
+        string composition = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "Program.cs"));
+        Assert.Contains("onSignInCompleted:", composition, StringComparison.Ordinal);
+        Assert.Contains("refresh?.Request(RefreshTrigger.SignIn)", composition, StringComparison.Ordinal);
+
+        string companion = File.ReadAllText(
+            Path.Combine(RepositorySources.AppSourceDirectory, "Program.cs"));
+        Assert.Contains("SignInCompletedSignal.Raise(paths)", companion, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Peer_monitoring_uses_the_generation_recorded_when_the_lease_was_created()
+    {
         string worker = File.ReadAllText(
             Path.Combine(RepositorySources.ProviderSourceDirectory, "ProviderRefreshWorker.cs"));
 
-        int check = worker.IndexOf(
-            "_presentation.Current.AuthorizationInvalidatesDetails",
-            StringComparison.Ordinal);
-
-        Assert.True(
-            check > 0,
-            "IsStale must treat active authorization suppression as stale, or a completed sign-in "
-                + "cannot schedule the Graph attempt that clears it.");
-
-        int staleMethod = worker.IndexOf("private bool IsStale()", StringComparison.Ordinal);
-        int timestampRule = worker.IndexOf("CoordinationBounds.ActivationStaleness", StringComparison.Ordinal);
-
-        Assert.True(staleMethod > 0 && timestampRule > staleMethod);
-        Assert.True(
-            check > staleMethod && check < timestampRule,
-            "The suppression check belongs inside IsStale and ahead of the timestamp rule, which it "
-                + "deliberately outranks.");
+        Assert.Contains("result.PeerLeaseStartingGeneration", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("generationBeforeRefresh", worker, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -32,7 +32,7 @@ internal sealed class CoordinationFixture : IDisposable
         Mutex = Track(new MutationMutex(Paths.MutationMutexName, Logger));
         Cache = new ProtectedCache(Paths, Logger);
         Tombstones = new DisclosureTombstoneStore(Paths, Logger, Clock);
-        Leases = new RefreshLeaseStore(Paths, Mutex, Clock, Logger);
+        Leases = new RefreshLeaseStore(Paths, Mutex, Cache, Clock, Logger);
         Commits = new StateCommitCoordinator(Paths, Mutex, Logger);
     }
 

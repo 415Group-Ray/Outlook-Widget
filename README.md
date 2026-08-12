@@ -63,7 +63,7 @@ selected account identifier is replaced only after authorization and mailbox-cac
 a failed commit retains the account needed for a scoped retry rather than broadening removal to every
 account in the app-local MSAL cache. That final record update is itself write-then-atomic-replace; a failed
 disk write leaves the complete prior identifier readable rather than truncating it in place.
-Named state-change and suppression events are best-effort accelerants over this durable state: a
+Named state-change, successful-sign-in, and suppression events are best-effort accelerants over this durable state: a
 missing, inaccessible, or otherwise unopenable event cannot fail a completed mutation or strand a
 published suppression marker. If mutex contention persists during recovery, recycle the provider
 process without unpinning; closing the Widgets Board only deactivates the widget.

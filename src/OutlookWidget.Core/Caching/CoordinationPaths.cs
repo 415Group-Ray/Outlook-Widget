@@ -213,6 +213,13 @@ public sealed class CoordinationPaths
     public string StateChangedEventName => $"OutlookWidget-StateChanged-{_scope}";
 
     /// <summary>
+    /// Signalled only after the companion completes a successful sign-in. Unlike the payload-free
+    /// state-change event, this is evidence that an authorization recovery attempt should reach
+    /// Graph even when the existing snapshot is otherwise fresh.
+    /// </summary>
+    public string SignInCompletedEventName => $"OutlookWidget-SignInCompleted-{_scope}";
+
+    /// <summary>
     /// Signalled when a disclosure-reducing operation begins, before it attempts its
     /// commit. Independent of the mutation mutex, because a wedged peer is exactly when
     /// failing closed matters most.

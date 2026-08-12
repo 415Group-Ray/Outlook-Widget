@@ -717,7 +717,9 @@ internal static partial class Program
         bool published = result.IsAcquired
                          || result.Status == TokenAcquisitionStatus.ApprovalRequired;
 
-        bool providerNotified = published && StateChangeSignal.Raise(paths);
+        bool providerNotified = result.IsAcquired
+            ? SignInCompletedSignal.Raise(paths)
+            : published && StateChangeSignal.Raise(paths);
 
         return Describe(result, paths, failureDetail, providerNotified);
     }

@@ -11,6 +11,33 @@ namespace OutlookWidget.Core.Tests;
 /// </summary>
 public sealed class RefreshCoordinatorTests
 {
+    [Fact]
+    public void A_peer_claim_carries_the_generation_from_when_its_lease_was_created()
+    {
+        using var fixture = new CoordinationFixture();
+        long startingGeneration = fixture.SeedState(Payload("before"));
+
+        LeaseClaim owner = fixture.Leases.TryClaim();
+        Assert.Equal(LeaseClaimStatus.Claimed, owner.Status);
+        Assert.Equal(startingGeneration, owner.StartingGeneration);
+
+        // The peer commits and signals before clearing its lease. A process woken by that signal sees
+        // the advanced cache first, but the live lease still carries the earlier authoritative baseline.
+        long committedGeneration = fixture.SeedState(Payload("after"));
+        Assert.True(committedGeneration > startingGeneration);
+
+        var observer = new RefreshLeaseStore(
+            fixture.Paths,
+            fixture.Mutex,
+            fixture.Cache,
+            fixture.Clock,
+            fixture.Logger);
+        LeaseClaim observed = observer.TryClaim();
+
+        Assert.Equal(LeaseClaimStatus.HeldByPeer, observed.Status);
+        Assert.Equal(startingGeneration, observed.StartingGeneration);
+    }
+
     private static byte[] Payload(string content) => Encoding.UTF8.GetBytes(content);
 
     /// <summary>Records that delivery was requested, without delivering anything.</summary>
