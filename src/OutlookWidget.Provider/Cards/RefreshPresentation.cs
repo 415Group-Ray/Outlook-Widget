@@ -35,8 +35,27 @@ internal sealed record RefreshPresentationState(
 /// </summary>
 internal sealed class RefreshPresentation
 {
-    private RefreshPresentationState _current = new(RefreshPresentationStatus.Idle, false);
+    private readonly AuthorizationSuppressionStore? _suppression;
+    private RefreshPresentationState _current;
     private long _nextPeerWaitId;
+
+    /// <param name="suppression">
+    /// The durable authorization decision. Optional so tests can exercise the transitions without a
+    /// filesystem; production always supplies it, and without it a restart discloses what a refusal
+    /// withheld.
+    /// </param>
+    public RefreshPresentation(AuthorizationSuppressionStore? suppression = null)
+    {
+        _suppression = suppression;
+
+        // **Restored, not assumed.** A restart is the moment the provider knows least: the
+        // recovered-instance delivery runs before any new Graph result, so starting from "not
+        // suppressed" rendered exactly the senders and subjects a 401 or 403 had withheld. An
+        // unreadable record answers withheld, so damage cannot become disclosure either.
+        bool withheld = suppression?.Read().DetailsWithheld ?? false;
+
+        _current = new RefreshPresentationState(RefreshPresentationStatus.Idle, withheld);
+    }
 
     public RefreshPresentationState Current => Volatile.Read(ref _current);
 
@@ -116,6 +135,7 @@ internal sealed class RefreshPresentation
         // A local Graph result supersedes any peer wait carried through Begin(). The monitor owns
         // only the peer observation identified by that token and must not later overwrite this
         // newer local evidence.
+        PersistSuppression(invalidatesDetails);
         Set(new RefreshPresentationState(presentation, invalidatesDetails));
     }
 
@@ -124,6 +144,9 @@ internal sealed class RefreshPresentation
         switch (result.Outcome)
         {
             case RefreshOutcome.Committed:
+                // A commit is a successful authorized read by definition — the snapshot it wrote
+                // came from one — so this is affirmative evidence and may clear the record.
+                PersistSuppression(false);
                 Set(new RefreshPresentationState(RefreshPresentationStatus.Idle, false));
                 return null;
             case RefreshOutcome.Discarded:
@@ -185,6 +208,15 @@ internal sealed class RefreshPresentation
 
             if (ReferenceEquals(Interlocked.CompareExchange(ref _current, resolved, current), current))
             {
+                // A peer's commit is the same evidence as our own: it could only have been produced
+                // by a successful authorized read. Persisted after the exchange wins, so a losing
+                // race cannot clear the durable record on the strength of an observation that was
+                // superseded.
+                if (peerCommitted && current.AuthorizationInvalidatesDetails)
+                {
+                    PersistSuppression(false);
+                }
+
                 return true;
             }
         }
@@ -237,6 +269,31 @@ internal sealed class RefreshPresentation
                 return;
             }
         }
+    }
+
+    /// <summary>
+    /// Records the authorization decision durably, so a restart inherits it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Written before the in-memory state changes when suppression is being <em>set</em>, so a crash
+    /// between the two leaves the more conservative of the two states on disk. Clearing is written
+    /// in the same place for symmetry; a crash there leaves the record saying withheld, which costs
+    /// a counts-only card until the next successful read and discloses nothing.
+    /// </para>
+    /// <para>
+    /// Skipped when nothing changed, so an unchanging stream of results does not rewrite the file on
+    /// every refresh.
+    /// </para>
+    /// </remarks>
+    private void PersistSuppression(bool detailsWithheld)
+    {
+        if (_suppression is null || Current.AuthorizationInvalidatesDetails == detailsWithheld)
+        {
+            return;
+        }
+
+        _suppression.Write(detailsWithheld);
     }
 
     private void Set(RefreshPresentationState state) => Volatile.Write(ref _current, state);

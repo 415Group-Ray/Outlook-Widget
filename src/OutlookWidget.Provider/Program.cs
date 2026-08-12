@@ -143,7 +143,10 @@ internal static partial class Program
         // The sole UpdateWidget call site, reached only through the serialized worker below. It is
         // given the tombstone read rather than the store, so it can re-check disclosure before each
         // host call without acquiring the ability to write or clear one.
-        var refreshPresentation = new RefreshPresentation();
+        // Given the durable authorization record, so a recycle or package upgrade inherits a refusal
+        // instead of starting from "not suppressed" and rendering what it withheld.
+        var refreshPresentation = new RefreshPresentation(
+            new AuthorizationSuppressionStore(paths, logger));
         var sink = new WidgetDeliverySink(
             registry,
             disclosure.GetEffectiveMode,

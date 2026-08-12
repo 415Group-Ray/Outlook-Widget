@@ -246,6 +246,32 @@ public sealed class CoordinationPaths
         Path.Combine(RootDirectory, $"signin-{_scope}.tmp");
 
     /// <summary>
+    /// Whether the mailbox last refused this app's token, and message details must therefore be
+    /// withheld until an authorized read succeeds.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Durable because a process boundary is not evidence of anything.</b> This decision lived
+    /// only in the provider's memory, so a package upgrade or a provider recycle recreated it as
+    /// "not suppressed" — and the recovered-instance delivery that follows a restart happens before
+    /// any new Graph result, rendering the very senders and subjects that had been withheld. A
+    /// restart is the one moment the provider knows least, and it was the moment it disclosed most.
+    /// </para>
+    /// <para>
+    /// Sits beside the settings and selected-account records rather than inside the protected
+    /// snapshot, for the same reason both of those do: it has to survive the snapshot being cleared.
+    /// Not DPAPI-protected — it is one boolean about this app's authorization, and says nothing
+    /// about a mailbox.
+    /// </para>
+    /// </remarks>
+    public string AuthorizationSuppressionFilePath =>
+        Path.Combine(RootDirectory, $"authsuppression-{_scope}.json");
+
+    /// <summary>Temporary file used to replace the suppression record atomically.</summary>
+    public string AuthorizationSuppressionTempFilePath =>
+        Path.Combine(RootDirectory, $"authsuppression-{_scope}.tmp");
+
+    /// <summary>
     /// Signalled when a disclosure-reducing operation begins, before it attempts its
     /// commit. Independent of the mutation mutex, because a wedged peer is exactly when
     /// failing closed matters most.

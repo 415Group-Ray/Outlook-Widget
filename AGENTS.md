@@ -269,6 +269,19 @@ coverage when changing nearby behavior.
     related reason that both are reachable during a bounded shutdown, and the latter runs inside the
     refresh transaction's `finally` where a throw would mask the real failure.
 
+14. **Authorization suppression is durable, and only an authorized read clears it.** When Graph
+    refuses the token — 401, 403, or no mailbox — message details are withheld, and that decision
+    is written to `AuthorizationSuppressionStore` rather than held only in the provider's memory.
+    A process boundary is not evidence: a recycle or package upgrade used to recreate the flag as
+    "not suppressed", and the recovered-instance delivery that follows a restart runs *before* any
+    new Graph result, so it rendered precisely the senders and subjects the refusal had withheld.
+    Restart is when the provider knows least and it was when it disclosed most. Clearing the record
+    is a claim that this app read this mailbox successfully, so only a successful read or a
+    committed refresh may do it — **not** a token acquisition, a throttle, a 404, a network failure,
+    or a restart. Every one of those has been proposed as recovery evidence during review and none
+    of them is: a throttle can be applied before authorization is evaluated, and `GraphMailClient`
+    already ranks `Throttled` below `Unauthorized` for that reason. An unreadable record withholds.
+
 Do not weaken, delete, skip, or rewrite a safety test merely to make a change pass. Prefer the
 smallest coherent fix that preserves existing contracts, and avoid broad refactors while
 platform gates are still being proved.
