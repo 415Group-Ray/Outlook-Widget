@@ -276,6 +276,28 @@ public sealed class CoordinationStaticAnalysisTests
     }
 
     [Fact]
+    public void The_delivery_sink_re_reads_authorization_suppression_for_each_host_call()
+    {
+        // RefreshPresentation is atomic, but a snapshot taken once before the instance loop becomes
+        // stale if the first synchronous host call blocks while Graph reports 401 or 403. Later
+        // calls have not reached the host and must be rendered from the newer restrictive state.
+        string sink = StripCommentsAndStrings(File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, DeliverySinkFileName)));
+
+        int loop = sink.IndexOf("foreach (WidgetInstance instance in instances)", StringComparison.Ordinal);
+        int reRead = sink.IndexOf("_readRefreshPresentation()", loop, StringComparison.Ordinal);
+        int data = sink.IndexOf("InboxCard.Data(", loop, StringComparison.Ordinal);
+        int hostCall = sink.IndexOf("UpdateWidget(", loop, StringComparison.Ordinal);
+
+        Assert.True(loop >= 0, $"{DeliverySinkFileName} no longer has the per-instance delivery loop.");
+        Assert.True(reRead > loop, "Authorization suppression must be read inside the instance loop.");
+        Assert.True(
+            reRead < data && data < hostCall,
+            "Each instance must be rendered from authorization state read after entering its loop "
+                + "iteration and before that instance is handed to UpdateWidget.");
+    }
+
+    [Fact]
     public void The_provider_locates_state_only_through_the_packaged_state_guard()
     {
         // CoordinationPaths.Resolve accepts a null family name and answers with the ordinary
@@ -558,6 +580,114 @@ public sealed class CoordinationStaticAnalysisTests
             Path.Combine(RepositorySources.ProviderSourceDirectory, "ProviderRefreshWorker.cs"));
         Assert.Contains("_selectedAccounts.Read()", refreshWorker, StringComparison.Ordinal);
         Assert.Contains("snapshot.HomeAccountId", refreshWorker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Only_a_completed_sign_in_forces_authorization_recovery_through_Graph()
+    {
+        // The sign-in recovery path dead-ended without this. A manual refresh reports Unauthorized,
+        // which sets a sticky AuthorizationInvalidatesDetails; the user signs in; the companion
+        // signals; the listener asks for a refresh only if stale. With a young snapshot and an
+        // unchanged account the staleness test said no, so nothing reached Graph, nothing called
+        // ReportGraphStatus, and the suppression never lifted — the card kept asking for a sign-in
+        // that had already happened, with no Refresh action at the small size to break out of it.
+        //
+        // Only a Graph result may clear the suppression, but making the cache globally stale also
+        // turns privacy and suppress-first signals into old-account refreshes. A distinct successful
+        // sign-in event is the evidence that may force this attempt.
+        string worker = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "ProviderRefreshWorker.cs"));
+        Assert.DoesNotContain(
+            "_presentation.Current.AuthorizationInvalidatesDetails",
+            worker,
+            StringComparison.Ordinal);
+
+        string composition = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "Program.cs"));
+        Assert.Contains("onSignInCompleted:", composition, StringComparison.Ordinal);
+        Assert.Contains("refresh?.Request(RefreshTrigger.SignIn)", composition, StringComparison.Ordinal);
+
+        string companion = File.ReadAllText(
+            Path.Combine(RepositorySources.AppSourceDirectory, "Program.cs"));
+        Assert.Contains("SignInCompletedSignal.Raise(paths)", companion, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_completed_sign_in_survives_an_event_that_could_not_be_raised()
+    {
+        // The event above is the fast path and stays that way. It is also best-effort: a raise that
+        // cannot open its handle loses the only evidence a sign-in happened, and the ordinary
+        // staleness rule then declines to refresh a seconds-old snapshot for an unchanged account —
+        // leaving "Sign in required" on a card whose small size offers no Refresh action.
+        //
+        // So the fact is written down as well as announced. This asserts the pairing rather than
+        // either half, because either half alone is a defect: the event without the record loses
+        // recovery, and the record without the event delays it to the next activation or timer tick.
+        string companion = File.ReadAllText(
+            Path.Combine(RepositorySources.AppSourceDirectory, "Program.cs"));
+
+        int written = companion.IndexOf("SignInCompletedRecord.Write(paths)", StringComparison.Ordinal);
+        int raised = companion.IndexOf("SignInCompletedSignal.Raise(paths)", StringComparison.Ordinal);
+
+        Assert.True(written > 0, "A completed sign-in must be recorded, not only signalled.");
+        Assert.True(
+            written < raised,
+            "The record must be written before the event is raised, so a provider woken by the "
+                + "event cannot look for evidence that has not been written yet.");
+
+        // The success path must still fall back to the general event. Before this it raised only the
+        // sign-in event, so a failed raise left the provider with no signal at all — not even the
+        // delivery pass the general event would have produced.
+        Assert.Contains(
+            "SignInCompletedSignal.Raise(paths) || StateChangeSignal.Raise(paths)",
+            companion,
+            StringComparison.Ordinal);
+
+        // And the provider must consult the record from its staleness path, which is what an
+        // activation or the active timer reaches. Reading it only from the event handler would
+        // rebuild the same single point of failure.
+        string worker = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "ProviderRefreshWorker.cs"));
+
+        Assert.Contains("HasUnrecoveredSignIn()", worker, StringComparison.Ordinal);
+
+        int staleMethod = worker.IndexOf("private bool IsStale()", StringComparison.Ordinal);
+        int recoveryCheck = worker.IndexOf("HasUnrecoveredSignIn()", StringComparison.Ordinal);
+
+        Assert.True(staleMethod > 0 && recoveryCheck > staleMethod);
+
+        // The token is retired after a pass rather than when it is noticed, and both halves of that
+        // matter. Retiring on notice marked it spent before anything was known about whether a fetch
+        // happened, so a pass that only found a peer holding the lease consumed the recovery — and
+        // if that peer expired without committing, the attempt was never made. Retiring only from
+        // the staleness path would leave the event-driven fast path's token outstanding, so the
+        // state-change event its own commit raises would force a second Graph transaction over a
+        // snapshot committed moments earlier.
+        Assert.Contains("RetireSignInToken(signInToken, result.Outcome)", worker, StringComparison.Ordinal);
+        Assert.Contains("RefreshOutcome.SkippedLeaseHeld", worker, StringComparison.Ordinal);
+
+        // Scoped to the notice method's own body: retiring anywhere is fine except there.
+        int noticeStart = worker.IndexOf(
+            "private bool HasUnrecoveredSignIn()",
+            StringComparison.Ordinal);
+        int noticeEnd = worker.IndexOf("private void RetireSignInToken", StringComparison.Ordinal);
+
+        Assert.True(noticeStart > 0 && noticeEnd > noticeStart);
+
+        Assert.DoesNotContain(
+            "_recoveredSignInToken =",
+            worker[noticeStart..noticeEnd],
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Peer_monitoring_uses_the_generation_recorded_when_the_lease_was_created()
+    {
+        string worker = File.ReadAllText(
+            Path.Combine(RepositorySources.ProviderSourceDirectory, "ProviderRefreshWorker.cs"));
+
+        Assert.Contains("result.PeerLeaseStartingGeneration", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("generationBeforeRefresh", worker, StringComparison.Ordinal);
     }
 
     [Fact]

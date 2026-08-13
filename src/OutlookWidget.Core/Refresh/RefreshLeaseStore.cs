@@ -23,7 +23,10 @@ public enum LeaseClaimStatus
 }
 
 /// <summary>The outcome of a claim attempt.</summary>
-public readonly record struct LeaseClaim(LeaseClaimStatus Status, Guid InstanceId)
+public readonly record struct LeaseClaim(
+    LeaseClaimStatus Status,
+    Guid InstanceId,
+    long? StartingGeneration = null)
 {
     public bool IsClaimed => Status == LeaseClaimStatus.Claimed;
 }
@@ -43,20 +46,24 @@ public sealed class RefreshLeaseStore
 {
     private readonly CoordinationPaths _paths;
     private readonly MutationMutex _mutex;
+    private readonly ProtectedCache _cache;
     private readonly ISystemClock _clock;
     private readonly IOperationalLogger _logger;
 
     public RefreshLeaseStore(
         CoordinationPaths paths,
         MutationMutex mutex,
+        ProtectedCache cache,
         ISystemClock? clock = null,
         IOperationalLogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(mutex);
+        ArgumentNullException.ThrowIfNull(cache);
 
         _paths = paths;
         _mutex = mutex;
+        _cache = cache;
         _clock = clock ?? SystemClock.Instance;
         _logger = logger ?? NullOperationalLogger.Instance;
     }
@@ -83,7 +90,10 @@ public sealed class RefreshLeaseStore
         if (existing is not null && existing.IsLive(_clock))
         {
             _logger.Record(OperationalEventId.RefreshSkippedLeaseHeld, OperationalOutcome.Skipped);
-            return new LeaseClaim(LeaseClaimStatus.HeldByPeer, existing.OwnerInstanceId);
+            return new LeaseClaim(
+                LeaseClaimStatus.HeldByPeer,
+                existing.OwnerInstanceId,
+                existing.StartingGeneration);
         }
 
         if (existing is not null)
@@ -93,6 +103,10 @@ public sealed class RefreshLeaseStore
             _logger.Record(OperationalEventId.RefreshLeaseReclaimedExpired, OperationalOutcome.Recovered);
         }
 
+        CacheReadResult cacheRead = _cache.Read();
+        long? startingGeneration = cacheRead.Status == CacheReadStatus.Unreadable
+            ? null
+            : cacheRead.Generation;
         var instanceId = Guid.NewGuid();
         var record = new LeaseRecord
         {
@@ -102,6 +116,7 @@ public sealed class RefreshLeaseStore
             // because the commit that follows the awaited work is not cancellable.
             ExpiresAtTicks = _clock.TickCount64 + (long)CoordinationBounds.LeaseHorizon.TotalMilliseconds,
             BootStamp = BootSessionStamp.Current(_clock),
+            StartingGeneration = startingGeneration,
         };
 
         if (!TryWriteRecord(record))
@@ -112,7 +127,7 @@ public sealed class RefreshLeaseStore
         }
 
         _logger.Record(OperationalEventId.RefreshLeaseClaimed, OperationalOutcome.Success);
-        return new LeaseClaim(LeaseClaimStatus.Claimed, instanceId);
+        return new LeaseClaim(LeaseClaimStatus.Claimed, instanceId, startingGeneration);
     }
 
     /// <summary>

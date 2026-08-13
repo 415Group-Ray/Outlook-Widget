@@ -127,6 +127,11 @@ Distinguish four causes before changing anything:
 The two approval rows are the pair most often conflated. The log's status category
 distinguishes them (`ApprovalRequired` versus a recorded 403), and so must any diagnosis.
 
+These authorization states also survive a provider recycle. The recovered card withholds cached sender
+and subject rows and restores the matching recovery copy before a new silent probe or Graph request
+finishes. **Clear interrupted operations** does not remove this authorization suppression; only a
+successful mailbox read establishes that details may be shown again.
+
 ### "Approval required" despite a permissive-looking user-consent setting
 
 Measured on the reference tenant, and the setting that causes it does not read like a restriction.
@@ -176,8 +181,8 @@ has not returned — not that it failed.
 
 ### The companion signed in successfully, but the widget still says sign-in required
 
-**This should now resolve itself within moments.** The companion raises the state-changed event after a
-successful sign-in and the provider re-acquires in response, so a pinned widget converges without being
+**This should now resolve itself within moments.** The companion raises the successful-sign-in event after a
+successful sign-in and the provider re-acquires and refreshes in response, so a pinned widget converges without being
 unpinned. The companion's window says which happened: *"A running provider was notified and will
 re-acquire"* when a provider was listening, or that none was — normal when the companion was opened from
 Start rather than from the widget, since a provider probes on its own start anyway.

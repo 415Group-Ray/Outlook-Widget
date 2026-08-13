@@ -4,12 +4,12 @@ using OutlookWidget.Core.Diagnostics;
 namespace OutlookWidget.Core.Refresh;
 
 /// <summary>
-/// Creates the two cross-process notification events and calls back when either is signalled.
+/// Creates the cross-process notification events and routes each signal to its callback.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>The missing half of the signalling design.</b> <c>StateCommitCoordinator</c> and
-/// <c>DisclosureTombstoneStore</c> both signal through the shared best-effort named-event helper.
+/// <b>The missing half of the signalling design.</b> State commits, disclosure suppression, and a
+/// completed companion sign-in all signal through the shared best-effort named-event helper.
 /// Until this type existed, nothing ever created those events, so every cross-process signal in
 /// the product was a silent no-op: correct by construction and never once delivered. This is the
 /// listener that makes the companion's commits reach the provider.
@@ -36,8 +36,10 @@ public sealed class StateChangeListener : IDisposable
 {
     private readonly EventWaitHandle _stateChanged;
     private readonly EventWaitHandle _suppressDetails;
+    private readonly EventWaitHandle _signInCompleted;
     private readonly CancellationTokenSource _shutdown = new();
     private readonly Action _onChanged;
+    private readonly Action? _onSignInCompleted;
     private readonly IOperationalLogger _logger;
     private readonly Thread _worker;
 
@@ -51,15 +53,21 @@ public sealed class StateChangeListener : IDisposable
     /// provider this is <c>DeliveryWorker.RequestDelivery</c>, which only sets a marker.
     /// </param>
     /// <param name="logger">Metadata-free operational logging.</param>
+    /// <param name="onSignInCompleted">
+    /// Optional callback for the distinct successful-sign-in event. When absent, that event follows
+    /// <paramref name="onChanged"/> for backwards-compatible consumers.
+    /// </param>
     public StateChangeListener(
         CoordinationPaths paths,
         Action onChanged,
-        IOperationalLogger? logger = null)
+        IOperationalLogger? logger = null,
+        Action? onSignInCompleted = null)
     {
         ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(onChanged);
 
         _onChanged = onChanged;
+        _onSignInCompleted = onSignInCompleted;
         _logger = logger ?? NullOperationalLogger.Instance;
 
         // EventResetMode.ManualReset with createdNew ignored: the first process in wins and the
@@ -68,6 +76,8 @@ public sealed class StateChangeListener : IDisposable
             initialState: false, EventResetMode.ManualReset, paths.StateChangedEventName);
         _suppressDetails = new EventWaitHandle(
             initialState: false, EventResetMode.ManualReset, paths.SuppressDetailsEventName);
+        _signInCompleted = new EventWaitHandle(
+            initialState: false, EventResetMode.ManualReset, paths.SignInCompletedEventName);
 
         _worker = new Thread(RunLoop)
         {
@@ -82,8 +92,10 @@ public sealed class StateChangeListener : IDisposable
 
     private void RunLoop()
     {
-        WaitHandle[] handles = [_stateChanged, _suppressDetails, _shutdown.Token.WaitHandle];
-        const int ShutdownIndex = 2;
+        WaitHandle[] handles =
+            [_stateChanged, _suppressDetails, _signInCompleted, _shutdown.Token.WaitHandle];
+        const int SignInCompletedIndex = 2;
+        const int ShutdownIndex = 3;
 
         while (true)
         {
@@ -110,7 +122,14 @@ public sealed class StateChangeListener : IDisposable
 
             try
             {
-                _onChanged();
+                if (signalled == SignInCompletedIndex && _onSignInCompleted is not null)
+                {
+                    _onSignInCompleted();
+                }
+                else
+                {
+                    _onChanged();
+                }
             }
             catch (Exception)
             {
@@ -140,6 +159,7 @@ public sealed class StateChangeListener : IDisposable
 
         _stateChanged.Dispose();
         _suppressDetails.Dispose();
+        _signInCompleted.Dispose();
         _shutdown.Dispose();
     }
 }

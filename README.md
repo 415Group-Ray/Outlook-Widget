@@ -63,7 +63,7 @@ selected account identifier is replaced only after authorization and mailbox-cac
 a failed commit retains the account needed for a scoped retry rather than broadening removal to every
 account in the app-local MSAL cache. That final record update is itself write-then-atomic-replace; a failed
 disk write leaves the complete prior identifier readable rather than truncating it in place.
-Named state-change and suppression events are best-effort accelerants over this durable state: a
+Named state-change, successful-sign-in, and suppression events are best-effort accelerants over this durable state: a
 missing, inaccessible, or otherwise unopenable event cannot fail a completed mutation or strand a
 published suppression marker. If mutex contention persists during recovery, recycle the provider
 process without unpinning; closing the Widgets Board only deactivates the widget.
@@ -97,10 +97,17 @@ Installed packages `0.6.31.0` and `0.6.32.0` opened a responsive WinUI window, a
 redirected to the existing process and window. The shell preserves Sign in, Switch account, Sign out,
 and interrupted-operation recovery; exposes the privacy setting and bounded diagnostics log; and tests
 New Outlook. Interactive WAM was not invoked in that measurement. Privacy changes signal the provider
-to render current state without an unnecessary Graph request. Still to come in Phase 2: the WinUI WAM
-check, the remaining loading and error states, the five-row Widgets-host fit, and opening an individual
-message. The app icon that ships today is interim. See the evidence report for exactly what has been
+to render current state without an unnecessary Graph request. Loading and classified error states are
+implemented with automated coverage but still need an installed Widgets-host check. Still to come in
+Phase 2: the WinUI WAM check, the five-row Widgets-host fit, and opening an individual message. The app
+icon that ships today is interim. See the evidence report for exactly what has been
 proven, and [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
+
+Authorization-driven row suppression is durable across provider recycle. Sign-in-required,
+approval-required, and Graph refusal states retain both their counts-only decision and their recovery
+copy until a successful mailbox read clears them. If the primary authorization record cannot be replaced,
+a dedicated fallback marker preserves the same decision; **Clear interrupted operations** deliberately
+does not remove it because generic privacy recovery is not evidence that mailbox access succeeded.
 
 ### Known platform limitation: one widget instance only
 

@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using Microsoft.Windows.Widgets.Providers;
 using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Caching;
@@ -137,19 +137,32 @@ internal static partial class Program
         using var mutation = new MutationMutex(paths.MutationMutexName, logger);
         using var graph = new GraphMailClient(logger);
 
-        var leases = new RefreshLeaseStore(paths, mutation, logger: logger);
+        var leases = new RefreshLeaseStore(paths, mutation, cache, logger: logger);
         var commits = new StateCommitCoordinator(paths, mutation, logger);
 
         // The sole UpdateWidget call site, reached only through the serialized worker below. It is
         // given the tombstone read rather than the store, so it can re-check disclosure before each
         // host call without acquiring the ability to write or clear one.
-        var sink = new WidgetDeliverySink(registry, disclosure.GetEffectiveMode, logger);
+        // Given the durable authorization record, so a recycle or package upgrade inherits a refusal
+        // instead of starting from "not suppressed" and rendering what it withheld.
+        var refreshPresentation = new RefreshPresentation(
+            new AuthorizationSuppressionStore(paths, logger));
+        var sink = new WidgetDeliverySink(
+            registry,
+            disclosure.GetEffectiveMode,
+            () => refreshPresentation.Current,
+            logger);
 
         using var delivery = new DeliveryWorker(cache, disclosure, sink, logger);
 
         // Declared before the listener so the listener's callback can reach it, and disposed after it
         // for the same reason in reverse: the probe must outlive the thing that can ask for one.
-        using var authProbe = new SilentAuthProbe(configuration, paths, delivery, logger);
+        using var authProbe = new SilentAuthProbe(
+            configuration,
+            paths,
+            delivery,
+            refreshPresentation,
+            logger);
 
         ProviderRefreshWorker? refresh = null;
 
@@ -170,11 +183,30 @@ internal static partial class Program
                     TokenAcquisitionResult token =
                         await authProbe.AcquireTokenAsync(cancellationToken).ConfigureAwait(false);
 
+                    // A deadline that expires here ends the refresh before Graph is reached, so no
+                    // Graph status is ever reported and the coordinator's FetchFailed would reset a
+                    // still-Loading card to Idle. Say what happened instead.
+                    if (token.Status == TokenAcquisitionStatus.Cancelled)
+                    {
+                        refreshPresentation.ReportAuthenticationTimedOut();
+                    }
+
                     return token.IsAcquired && token.HomeAccountId is { Length: > 0 } homeAccountId
                         ? new MailboxRefreshAccess(token.AccessToken!, homeAccountId)
                         : null;
                 },
-                graph.ReadAsync,
+                async (accessToken, includeFocused, cancellationToken) =>
+                {
+                    GraphMailResult result = await graph.ReadAsync(
+                            accessToken,
+                            includeFocused,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+
+                    // A category only: never the response body, URL, account, or mailbox content.
+                    refreshPresentation.ReportGraphStatus(result.Status);
+                    return result;
+                },
                 options.TenantId,
                 includeFocusedCount: true);
 
@@ -184,7 +216,14 @@ internal static partial class Program
                 cache,
                 selectedAccounts,
                 delivery,
-                logger);
+                refreshPresentation,
+                logger,
+                // The durable half of sign-in recovery. The event below is the fast path; this is
+                // what lets an activation or the active timer discover a sign-in whose event could
+                // not be raised. Consuming the record is the acknowledgement, so it survives the
+                // recycle that in-memory bookkeeping did not.
+                () => SignInCompletedRecord.ReadOutstanding(paths),
+                token => SignInCompletedRecord.Acknowledge(paths, token, logger));
         }
 
         using var refreshLifetime = refresh;
@@ -212,13 +251,25 @@ internal static partial class Program
             paths,
             () =>
             {
+                // This payload-free signal is an accelerant, not evidence that an in-flight retry
+                // has made cached details safe or that a peer lease completed. The auth probe,
+                // refresh outcome, and lease/generation monitor own those transitions.
                 authProbe.RequestProbe();
                 delivery.RequestDelivery();
                 // Account-aware staleness makes a new interactive selection refresh immediately
                 // without turning every ordinary cache-commit signal into an infinite refresh loop.
                 refresh?.RequestIfStale(RefreshTrigger.SignIn);
             },
-            logger);
+            logger,
+            onSignInCompleted: () =>
+            {
+                authProbe.RequestProbe();
+                delivery.RequestDelivery();
+                // This distinct event is raised only after a successful companion sign-in. It is
+                // therefore safe to force the Graph attempt that can clear sticky authorization
+                // suppression; privacy and suppress-first signals remain stale-only accelerants.
+                refresh?.Request(RefreshTrigger.SignIn);
+            });
 
         using var lastWidgetDeleted = new ManualResetEventSlim(initialState: false);
 

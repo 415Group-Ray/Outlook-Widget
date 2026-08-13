@@ -72,7 +72,8 @@ public readonly record struct RefreshResult(
     RefreshOutcome Outcome,
     DeliveryRequestOutcome Delivery,
     long Generation,
-    TimeSpan Duration)
+    TimeSpan Duration,
+    long? PeerLeaseStartingGeneration = null)
 {
     public bool IsCommitted => Outcome == RefreshOutcome.Committed;
 }
@@ -268,7 +269,12 @@ public sealed class RefreshCoordinator
         switch (claim.Status)
         {
             case LeaseClaimStatus.HeldByPeer:
-                return Result(RefreshOutcome.SkippedLeaseHeld, DeliveryRequestOutcome.NotRequested, 0, startTicks);
+                return Result(
+                    RefreshOutcome.SkippedLeaseHeld,
+                    DeliveryRequestOutcome.NotRequested,
+                    0,
+                    startTicks,
+                    claim.StartingGeneration);
 
             case LeaseClaimStatus.MutexTimedOut:
                 return Result(RefreshOutcome.SkippedContention, DeliveryRequestOutcome.NotRequested, 0, startTicks);
@@ -460,6 +466,12 @@ public sealed class RefreshCoordinator
         RefreshOutcome outcome,
         DeliveryRequestOutcome delivery,
         long generation,
-        long startTicks) =>
-        new(outcome, delivery, generation, TimeSpan.FromMilliseconds(_clock.TickCount64 - startTicks));
+        long startTicks,
+        long? peerLeaseStartingGeneration = null) =>
+        new(
+            outcome,
+            delivery,
+            generation,
+            TimeSpan.FromMilliseconds(_clock.TickCount64 - startTicks),
+            peerLeaseStartingGeneration);
 }

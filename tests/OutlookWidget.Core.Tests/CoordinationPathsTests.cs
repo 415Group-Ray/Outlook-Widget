@@ -100,6 +100,7 @@ public sealed class CoordinationPathsTests
         // privileges this package does not request.
         Assert.DoesNotContain("Global", paths.MutationMutexName, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Global", paths.StateChangedEventName, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Global", paths.SignInCompletedEventName, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Global", paths.SuppressDetailsEventName, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using OutlookWidget.Core.Graph;
 using OutlookWidget.Core.Tests.TestInfrastructure;
 
 namespace OutlookWidget.Core.Tests;
@@ -325,6 +326,36 @@ public sealed class ProviderCardTests
     }
 
     [Fact]
+    public void Only_authorization_evidence_withholds_the_message_rows()
+    {
+        // A cancelled token acquisition was in this set, and it is not evidence of anything: it now
+        // happens whenever the refresh deadline expires during silent authentication, so a
+        // twenty-second timeout emptied the card of mail it already had. Section 8's error table
+        // says an ordinary timeout keeps cached content, because failing to reach the service says
+        // nothing about whether the service would have refused us.
+        string source = CardSource();
+
+        int gate = source.IndexOf("bool authorizationInvalidatesDetails =", StringComparison.Ordinal);
+        int rows = source.IndexOf("MessageRow[] messages =", StringComparison.Ordinal);
+
+        Assert.True(gate > 0 && rows > gate);
+
+        Assert.DoesNotContain(
+            "TokenAcquisitionStatus.Cancelled",
+            source[gate..rows],
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "refreshPresentation.AuthorizationInvalidatesDetails;",
+            source[gate..rows],
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "TokenAcquisitionStatus.InteractionRequired",
+            source[gate..rows],
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Only_the_signed_out_card_withholds_the_mail_actions()
     {
         // Refresh and Open Outlook are withheld because their only possible outcome is failure,
@@ -411,6 +442,174 @@ public sealed class ProviderCardTests
         // for the Graph property name. This one is about the model property on MessagePreview, which
         // is legitimately named in the provider when the message-open slice lands — but never here.
         Assert.DoesNotContain(".WebLink", CardSource(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Signed_out_copy_is_not_replaced_by_transient_refresh_presentation()
+    {
+        // SignedOut is selected from authoritative disclosure state before presentation copy is
+        // applied. During suppress-first logout/account switching, a still-running refresh may
+        // remain Loading or fail; neither is allowed to hide the completed signed-out transition.
+        string source = CardSource();
+        int description = source.IndexOf("Describe(situation, snapshot)", StringComparison.Ordinal);
+        int signedOutGuard = source.IndexOf(
+            "if (situation != CardSituation.SignedOut)",
+            description,
+            StringComparison.Ordinal);
+        int overlay = source.IndexOf("ApplyRefreshStatus(", description, StringComparison.Ordinal);
+
+        Assert.True(description >= 0 && signedOutGuard > description && overlay > signedOutGuard);
+    }
+
+    [Fact]
+    public void Loading_and_every_Graph_failure_category_have_explicit_card_copy()
+    {
+        string card = CardSource();
+        string presentation = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "Cards",
+            "RefreshPresentation.cs"));
+        string composition = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "Program.cs"));
+
+        string[] expected =
+        [
+            "Loading",
+            "RefreshInProgress",
+            "StatusUnknown",
+            "AuthorizationUnknown",
+            "InteractionRequired",
+            "ApprovalRequired",
+            "Unauthorized",
+            "Forbidden",
+            "MailboxNotSupported",
+            "ItemNotFound",
+            "Throttled",
+            "TimedOut",
+            "Offline",
+            "InvalidResponse",
+            "ServiceFailure",
+        ];
+
+        foreach (string status in expected)
+        {
+            Assert.Contains($"RefreshPresentationStatus.{status}", card, StringComparison.Ordinal);
+        }
+
+        foreach (GraphMailStatus status in Enum.GetValues<GraphMailStatus>())
+        {
+            Assert.Contains($"GraphMailStatus.{status}", presentation, StringComparison.Ordinal);
+        }
+
+        Assert.Contains(
+            "GraphMailStatus.Cancelled => RefreshPresentationStatus.TimedOut",
+            presentation,
+            StringComparison.Ordinal);
+
+        Assert.Contains("Showing the last cached state.", card, StringComparison.Ordinal);
+        Assert.Contains("instance.Size == WidgetSize.Small", card, StringComparison.Ordinal);
+        Assert.Contains("WithRefreshHeadline(\"Refreshing\", headline, compactHeadline)", card, StringComparison.Ordinal);
+        Assert.Contains("WithRefreshHeadline(\"Refresh delayed\", headline, compactHeadline)", card, StringComparison.Ordinal);
+        Assert.Contains("WithRefreshHeadline(\"Refresh timed out\", headline, compactHeadline)", card, StringComparison.Ordinal);
+        Assert.Contains("WithRefreshHeadline(\"Offline\", headline, compactHeadline)", card, StringComparison.Ordinal);
+        Assert.Contains("WithRefreshHeadline(\"Refresh unavailable\", headline, compactHeadline)", card, StringComparison.Ordinal);
+        Assert.Contains("WithRefreshHeadline(\"Refresh failed\", headline, compactHeadline)", card, StringComparison.Ordinal);
+        Assert.Contains(
+            "compactHeadline ? refreshLabel : $\"{refreshLabel} · {mailboxHeadline}\"",
+            card,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("GraphMailResult", card, StringComparison.Ordinal);
+        Assert.Contains(
+            "refreshPresentation.ReportGraphStatus(result.Status)",
+            composition,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Authorization_invalidating_states_withhold_message_rows()
+    {
+        string source = CardSource();
+        int decision = source.IndexOf("bool authorizationInvalidatesDetails", StringComparison.Ordinal);
+        int rows = source.IndexOf("MessageRow[] messages", decision, StringComparison.Ordinal);
+        int serialization = source.IndexOf("return JsonSerializer.Serialize", rows, StringComparison.Ordinal);
+
+        Assert.True(decision > 0 && rows > decision && serialization > rows);
+
+        string rowDecision = source[decision..serialization];
+        Assert.Contains(
+            "refreshPresentation.AuthorizationInvalidatesDetails",
+            rowDecision,
+            StringComparison.Ordinal);
+        Assert.Contains("&& !authorizationInvalidatesDetails", rowDecision, StringComparison.Ordinal);
+        Assert.Contains("|| refreshNeedsAttention", source, StringComparison.Ordinal);
+
+        string probe = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "SilentAuthProbe.cs"));
+        string composition = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "Program.cs"));
+
+        Assert.Contains("_presentation.ReportAuthenticationStatus(result.Status)", probe, StringComparison.Ordinal);
+        Assert.DoesNotContain("CompleteWithoutClearing()", composition, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_peer_lease_is_polled_before_a_fresh_full_horizon_elapses()
+    {
+        string worker = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "ProviderRefreshWorker.cs"));
+        string monitor = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "PeerRefreshMonitor.cs"));
+
+        Assert.Contains(
+            "PollInterval = TimeSpan.FromSeconds(1)",
+            monitor,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "_delay(PollInterval, cancellationToken)",
+            monitor,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "Task.Delay(CoordinationBounds.LeaseHorizon, _shutdown.Token)",
+            monitor,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "generationBeforeRefresh is { } before",
+            monitor,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "generationAfterRefresh is { } after",
+            monitor,
+            StringComparison.Ordinal);
+        Assert.Contains("ReadKnownGeneration", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("_cache.ReadGeneration()", worker, StringComparison.Ordinal);
+        Assert.Contains(
+            "while (presentation.Current.PeerWaitId == peerWaitId)",
+            monitor,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "ResolvePeerWait(peerWaitId, peerCommitted)",
+            monitor,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "while (presentation.Current.Status == RefreshPresentationStatus.RefreshInProgress)",
+            monitor,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Payload_free_state_change_events_do_not_reset_refresh_evidence()
+    {
+        string composition = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "Program.cs"));
+
+        Assert.DoesNotContain("refreshPresentation.Clear()", composition, StringComparison.Ordinal);
+        Assert.Contains("lease/generation monitor own those transitions", composition, StringComparison.Ordinal);
     }
 
     [Fact]

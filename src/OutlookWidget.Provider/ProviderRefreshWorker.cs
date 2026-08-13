@@ -4,6 +4,7 @@ using OutlookWidget.Core.Delivery;
 using OutlookWidget.Core.Diagnostics;
 using OutlookWidget.Core.Models;
 using OutlookWidget.Core.Refresh;
+using OutlookWidget.Provider.Cards;
 
 namespace OutlookWidget.Provider;
 
@@ -11,13 +12,16 @@ namespace OutlookWidget.Provider;
 internal sealed class ProviderRefreshWorker : IDisposable
 {
     private static readonly TimeSpan ShutdownDrain = TimeSpan.FromSeconds(2);
-
     private readonly RefreshCoordinator _coordinator;
     private readonly IRefreshFetcher _fetcher;
     private readonly ProtectedCache _cache;
     private readonly SelectedAccountStore _selectedAccounts;
     private readonly IDeliveryRequester _delivery;
     private readonly IOperationalLogger _logger;
+    private readonly RefreshPresentation _presentation;
+    private readonly PeerRefreshMonitor _peerMonitor;
+    private readonly Func<Guid?> _readSignInToken;
+    private readonly Action<Guid> _consumeSignInToken;
     private readonly CancellationTokenSource _shutdown = new();
     private readonly Lock _gate = new();
     private readonly Queue<RefreshWork> _pending = new();
@@ -31,20 +35,33 @@ internal sealed class ProviderRefreshWorker : IDisposable
         ProtectedCache cache,
         SelectedAccountStore selectedAccounts,
         IDeliveryRequester delivery,
-        IOperationalLogger? logger = null)
+        RefreshPresentation presentation,
+        IOperationalLogger? logger = null,
+        Func<Guid?>? readSignInToken = null,
+        Action<Guid>? consumeSignInToken = null)
     {
         ArgumentNullException.ThrowIfNull(coordinator);
         ArgumentNullException.ThrowIfNull(fetcher);
         ArgumentNullException.ThrowIfNull(cache);
         ArgumentNullException.ThrowIfNull(selectedAccounts);
         ArgumentNullException.ThrowIfNull(delivery);
+        ArgumentNullException.ThrowIfNull(presentation);
 
+        // Optional so existing construction sites keep compiling; a worker without it simply has no
+        // durable fallback and relies on the sign-in event alone.
+        _readSignInToken = readSignInToken ?? (static () => null);
+        _consumeSignInToken = consumeSignInToken ?? (static _ => { });
         _coordinator = coordinator;
         _fetcher = fetcher;
         _cache = cache;
         _selectedAccounts = selectedAccounts;
         _delivery = delivery;
+        _presentation = presentation;
         _logger = logger ?? NullOperationalLogger.Instance;
+        _peerMonitor = new PeerRefreshMonitor(
+            coordinator.IsRefreshInProgress,
+            ReadKnownGeneration,
+            delivery.RequestDelivery);
     }
 
     public void Request(RefreshTrigger trigger)
@@ -83,6 +100,11 @@ internal sealed class ProviderRefreshWorker : IDisposable
 
     private bool IsStale()
     {
+        if (HasUnrecoveredSignIn())
+        {
+            return true;
+        }
+
         CacheReadResult read = _cache.Read();
         MailboxSnapshot? snapshot = read.IsSuccess && read.Payload is { } payload
             ? MailboxSnapshot.TryDeserialize(payload)
@@ -116,6 +138,94 @@ internal sealed class ProviderRefreshWorker : IDisposable
         return false;
     }
 
+    /// <summary>
+    /// Whether a completed sign-in has been recorded that this worker has not yet acted on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The durable half of sign-in recovery.</b> The sign-in event is the fast path and remains
+    /// the normal one: it forces a refresh immediately through <c>Request</c>, bypassing staleness
+    /// entirely. But a named event is an accelerant, and a raise that cannot open its handle loses
+    /// the fact. Then the ordinary staleness rule looks at a seconds-old snapshot for an unchanged
+    /// account, declines to refresh, and the card stays on "Sign in required" — with no Refresh
+    /// action at the small size — until a provider recycle or a five-minute timer tick.
+    /// </para>
+    /// <para>
+    /// The companion writes the token before it raises the event, so this read can only be behind,
+    /// never ahead. Any later opportunity discovers what the raise failed to announce.
+    /// </para>
+    /// <para>
+    /// <b>Deliberately not conditioned on authorization suppression.</b> That was an earlier fix,
+    /// and it needed the worker to consult presentation state, which put a display concern into the
+    /// staleness rule and forced every unrelated signal through it. A recorded sign-in is a fact
+    /// about the account rather than about the card, and refreshing once after one is correct
+    /// whatever the card happens to be showing.
+    /// </para>
+    /// <para>
+    /// <b>One attempt per token, which is what bounds it.</b> The token changes only when the
+    /// companion completes another sign-in, so a retry that fails again does not schedule anything
+    /// further, and a burst of unrelated signals cannot become a burst of Graph requests. An absent
+    /// or unreadable record answers "no evidence" and spends nothing.
+    /// </para>
+    /// </remarks>
+    /// <remarks>
+    /// <para>
+    /// <b>The record's presence is the question, and its absence is the acknowledgement.</b> This
+    /// worker holds no memory of which sign-ins it has handled, because memory does not survive the
+    /// recycle, reboot, or package upgrade that a provider routinely undergoes — and a worker
+    /// starting with no memory treated a historical token as outstanding and forced a Graph
+    /// transaction over a perfectly fresh cache, every single time.
+    /// </para>
+    /// <para>
+    /// <b>Reports; it does not consume.</b> Consuming here would mark the sign-in handled before
+    /// anything was known about whether a fetch happened, which loses recovery whenever a peer holds
+    /// the lease: the pass returns <c>SkippedLeaseHeld</c>, and if that peer then expires without
+    /// committing, the attempt that was still owed is never made. Consumption happens in
+    /// <see cref="DrainAsync"/>, once an attempt has actually been made.
+    /// </para>
+    /// </remarks>
+    private bool HasUnrecoveredSignIn() => _readSignInToken() is not null;
+
+    /// <summary>
+    /// Marks a recorded sign-in as acted on, once this worker has genuinely attempted a refresh.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Called for every completed pass, not only for the ones staleness scheduled, which is what
+    /// stops one sign-in producing two Graph transactions. The event-driven fast path forces a
+    /// refresh through <c>Request</c>; that pass commits and raises the ordinary state-change event;
+    /// its <c>RequestIfStale</c> would otherwise see the same token still outstanding and force a
+    /// second fetch over a snapshot committed moments earlier.
+    /// </para>
+    /// <para>
+    /// The token is the one captured before the pass began, and consumption is conditional on the
+    /// record still holding it, so a sign-in completed while this refresh was in flight is not
+    /// discarded along with the one just handled.
+    /// </para>
+    /// <para>
+    /// Outcomes that never reached a fetch leave it outstanding. A lease held by a peer, a
+    /// contended mutex, a debounce, or a cancelled shutdown are all "no attempt was made", and the
+    /// recovery is still owed — the peer may expire without committing anything.
+    /// </para>
+    /// </remarks>
+    private void RetireSignInToken(Guid? token, RefreshOutcome outcome)
+    {
+        if (token is not { } captured)
+        {
+            return;
+        }
+
+        bool attempted = outcome is not (RefreshOutcome.SkippedLeaseHeld
+            or RefreshOutcome.SkippedContention
+            or RefreshOutcome.SkippedDebounce
+            or RefreshOutcome.Cancelled);
+
+        if (attempted)
+        {
+            _consumeSignInToken(captured);
+        }
+    }
+
     private async Task DrainAsync()
     {
         while (true)
@@ -140,9 +250,39 @@ internal sealed class ProviderRefreshWorker : IDisposable
                     continue;
                 }
 
+                // Captured before the pass so a sign-in completed while it runs writes a newer token
+                // that this pass does not retire.
+                Guid? signInToken = _readSignInToken();
+
+                RefreshPresentationState previousState = _presentation.Begin();
+                _delivery.RequestDelivery();
+
                 RefreshResult result = await _coordinator
                     .RefreshAsync(_fetcher, work.Trigger, _shutdown.Token)
                     .ConfigureAwait(false);
+
+                RetireSignInToken(signInToken, result.Outcome);
+
+                long? peerWaitId = _presentation.Complete(result, previousState);
+
+                if (peerWaitId is { } id)
+                {
+                    // The token deliberately survives this pass, because SkippedLeaseHeld means no
+                    // fetch was attempted here.
+                    //
+                    // It is deliberately NOT discharged when the monitor sees the generation
+                    // advance. That was tried and the premise was wrong: the lease holds no mutex,
+                    // so any other commit — a different-account sign-in clearing the prior snapshot,
+                    // most obviously — moves the counter while a peer refresh is live and possibly
+                    // failing. Acknowledging on that discards a pending recovery on the strength of
+                    // a write nobody attributed to the peer. An unacknowledged token costs one extra
+                    // Graph transaction; a wrongly acknowledged one costs the recovery itself.
+                    _ = _peerMonitor.RunAsync(
+                        _presentation,
+                        id,
+                        result.PeerLeaseStartingGeneration,
+                        _shutdown.Token);
+                }
 
                 // Token acquisition can change the card's authentication state even when there is
                 // no snapshot to commit. RefreshCoordinator requests delivery only for a successful
@@ -157,6 +297,7 @@ internal sealed class ProviderRefreshWorker : IDisposable
             }
             catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
             {
+                _presentation.Fail();
                 // RefreshCoordinator and the production fetcher convert expected failures to values.
                 // A final containment boundary keeps an unexpected defect off the COM callback path.
                 _logger.Record(OperationalEventId.GraphRequestFailed, OperationalOutcome.Failed);
@@ -169,6 +310,15 @@ internal sealed class ProviderRefreshWorker : IDisposable
                 }
             }
         }
+    }
+
+    private long? ReadKnownGeneration()
+    {
+        // ReadGeneration intentionally collapses an inaccessible file to zero for compare-only
+        // callers. Peer completion instead needs to distinguish a real zero from an unknown value,
+        // because a false advance can clear authorization suppression.
+        CacheReadResult read = _cache.Read();
+        return read.Status == CacheReadStatus.Unreadable ? null : read.Generation;
     }
 
     public void Dispose()

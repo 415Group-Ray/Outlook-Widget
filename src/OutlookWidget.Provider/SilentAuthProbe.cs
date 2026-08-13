@@ -41,6 +41,7 @@ internal sealed class SilentAuthProbe : IDisposable
     private readonly AuthenticationConfigurationResult _configuration;
     private readonly CoordinationPaths _paths;
     private readonly DeliveryWorker _delivery;
+    private readonly RefreshPresentation _presentation;
     private readonly IOperationalLogger _logger;
     private readonly CancellationTokenSource _shutdown = new();
 
@@ -92,15 +93,18 @@ internal sealed class SilentAuthProbe : IDisposable
         AuthenticationConfigurationResult configuration,
         CoordinationPaths paths,
         DeliveryWorker delivery,
+        RefreshPresentation presentation,
         IOperationalLogger logger)
     {
         ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(delivery);
+        ArgumentNullException.ThrowIfNull(presentation);
         ArgumentNullException.ThrowIfNull(logger);
 
         _configuration = configuration;
         _paths = paths;
         _delivery = delivery;
+        _presentation = presentation;
         _logger = logger;
     }
 
@@ -195,7 +199,6 @@ internal sealed class SilentAuthProbe : IDisposable
             TokenAcquisitionStatus status =
                 (await AcquireTokenAsync(_shutdown.Token).ConfigureAwait(false)).Status;
 
-            InboxCard.SilentAuthStatus = status;
             Interlocked.Increment(ref _completed);
 
             // The card changed, so ask for a pass. Guarded because the last widget may have been
@@ -218,7 +221,8 @@ internal sealed class SilentAuthProbe : IDisposable
         {
             if (!_configuration.IsLoaded)
             {
-                return TokenAcquisitionResult.Unavailable(TokenAcquisitionStatus.NoConfiguration);
+                return Publish(TokenAcquisitionResult.Unavailable(
+                    TokenAcquisitionStatus.NoConfiguration));
             }
 
             // BrokerClient.NoParentWindow is the whole of gate 9: this process owns no window and runs
@@ -262,11 +266,9 @@ internal sealed class SilentAuthProbe : IDisposable
             // may still be available and this process cannot find out. Only the companion learns the
             // difference, by being refused interactively, and it records it for exactly this read.
             TokenAcquisitionStatus refined = AuthorizationStateStore.Refine(status, _paths, options);
-            InboxCard.SilentAuthStatus = refined;
-
-            return refined == TokenAcquisitionStatus.Acquired
+            return Publish(refined == TokenAcquisitionStatus.Acquired
                 ? result
-                : TokenAcquisitionResult.Unavailable(refined);
+                : TokenAcquisitionResult.Unavailable(refined));
         }
         catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException)
         {
@@ -275,9 +277,15 @@ internal sealed class SilentAuthProbe : IDisposable
             // to classify. The classifier handles what it recognises and everything else lands as a
             // generic failure, which is the correct card either way.
             TokenAcquisitionStatus status = AuthenticationFailures.Classify(e, AuthenticationPhase.Silent);
-            InboxCard.SilentAuthStatus = status;
-            return TokenAcquisitionResult.Unavailable(status);
+            return Publish(TokenAcquisitionResult.Unavailable(status));
         }
+    }
+
+    private TokenAcquisitionResult Publish(TokenAcquisitionResult result)
+    {
+        InboxCard.SilentAuthStatus = result.Status;
+        _presentation.ReportAuthenticationStatus(result.Status);
+        return result;
     }
 
     private async Task<IPublicClientApplication> GetClientAsync()

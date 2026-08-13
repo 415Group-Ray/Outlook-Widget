@@ -44,6 +44,28 @@ public sealed class StateChangeSignalTests
         using var fixture = new CoordinationFixture();
 
         Assert.False(StateChangeSignal.Raise(fixture.Paths));
+        Assert.False(SignInCompletedSignal.Raise(fixture.Paths));
+    }
+
+    [Fact]
+    public void A_completed_sign_in_uses_its_distinct_callback()
+    {
+        using var fixture = new CoordinationFixture();
+        using var ordinary = new ManualResetEventSlim(false);
+        using var signIn = new ManualResetEventSlim(false);
+
+        using var listener = new StateChangeListener(
+            fixture.Paths,
+            () => ordinary.Set(),
+            fixture.Logger,
+            onSignInCompleted: () => signIn.Set());
+
+        Assert.True(SignInCompletedSignal.Raise(fixture.Paths));
+        Assert.True(signIn.Wait(TimeSpan.FromSeconds(5)));
+        Assert.False(
+            ordinary.IsSet,
+            "A successful sign-in must not be flattened into the payload-free state-change path; "
+                + "only its distinct evidence may force authorization recovery through Graph.");
     }
 
     [Theory]

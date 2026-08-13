@@ -213,6 +213,97 @@ public sealed class CoordinationPaths
     public string StateChangedEventName => $"OutlookWidget-StateChanged-{_scope}";
 
     /// <summary>
+    /// Signalled only after the companion completes a successful sign-in. Unlike the payload-free
+    /// state-change event, this is evidence that an authorization recovery attempt should reach
+    /// Graph even when the existing snapshot is otherwise fresh.
+    /// </summary>
+    public string SignInCompletedEventName => $"OutlookWidget-SignInCompleted-{_scope}";
+
+    /// <summary>
+    /// The durable counterpart to <see cref="SignInCompletedEventName"/>: one opaque token, rewritten
+    /// each time the companion completes a sign-in.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The event alone could not carry this fact.</b> Named events are best-effort accelerants
+    /// over authoritative disk state, and a raise that cannot open its handle loses the only
+    /// evidence a sign-in happened — leaving a fresh snapshot, sticky authorization suppression, and
+    /// a small card with no Refresh action to escape it. Writing the token first means any later
+    /// opportunity, an activation or the active timer, can still discover what the event failed to
+    /// announce.
+    /// </para>
+    /// <para>
+    /// A token rather than a timestamp, because the only question asked of it is "is this different
+    /// from the one I last acted on". That needs no ordering and so cannot be confused by a clock
+    /// step. Not DPAPI-protected: it is an opaque value that says nothing about a mailbox or an
+    /// account, matching the authorization record.
+    /// </para>
+    /// </remarks>
+    public string SignInCompletedRecordFilePath => Path.Combine(RootDirectory, $"signin-{_scope}.json");
+
+    /// <summary>Temporary file used to replace the sign-in record atomically.</summary>
+    public string SignInCompletedRecordTempFilePath =>
+        Path.Combine(RootDirectory, $"signin-{_scope}.tmp");
+
+    /// <summary>
+    /// The last sign-in token the provider has acted on. Written only by the provider.
+    /// </summary>
+    /// <remarks>
+    /// <b>A second file so that each has exactly one writer.</b> Acknowledgement was first expressed
+    /// by deleting the companion's record, which needed a read and a delete that were not one
+    /// operation: a sign-in completing between them replaced the file, and the delete then discarded
+    /// a token that had never been acted on. Locking the pair would work, and would put a shared
+    /// mutex on a path whose whole purpose is to survive when other coordination fails. Two
+    /// single-writer files have no such window — the companion only ever writes the token, the
+    /// provider only ever writes the acknowledgement, and "is recovery owed" is a comparison of two
+    /// independently consistent values.
+    /// </remarks>
+    public string SignInAcknowledgedRecordFilePath =>
+        Path.Combine(RootDirectory, $"signin-ack-{_scope}.json");
+
+    /// <summary>Temporary file used to replace the acknowledgement atomically.</summary>
+    public string SignInAcknowledgedRecordTempFilePath =>
+        Path.Combine(RootDirectory, $"signin-ack-{_scope}.tmp");
+
+    /// <summary>
+    /// Why authentication or the mailbox last required message details to be withheld until an
+    /// authorized read succeeds.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Durable because a process boundary is not evidence of anything.</b> This decision lived
+    /// only in the provider's memory, so a package upgrade or a provider recycle recreated it as
+    /// "not suppressed" — and the recovered-instance delivery that follows a restart happens before
+    /// any new Graph result, rendering the very senders and subjects that had been withheld. A
+    /// restart is the one moment the provider knows least, and it was the moment it disclosed most.
+    /// </para>
+    /// <para>
+    /// Sits beside the settings and selected-account records rather than inside the protected
+    /// snapshot, for the same reason both of those do: it has to survive the snapshot being cleared.
+    /// Not DPAPI-protected — it is one status enum about this app's authorization, and says nothing
+    /// about a mailbox or account.
+    /// </para>
+    /// </remarks>
+    public string AuthorizationSuppressionFilePath =>
+        Path.Combine(RootDirectory, $"authsuppression-{_scope}.json");
+
+    /// <summary>Temporary file used to replace the suppression record atomically.</summary>
+    public string AuthorizationSuppressionTempFilePath =>
+        Path.Combine(RootDirectory, $"authsuppression-{_scope}.tmp");
+
+    /// <summary>
+    /// Independent fail-closed marker used only when the primary authorization record cannot be
+    /// replaced. It is not stored with disclosure-operation tombstones, so the companion's generic
+    /// interrupted-operation recovery cannot remove an unresolved authorization decision.
+    /// </summary>
+    public string AuthorizationSuppressionFallbackFilePath =>
+        Path.Combine(RootDirectory, $"authsuppression-fallback-{_scope}.json");
+
+    /// <summary>Temporary file used to replace the fallback marker atomically.</summary>
+    public string AuthorizationSuppressionFallbackTempFilePath =>
+        Path.Combine(RootDirectory, $"authsuppression-fallback-{_scope}.tmp");
+
+    /// <summary>
     /// Signalled when a disclosure-reducing operation begins, before it attempts its
     /// commit. Independent of the mutation mutex, because a wedged peer is exactly when
     /// failing closed matters most.

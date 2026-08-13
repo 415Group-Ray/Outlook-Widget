@@ -42,3 +42,15 @@ public static class StateChangeSignal
         return NamedEventSignal.TryRaise(paths.StateChangedEventName);
     }
 }
+
+/// <summary>Raises the package-user-wide successful-sign-in event.</summary>
+public static class SignInCompletedSignal
+{
+    /// <summary>Signals that the companion completed sign-in successfully. Never throws.</summary>
+    public static bool Raise(CoordinationPaths paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+
+        return NamedEventSignal.TryRaise(paths.SignInCompletedEventName);
+    }
+}
