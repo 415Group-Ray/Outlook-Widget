@@ -103,6 +103,12 @@ Phase 2: the WinUI WAM check, the five-row Widgets-host fit, and opening an indi
 icon that ships today is interim. See the evidence report for exactly what has been
 proven, and [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md) for the full design.
 
+Authorization-driven row suppression is durable across provider recycle. Sign-in-required,
+approval-required, and Graph refusal states retain both their counts-only decision and their recovery
+copy until a successful mailbox read clears them. If the primary authorization record cannot be replaced,
+a dedicated fallback marker preserves the same decision; **Clear interrupted operations** deliberately
+does not remove it because generic privacy recovery is not evidence that mailbox access succeeded.
+
 ### Known platform limitation: one widget instance only
 
 The Widgets Board was measured to allow only one pinned instance per widget definition, despite the

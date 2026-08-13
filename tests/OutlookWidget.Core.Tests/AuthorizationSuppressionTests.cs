@@ -1,4 +1,5 @@
 using OutlookWidget.Core.Caching;
+using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Graph;
 using OutlookWidget.Core.Refresh;
 using OutlookWidget.Core.Tests.TestInfrastructure;
@@ -40,12 +41,26 @@ public sealed class AuthorizationSuppressionTests : IDisposable
     [Fact]
     public void A_recorded_refusal_round_trips()
     {
-        Assert.True(Store().Write(detailsWithheld: true));
+        Assert.True(Store().Write(AuthorizationSuppressionReason.Forbidden));
 
         AuthorizationSuppressionResult result = Store().Read();
 
         Assert.Equal(AuthorizationSuppressionStatus.Success, result.Status);
         Assert.True(result.DetailsWithheld);
+        Assert.Equal(AuthorizationSuppressionReason.Forbidden, result.Reason);
+    }
+
+    [Fact]
+    public void A_boolean_only_record_from_the_first_schema_fails_closed_with_actionable_copy()
+    {
+        File.WriteAllText(
+            Paths.AuthorizationSuppressionFilePath,
+            """{"DetailsWithheld":true}""");
+
+        var restarted = new RefreshPresentation(Store());
+
+        Assert.True(restarted.Current.AuthorizationInvalidatesDetails);
+        Assert.Equal(RefreshPresentationStatus.AuthorizationUnknown, restarted.Current.Status);
     }
 
     [Theory]
@@ -100,6 +115,7 @@ public sealed class AuthorizationSuppressionTests : IDisposable
             afterRestart.Current.AuthorizationInvalidatesDetails,
             "A recycled provider delivers before any new Graph result. Starting from 'not "
                 + "suppressed' renders the senders and subjects the refusal withheld.");
+        Assert.Equal(RefreshPresentationStatus.Forbidden, afterRestart.Current.Status);
     }
 
     [Fact]
@@ -170,15 +186,13 @@ public sealed class AuthorizationSuppressionTests : IDisposable
     }
 
     [Fact]
-    public void An_unrecordable_refusal_escalates_to_a_suppression_marker()
+    public void An_unrecordable_refusal_uses_a_dedicated_nonrecoverable_fallback()
     {
         // The store surfaces a failed write and the caller used to discard it. This process still
         // withholds from memory, but the record is what the next one reads — so a recycle would
         // render exactly what the refusal withheld, which is the defect the record exists to
         // prevent. The escalation expresses the decision through a mechanism that does not depend on
         // that file.
-        bool escalated = false;
-
         // Blocking the *temporary* path fails the write while leaving the record absent, which is
         // the dangerous combination: a restart reads "never refused" and discloses. Blocking the
         // record itself would make the read unreadable, and unreadable already withholds — so there
@@ -187,15 +201,48 @@ public sealed class AuthorizationSuppressionTests : IDisposable
 
         try
         {
-            var presentation = new RefreshPresentation(Store(), () => escalated = true);
+            var presentation = new RefreshPresentation(Store());
 
             presentation.ReportGraphStatus(GraphMailStatus.Forbidden);
 
             Assert.True(presentation.Current.AuthorizationInvalidatesDetails);
+            AuthorizationSuppressionResult stored = Store().Read();
+            Assert.Equal(AuthorizationSuppressionStatus.Success, stored.Status);
+            Assert.Equal(AuthorizationSuppressionReason.Forbidden, stored.Reason);
+            Assert.True(File.Exists(Paths.AuthorizationSuppressionFallbackFilePath));
             Assert.Equal(
-                AuthorizationSuppressionStatus.Absent,
-                Store().Read().Status);
-            Assert.True(escalated, "A refusal that cannot be recorded must escalate, not be logged.");
+                RefreshPresentationStatus.Forbidden,
+                new RefreshPresentation(Store()).Current.Status);
+
+            // Generic privacy recovery enumerates only the suppression directory. This marker is
+            // authorization state and survives until an authorized mailbox read clears it.
+            new DisclosureTombstoneStore(Paths).ClearAllOrphansWithResult();
+            Assert.True(File.Exists(Paths.AuthorizationSuppressionFallbackFilePath));
+        }
+        finally
+        {
+            Directory.Delete(Paths.AuthorizationSuppressionTempFilePath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void A_newer_fallback_reason_supersedes_an_older_primary_record()
+    {
+        Assert.True(Store().Write(AuthorizationSuppressionReason.Unauthorized));
+        Directory.CreateDirectory(Paths.AuthorizationSuppressionTempFilePath);
+
+        try
+        {
+            var presentation = new RefreshPresentation(Store());
+
+            presentation.ReportAuthenticationStatus(TokenAcquisitionStatus.ApprovalRequired);
+
+            Assert.Equal(
+                AuthorizationSuppressionReason.ApprovalRequired,
+                Store().Read().Reason);
+            Assert.Equal(
+                RefreshPresentationStatus.ApprovalRequired,
+                new RefreshPresentation(Store()).Current.Status);
         }
         finally
         {
@@ -208,24 +255,91 @@ public sealed class AuthorizationSuppressionTests : IDisposable
     {
         // The other direction is already safe: the record still says withheld, so the next process
         // is merely more conservative than it needs to be.
-        bool escalated = false;
-
-        var presentation = new RefreshPresentation(Store(), () => escalated = true);
+        var presentation = new RefreshPresentation(Store());
         presentation.ReportGraphStatus(GraphMailStatus.Unauthorized);
 
         Directory.CreateDirectory(Paths.AuthorizationSuppressionTempFilePath);
 
         try
         {
-            escalated = false;
             presentation.ReportGraphStatus(GraphMailStatus.Success);
 
-            Assert.False(escalated);
+            Assert.True(Store().Read().DetailsWithheld);
         }
         finally
         {
             Directory.Delete(Paths.AuthorizationSuppressionTempFilePath, recursive: true);
         }
+    }
+
+    [Fact]
+    public void A_failure_of_both_files_cannot_prevent_in_memory_suppression()
+    {
+        Directory.CreateDirectory(Paths.AuthorizationSuppressionTempFilePath);
+        Directory.CreateDirectory(Paths.AuthorizationSuppressionFallbackTempFilePath);
+
+        try
+        {
+            var presentation = new RefreshPresentation(Store());
+
+            Exception? failure = Record.Exception(
+                () => presentation.ReportGraphStatus(GraphMailStatus.Unauthorized));
+
+            Assert.Null(failure);
+            Assert.True(presentation.Current.AuthorizationInvalidatesDetails);
+            Assert.Equal(RefreshPresentationStatus.Unauthorized, presentation.Current.Status);
+
+            presentation.ReportGraphStatus(GraphMailStatus.NetworkFailure);
+
+            Assert.True(presentation.Current.AuthorizationInvalidatesDetails);
+            Assert.Equal(
+                AuthorizationSuppressionReason.Unauthorized,
+                presentation.Current.SuppressionReason);
+        }
+        finally
+        {
+            Directory.Delete(Paths.AuthorizationSuppressionTempFilePath, recursive: true);
+            Directory.Delete(Paths.AuthorizationSuppressionFallbackTempFilePath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void A_successful_mailbox_read_clears_the_dedicated_fallback()
+    {
+        Directory.CreateDirectory(Paths.AuthorizationSuppressionTempFilePath);
+        var presentation = new RefreshPresentation(Store());
+
+        presentation.ReportGraphStatus(GraphMailStatus.Forbidden);
+
+        Directory.Delete(Paths.AuthorizationSuppressionTempFilePath, recursive: true);
+        presentation.ReportGraphStatus(GraphMailStatus.Success);
+
+        Assert.False(File.Exists(Paths.AuthorizationSuppressionFallbackFilePath));
+        Assert.False(new RefreshPresentation(Store()).Current.AuthorizationInvalidatesDetails);
+    }
+
+    [Theory]
+    [InlineData(
+        TokenAcquisitionStatus.InteractionRequired,
+        AuthorizationSuppressionReason.InteractionRequired,
+        "InteractionRequired")]
+    [InlineData(
+        TokenAcquisitionStatus.ApprovalRequired,
+        AuthorizationSuppressionReason.ApprovalRequired,
+        "ApprovalRequired")]
+    public void A_silent_auth_blocker_survives_a_provider_restart_with_its_remedy(
+        TokenAcquisitionStatus status,
+        AuthorizationSuppressionReason reason,
+        string expectedPresentation)
+    {
+        var first = new RefreshPresentation(Store());
+
+        first.ReportAuthenticationStatus(status);
+
+        var restarted = new RefreshPresentation(Store());
+        Assert.True(restarted.Current.AuthorizationInvalidatesDetails);
+        Assert.Equal(expectedPresentation, restarted.Current.Status.ToString());
+        Assert.Equal(reason, Store().Read().Reason);
     }
 
     [Fact]

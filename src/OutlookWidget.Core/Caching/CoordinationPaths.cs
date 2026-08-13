@@ -266,8 +266,8 @@ public sealed class CoordinationPaths
         Path.Combine(RootDirectory, $"signin-ack-{_scope}.tmp");
 
     /// <summary>
-    /// Whether the mailbox last refused this app's token, and message details must therefore be
-    /// withheld until an authorized read succeeds.
+    /// Why authentication or the mailbox last required message details to be withheld until an
+    /// authorized read succeeds.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -280,8 +280,8 @@ public sealed class CoordinationPaths
     /// <para>
     /// Sits beside the settings and selected-account records rather than inside the protected
     /// snapshot, for the same reason both of those do: it has to survive the snapshot being cleared.
-    /// Not DPAPI-protected — it is one boolean about this app's authorization, and says nothing
-    /// about a mailbox.
+    /// Not DPAPI-protected — it is one status enum about this app's authorization, and says nothing
+    /// about a mailbox or account.
     /// </para>
     /// </remarks>
     public string AuthorizationSuppressionFilePath =>
@@ -290,6 +290,18 @@ public sealed class CoordinationPaths
     /// <summary>Temporary file used to replace the suppression record atomically.</summary>
     public string AuthorizationSuppressionTempFilePath =>
         Path.Combine(RootDirectory, $"authsuppression-{_scope}.tmp");
+
+    /// <summary>
+    /// Independent fail-closed marker used only when the primary authorization record cannot be
+    /// replaced. It is not stored with disclosure-operation tombstones, so the companion's generic
+    /// interrupted-operation recovery cannot remove an unresolved authorization decision.
+    /// </summary>
+    public string AuthorizationSuppressionFallbackFilePath =>
+        Path.Combine(RootDirectory, $"authsuppression-fallback-{_scope}.json");
+
+    /// <summary>Temporary file used to replace the fallback marker atomically.</summary>
+    public string AuthorizationSuppressionFallbackTempFilePath =>
+        Path.Combine(RootDirectory, $"authsuppression-fallback-{_scope}.tmp");
 
     /// <summary>
     /// Signalled when a disclosure-reducing operation begins, before it attempts its

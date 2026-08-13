@@ -345,14 +345,12 @@ public sealed class ProviderCardTests
             source[gate..rows],
             StringComparison.Ordinal);
 
-        // The two that are evidence stay: each is the mailbox or the tenant saying this token
-        // cannot read it until someone acts.
         Assert.Contains(
-            "TokenAcquisitionStatus.InteractionRequired",
+            "refreshPresentation.AuthorizationInvalidatesDetails;",
             source[gate..rows],
             StringComparison.Ordinal);
-        Assert.Contains(
-            "TokenAcquisitionStatus.ApprovalRequired",
+        Assert.DoesNotContain(
+            "TokenAcquisitionStatus.InteractionRequired",
             source[gate..rows],
             StringComparison.Ordinal);
     }
@@ -480,6 +478,9 @@ public sealed class ProviderCardTests
             "Loading",
             "RefreshInProgress",
             "StatusUnknown",
+            "AuthorizationUnknown",
+            "InteractionRequired",
+            "ApprovalRequired",
             "Unauthorized",
             "Forbidden",
             "MailboxNotSupported",
@@ -540,9 +541,18 @@ public sealed class ProviderCardTests
             "refreshPresentation.AuthorizationInvalidatesDetails",
             rowDecision,
             StringComparison.Ordinal);
-        Assert.Contains("TokenAcquisitionStatus.InteractionRequired", rowDecision, StringComparison.Ordinal);
         Assert.Contains("&& !authorizationInvalidatesDetails", rowDecision, StringComparison.Ordinal);
         Assert.Contains("|| refreshNeedsAttention", source, StringComparison.Ordinal);
+
+        string probe = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "SilentAuthProbe.cs"));
+        string composition = File.ReadAllText(Path.Combine(
+            RepositorySources.ProviderSourceDirectory,
+            "Program.cs"));
+
+        Assert.Contains("_presentation.ReportAuthenticationStatus(result.Status)", probe, StringComparison.Ordinal);
+        Assert.DoesNotContain("CompleteWithoutClearing()", composition, StringComparison.Ordinal);
     }
 
     [Fact]

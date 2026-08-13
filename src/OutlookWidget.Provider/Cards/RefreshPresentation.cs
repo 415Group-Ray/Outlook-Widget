@@ -1,3 +1,4 @@
+using OutlookWidget.Core.Authentication;
 using OutlookWidget.Core.Graph;
 using OutlookWidget.Core.Refresh;
 
@@ -10,6 +11,9 @@ internal enum RefreshPresentationStatus
     Loading,
     RefreshInProgress,
     StatusUnknown,
+    AuthorizationUnknown,
+    InteractionRequired,
+    ApprovalRequired,
     Unauthorized,
     Forbidden,
     MailboxNotSupported,
@@ -26,8 +30,12 @@ internal enum RefreshPresentationStatus
 /// </summary>
 internal sealed record RefreshPresentationState(
     RefreshPresentationStatus Status,
-    bool AuthorizationInvalidatesDetails,
-    long? PeerWaitId = null);
+    AuthorizationSuppressionReason SuppressionReason,
+    long? PeerWaitId = null)
+{
+    public bool AuthorizationInvalidatesDetails =>
+        SuppressionReason != AuthorizationSuppressionReason.None;
+}
 
 /// <summary>
 /// Bridges refresh outcomes into card presentation without persisting operational state or widening
@@ -36,8 +44,9 @@ internal sealed record RefreshPresentationState(
 internal sealed class RefreshPresentation
 {
     private readonly AuthorizationSuppressionStore? _suppression;
-    private readonly Action? _escalateUnrecordedSuppression;
+    private readonly Lock _authorizationGate = new();
     private RefreshPresentationState _current;
+    private bool _suppressionPersisted = true;
     private long _nextPeerWaitId;
 
     /// <param name="suppression">
@@ -45,24 +54,22 @@ internal sealed class RefreshPresentation
     /// filesystem; production always supplies it, and without it a restart discloses what a refusal
     /// withheld.
     /// </param>
-    /// <param name="escalateUnrecordedSuppression">
-    /// Invoked when a refusal could not be recorded durably, so the decision can be expressed
-    /// through a mechanism that does not depend on that file. See <see cref="WriteSuppression"/>.
-    /// </param>
-    public RefreshPresentation(
-        AuthorizationSuppressionStore? suppression = null,
-        Action? escalateUnrecordedSuppression = null)
+    public RefreshPresentation(AuthorizationSuppressionStore? suppression = null)
     {
         _suppression = suppression;
-        _escalateUnrecordedSuppression = escalateUnrecordedSuppression;
 
         // **Restored, not assumed.** A restart is the moment the provider knows least: the
         // recovered-instance delivery runs before any new Graph result, so starting from "not
         // suppressed" rendered exactly the senders and subjects a 401 or 403 had withheld. An
         // unreadable record answers withheld, so damage cannot become disclosure either.
-        bool withheld = suppression?.Read().DetailsWithheld ?? false;
+        AuthorizationSuppressionResult stored = suppression?.Read()
+            ?? new AuthorizationSuppressionResult(
+                AuthorizationSuppressionStatus.Absent,
+                AuthorizationSuppressionReason.None);
 
-        _current = new RefreshPresentationState(RefreshPresentationStatus.Idle, withheld);
+        _current = new RefreshPresentationState(
+            StatusFor(stored.Reason),
+            stored.Reason);
     }
 
     public RefreshPresentationState Current => Volatile.Read(ref _current);
@@ -125,26 +132,54 @@ internal sealed class RefreshPresentation
         // already ranks Throttled *below* Unauthorized precisely because it is the less conclusive
         // answer. Neither is worth the risk when the cost of being conservative is a counts-only
         // card until the next successful read.
-        bool invalidatesDetails = presentation switch
+        lock (_authorizationGate)
         {
-            RefreshPresentationStatus.Unauthorized => true,
-            RefreshPresentationStatus.Forbidden => true,
-            RefreshPresentationStatus.MailboxNotSupported => true,
+            AuthorizationSuppressionReason reason = presentation switch
+            {
+                RefreshPresentationStatus.Unauthorized => AuthorizationSuppressionReason.Unauthorized,
+                RefreshPresentationStatus.Forbidden => AuthorizationSuppressionReason.Forbidden,
+                RefreshPresentationStatus.MailboxNotSupported =>
+                    AuthorizationSuppressionReason.MailboxNotSupported,
+                RefreshPresentationStatus.Idle => AuthorizationSuppressionReason.None,
 
-            RefreshPresentationStatus.Idle => false,
+                // Everything else carries no authorization evidence, so the prior decision stands.
+                _ => Current.SuppressionReason,
+            };
 
-            // Everything else carries no authorization evidence, so the prior decision stands.
-            _ => Current.AuthorizationInvalidatesDetails,
+            // A Graph result is evidence about both facts. In particular, a retry may show Loading
+            // without making cached details safe; only its eventual non-invalidating result clears
+            // the sticky authorization decision. Serialize the disk decision with the in-memory one
+            // so a simultaneous silent probe cannot leave them describing opposite outcomes.
+            // A local Graph result supersedes any peer wait carried through Begin(). The monitor owns
+            // only the peer observation identified by that token and must not later overwrite this
+            // newer local evidence.
+            PersistSuppression(reason);
+            Set(new RefreshPresentationState(presentation, reason));
+        }
+    }
+
+    /// <summary>Persists silent-auth states that independently require details to be withheld.</summary>
+    public void ReportAuthenticationStatus(TokenAcquisitionStatus status)
+    {
+        AuthorizationSuppressionReason? reason = status switch
+        {
+            TokenAcquisitionStatus.InteractionRequired =>
+                AuthorizationSuppressionReason.InteractionRequired,
+            TokenAcquisitionStatus.ApprovalRequired =>
+                AuthorizationSuppressionReason.ApprovalRequired,
+            _ => null,
         };
 
-        // A Graph result is evidence about both facts. In particular, a retry may show Loading
-        // without making cached details safe; only its eventual non-invalidating result clears the
-        // sticky authorization decision.
-        // A local Graph result supersedes any peer wait carried through Begin(). The monitor owns
-        // only the peer observation identified by that token and must not later overwrite this
-        // newer local evidence.
-        PersistSuppression(invalidatesDetails);
-        Set(new RefreshPresentationState(presentation, invalidatesDetails));
+        if (reason is not { } withholdingReason)
+        {
+            return;
+        }
+
+        lock (_authorizationGate)
+        {
+            WriteSuppression(withholdingReason);
+            Set(new RefreshPresentationState(StatusFor(withholdingReason), withholdingReason));
+        }
     }
 
     /// <summary>
@@ -177,8 +212,13 @@ internal sealed class RefreshPresentation
             case RefreshOutcome.Committed:
                 // A commit is a successful authorized read by definition — the snapshot it wrote
                 // came from one — so this is affirmative evidence and may clear the record.
-                PersistSuppression(false);
-                Set(new RefreshPresentationState(RefreshPresentationStatus.Idle, false));
+                lock (_authorizationGate)
+                {
+                    PersistSuppression(AuthorizationSuppressionReason.None);
+                    Set(new RefreshPresentationState(
+                        RefreshPresentationStatus.Idle,
+                        AuthorizationSuppressionReason.None));
+                }
                 return null;
             case RefreshOutcome.Discarded:
             case RefreshOutcome.Cancelled:
@@ -258,7 +298,7 @@ internal sealed class RefreshPresentation
 
                 // Carried through untouched. See the remarks: nothing observed here identifies who
                 // advanced the generation, so nothing observed here is authorization evidence.
-                current.AuthorizationInvalidatesDetails);
+                current.SuppressionReason);
 
             if (ReferenceEquals(Interlocked.CompareExchange(ref _current, resolved, current), current))
             {
@@ -272,7 +312,7 @@ internal sealed class RefreshPresentation
         long peerWaitId = Interlocked.Increment(ref _nextPeerWaitId);
         Update(current => new RefreshPresentationState(
             RefreshPresentationStatus.RefreshInProgress,
-            current.AuthorizationInvalidatesDetails,
+            current.SuppressionReason,
             peerWaitId));
         return peerWaitId;
     }
@@ -284,7 +324,7 @@ internal sealed class RefreshPresentation
             RefreshPresentationState current = Current;
 
             if (current.Status != RefreshPresentationStatus.Loading
-                || current.AuthorizationInvalidatesDetails != previousState.AuthorizationInvalidatesDetails
+                || current.SuppressionReason != previousState.SuppressionReason
                 || current.PeerWaitId != previousState.PeerWaitId)
             {
                 return;
@@ -336,14 +376,14 @@ internal sealed class RefreshPresentation
     /// <see cref="WriteSuppression"/> instead: this compares against it, so a caller writing after
     /// its own update sees no change and silently skips the write.
     /// </remarks>
-    private void PersistSuppression(bool detailsWithheld)
+    private void PersistSuppression(AuthorizationSuppressionReason reason)
     {
-        if (Current.AuthorizationInvalidatesDetails == detailsWithheld)
+        if (Current.SuppressionReason == reason && _suppressionPersisted)
         {
             return;
         }
 
-        WriteSuppression(detailsWithheld);
+        WriteSuppression(reason);
     }
 
     /// <summary>
@@ -371,20 +411,25 @@ internal sealed class RefreshPresentation
     /// safe direction already.
     /// </para>
     /// </remarks>
-    private void WriteSuppression(bool detailsWithheld)
+    private void WriteSuppression(AuthorizationSuppressionReason reason)
     {
-        if (_suppression is null)
-        {
-            return;
-        }
-
-        if (_suppression.Write(detailsWithheld) || !detailsWithheld)
-        {
-            return;
-        }
-
-        _escalateUnrecordedSuppression?.Invoke();
+        _suppressionPersisted = _suppression?.Write(reason) ?? true;
     }
+
+    private static RefreshPresentationStatus StatusFor(AuthorizationSuppressionReason reason) =>
+        reason switch
+        {
+            AuthorizationSuppressionReason.None => RefreshPresentationStatus.Idle,
+            AuthorizationSuppressionReason.InteractionRequired =>
+                RefreshPresentationStatus.InteractionRequired,
+            AuthorizationSuppressionReason.ApprovalRequired =>
+                RefreshPresentationStatus.ApprovalRequired,
+            AuthorizationSuppressionReason.Unauthorized => RefreshPresentationStatus.Unauthorized,
+            AuthorizationSuppressionReason.Forbidden => RefreshPresentationStatus.Forbidden,
+            AuthorizationSuppressionReason.MailboxNotSupported =>
+                RefreshPresentationStatus.MailboxNotSupported,
+            _ => RefreshPresentationStatus.AuthorizationUnknown,
+        };
 
     private void Set(RefreshPresentationState state) => Volatile.Write(ref _current, state);
 }

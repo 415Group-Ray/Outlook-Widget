@@ -98,7 +98,9 @@ public sealed class RefreshPresentationTests
 
         presentation.Complete(
             new RefreshResult(RefreshOutcome.FetchFailed, DeliveryRequestOutcome.NotRequested, 0, TimeSpan.Zero),
-            new RefreshPresentationState(RefreshPresentationStatus.Idle, false));
+            new RefreshPresentationState(
+                RefreshPresentationStatus.Idle,
+                AuthorizationSuppressionReason.None));
 
         Assert.Equal(RefreshPresentationStatus.TimedOut, presentation.Current.Status);
     }

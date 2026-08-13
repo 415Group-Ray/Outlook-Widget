@@ -322,7 +322,10 @@ internal static class InboxCard
             or TokenAcquisitionStatus.NoConfiguration;
 
         bool refreshNeedsAttention = refreshStatus is
-            RefreshPresentationStatus.Unauthorized
+            RefreshPresentationStatus.AuthorizationUnknown
+            or RefreshPresentationStatus.InteractionRequired
+            or RefreshPresentationStatus.ApprovalRequired
+            or RefreshPresentationStatus.Unauthorized
             or RefreshPresentationStatus.Forbidden
             or RefreshPresentationStatus.MailboxNotSupported;
 
@@ -372,9 +375,7 @@ internal static class InboxCard
         // InteractionRequired and ApprovalRequired stay: each is the mailbox or the tenant telling
         // us this token cannot read it until someone acts.
         bool authorizationInvalidatesDetails =
-            refreshPresentation.AuthorizationInvalidatesDetails
-            || SilentAuthStatus is TokenAcquisitionStatus.InteractionRequired
-                or TokenAcquisitionStatus.ApprovalRequired;
+            refreshPresentation.AuthorizationInvalidatesDetails;
 
         MessageRow[] messages =
             situation == CardSituation.Mailbox
@@ -704,6 +705,12 @@ internal static class InboxCard
                 (WithRefreshHeadline("Refreshing", headline, compactHeadline), "Refresh already in progress." + cached),
             RefreshPresentationStatus.StatusUnknown =>
                 (WithRefreshHeadline("Refresh unknown", headline, compactHeadline), "Refresh status unknown — try again." + cached),
+            RefreshPresentationStatus.AuthorizationUnknown =>
+                ("Mailbox access needs attention", "Message details remain hidden. Open the companion for guidance."),
+            RefreshPresentationStatus.InteractionRequired =>
+                ("Sign in required", "Open the companion to renew mailbox access."),
+            RefreshPresentationStatus.ApprovalRequired =>
+                ("Administrator approval required", "Open the companion for consent guidance."),
             RefreshPresentationStatus.Unauthorized =>
                 ("Sign in required", "The mailbox session could not be renewed. Open the companion."),
             RefreshPresentationStatus.Forbidden =>

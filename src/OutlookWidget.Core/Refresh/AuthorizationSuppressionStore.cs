@@ -17,19 +17,47 @@ public enum AuthorizationSuppressionStatus
     Unreadable,
 }
 
+/// <summary>The evidence that currently requires message details to remain withheld.</summary>
+public enum AuthorizationSuppressionReason
+{
+    /// <summary>No authorization decision is withholding details.</summary>
+    None,
+
+    /// <summary>The record is unreadable or predates reason-aware persistence.</summary>
+    Unknown,
+
+    /// <summary>Silent authentication requires an interactive sign-in.</summary>
+    InteractionRequired,
+
+    /// <summary>Tenant policy requires administrator approval.</summary>
+    ApprovalRequired,
+
+    /// <summary>Graph returned HTTP 401.</summary>
+    Unauthorized,
+
+    /// <summary>Graph returned HTTP 403.</summary>
+    Forbidden,
+
+    /// <summary>The selected account has no supported mailbox.</summary>
+    MailboxNotSupported,
+}
+
 /// <summary>The outcome of one suppression read.</summary>
 /// <param name="Status">Whether the value below is what was stored.</param>
-/// <param name="DetailsWithheld">
-/// Whether sender and subject must be withheld — the defaults when absent, and
-/// <see langword="true"/> when unreadable, so a caller that ignores the status cannot disclose more
-/// than it should.
+/// <param name="Reason">
+/// Why sender and subject must be withheld. <see cref="AuthorizationSuppressionReason.None"/> is
+/// returned when absent, and <see cref="AuthorizationSuppressionReason.Unknown"/> when unreadable,
+/// so a caller that ignores the status cannot disclose more than it should.
 /// </param>
 public readonly record struct AuthorizationSuppressionResult(
     AuthorizationSuppressionStatus Status,
-    bool DetailsWithheld);
+    AuthorizationSuppressionReason Reason)
+{
+    public bool DetailsWithheld => Reason != AuthorizationSuppressionReason.None;
+}
 
 /// <summary>
-/// The durable record of whether the mailbox last refused this app's token.
+/// The durable reason that authentication or the mailbox last required message details to be withheld.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -41,7 +69,8 @@ public readonly record struct AuthorizationSuppressionResult(
 /// re-established that the refusal had been resolved.
 /// </para>
 /// <para>
-/// <b>Only an authorized read may clear it.</b> Writing <see langword="false"/> is a claim that this
+/// <b>Only an authorized read may clear it.</b> Writing
+/// <see cref="AuthorizationSuppressionReason.None"/> is a claim that this
 /// app read this mailbox successfully; nothing else — not a token acquisition, not a throttle, not a
 /// restart — is evidence of that. The asymmetry is the whole point: setting it is cheap and
 /// reversible, clearing it is a disclosure.
@@ -63,6 +92,8 @@ public sealed class AuthorizationSuppressionStore
     private sealed class Record
     {
         public required bool DetailsWithheld { get; init; }
+
+        public AuthorizationSuppressionReason? Reason { get; init; }
     }
 
     private readonly CoordinationPaths _paths;
@@ -79,39 +110,87 @@ public sealed class AuthorizationSuppressionStore
     /// <summary>Reads the stored decision, or says why it could not.</summary>
     public AuthorizationSuppressionResult Read()
     {
+        AuthorizationSuppressionResult primary = ReadRecord(_paths.AuthorizationSuppressionFilePath);
+        AuthorizationSuppressionResult fallback =
+            ReadRecord(_paths.AuthorizationSuppressionFallbackFilePath);
+
+        if (primary.Status == AuthorizationSuppressionStatus.Unreadable
+            || fallback.Status == AuthorizationSuppressionStatus.Unreadable)
+        {
+            return Unreadable();
+        }
+
+        // The fallback is written only after a primary write fails, so a withholding fallback is
+        // newer than any primary record that survived that failure and carries the current reason.
+        if (fallback is { Status: AuthorizationSuppressionStatus.Success, DetailsWithheld: true })
+        {
+            return fallback;
+        }
+
+        if (primary is { Status: AuthorizationSuppressionStatus.Success, DetailsWithheld: true })
+        {
+            return primary;
+        }
+
+        return primary.Status == AuthorizationSuppressionStatus.Success
+            ? primary
+            : new AuthorizationSuppressionResult(
+                AuthorizationSuppressionStatus.Absent,
+                AuthorizationSuppressionReason.None);
+    }
+
+    private static AuthorizationSuppressionResult ReadRecord(string path)
+    {
         try
         {
             // No File.Exists pre-check. It reports false for every failure it meets, so a
-            // present-but-unreadable record would be classified absent, absent means not
-            // suppressed, and the policy would invert. Absence is proven by the exception that
-            // means absence and by nothing else.
+            // present-but-unreadable record would be classified absent and invert the policy.
             using var stream = new FileStream(
-                _paths.AuthorizationSuppressionFilePath,
+                path,
                 FileMode.Open,
                 FileAccess.Read,
                 FileShare.ReadWrite | FileShare.Delete);
 
             Record? record = JsonSerializer.Deserialize<Record>(stream);
 
-            return record is null
-                ? new AuthorizationSuppressionResult(AuthorizationSuppressionStatus.Unreadable, true)
-                : new AuthorizationSuppressionResult(
-                    AuthorizationSuppressionStatus.Success,
-                    record.DetailsWithheld);
+            if (record is null)
+            {
+                return Unreadable();
+            }
+
+            AuthorizationSuppressionReason reason = record.DetailsWithheld
+                ? record.Reason ?? AuthorizationSuppressionReason.Unknown
+                : AuthorizationSuppressionReason.None;
+
+            if (!Enum.IsDefined(reason)
+                || (!record.DetailsWithheld
+                    && record.Reason is not (null or AuthorizationSuppressionReason.None)))
+            {
+                return Unreadable();
+            }
+
+            return new AuthorizationSuppressionResult(
+                AuthorizationSuppressionStatus.Success,
+                reason);
         }
         catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
         {
-            return new AuthorizationSuppressionResult(AuthorizationSuppressionStatus.Absent, false);
+            return new AuthorizationSuppressionResult(
+                AuthorizationSuppressionStatus.Absent,
+                AuthorizationSuppressionReason.None);
         }
         catch (Exception e) when (
             e is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
         {
-            return new AuthorizationSuppressionResult(AuthorizationSuppressionStatus.Unreadable, true);
+            return Unreadable();
         }
     }
 
+    private static AuthorizationSuppressionResult Unreadable() =>
+        new(AuthorizationSuppressionStatus.Unreadable, AuthorizationSuppressionReason.Unknown);
+
     /// <summary>
-    /// Records the decision. Never throws.
+    /// Records the decision. Never throws for a valid enum value.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -123,37 +202,79 @@ public sealed class AuthorizationSuppressionStore
     /// <b>The two directions fail differently, and the asymmetry is worth knowing.</b> Failing to
     /// persist a *cleared* decision is harmless: the record still says withheld, so the next process
     /// is merely more conservative than it needs to be until the next successful read. Failing to
-    /// persist a *set* decision is not: this process withholds correctly, and a restart before the
-    /// next attempt would not. That residual window is the reason the return value is surfaced
-    /// rather than discarded.
+    /// persist a *set* decision to both the primary record and its fallback is not: this process
+    /// withholds correctly, and a restart before the next attempt would not. That residual window is
+    /// the reason the return value is surfaced rather than discarded.
     /// </para>
     /// </remarks>
     /// <returns><see langword="true"/> when the decision reached disk.</returns>
-    public bool Write(bool detailsWithheld)
+    public bool Write(AuthorizationSuppressionReason reason)
+    {
+        if (!Enum.IsDefined(reason))
+        {
+            _logger.Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Failed);
+            return false;
+        }
+
+        var record = new Record
+        {
+            DetailsWithheld = reason != AuthorizationSuppressionReason.None,
+            Reason = reason,
+        };
+
+        if (TryWriteRecord(
+                _paths.AuthorizationSuppressionFilePath,
+                _paths.AuthorizationSuppressionTempFilePath,
+                record))
+        {
+            if (reason != AuthorizationSuppressionReason.None)
+            {
+                return true;
+            }
+
+            return TryDeleteFallback();
+        }
+
+        // A failed recovery write is already safe: the old record remains withholding. A failed
+        // withholding write is different, so preserve the reason in a dedicated marker that generic
+        // interrupted-operation recovery never enumerates.
+        return reason != AuthorizationSuppressionReason.None
+            && TryWriteRecord(
+                _paths.AuthorizationSuppressionFallbackFilePath,
+                _paths.AuthorizationSuppressionFallbackTempFilePath,
+                record);
+    }
+
+    private bool TryWriteRecord(string path, string temporaryPath, Record record)
     {
         try
         {
             Directory.CreateDirectory(_paths.RootDirectory);
+            File.WriteAllBytes(temporaryPath, JsonSerializer.SerializeToUtf8Bytes(record));
 
-            byte[] payload = JsonSerializer.SerializeToUtf8Bytes(
-                new Record { DetailsWithheld = detailsWithheld });
-
-            File.WriteAllBytes(_paths.AuthorizationSuppressionTempFilePath, payload);
-
-            if (File.Exists(_paths.AuthorizationSuppressionFilePath))
+            if (File.Exists(path))
             {
-                File.Replace(
-                    _paths.AuthorizationSuppressionTempFilePath,
-                    _paths.AuthorizationSuppressionFilePath,
-                    destinationBackupFileName: null);
+                File.Replace(temporaryPath, path, destinationBackupFileName: null);
             }
             else
             {
-                File.Move(
-                    _paths.AuthorizationSuppressionTempFilePath,
-                    _paths.AuthorizationSuppressionFilePath);
+                File.Move(temporaryPath, path);
             }
 
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _logger.Record(OperationalEventId.StateCommitFailed, OperationalOutcome.Failed);
+            return false;
+        }
+    }
+
+    private bool TryDeleteFallback()
+    {
+        try
+        {
+            File.Delete(_paths.AuthorizationSuppressionFallbackFilePath);
             return true;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
